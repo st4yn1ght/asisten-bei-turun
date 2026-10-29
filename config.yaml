@@ -21,11 +21,11 @@ risiko:
 
 biaya:
   fee_beli_pct: 0.15
-  fee_jual_pct: 0.25                   # termasuk pajak penjualan; cocokkan dengan trade confirmation
+  fee_jual_pct: 0.15                   # termasuk pajak penjualan; cocokkan dengan trade confirmation
   fee_minimum_idr: 0                   # per transaksi beli atau jual; 0 = tidak ada
   pembulatan_fee: null                 # null = tidak dibulatkan; "rupiah_terdekat" (ROUND_HALF_UP) / "rupiah_ke_atas"
   slippage_pct: 0.10                   # per sisi; dipakai di sizing (sisi stop), backtest, dan jurnal
-  terverifikasi: false                 # ubah ke true setelah dicocokkan dengan trade confirmation
+  terverifikasi: true                 # ubah ke true setelah dicocokkan dengan trade confirmation
 
 entry:
   gap_maks_atr: 0.5                    # harga_maks = close_t + 0.5 × ATR_t
