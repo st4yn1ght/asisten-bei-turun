@@ -1,0 +1,221 @@
+"""CLI asisten-bei-turun (SPEC §19.2). Langkah pertama: pasang penyaring rahasia (§19.5).
+
+    python -m asisten_bei_turun [--config config.yaml] [--akar DIR] <perintah> [opsi]
+
+Opsi global boleh ditulis sebelum atau sesudah nama perintah. Kode keluar §20.1; kesalahan argumen
+diperlakukan sebagai input tidak valid (3), bukan kode 2 argparse (kode 2 berarti data belum tersedia).
+"""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+import traceback
+from collections.abc import Callable, Sequence
+
+from . import DISCLAIMER, DISCLAIMER_SINGKAT, __version__, operasional
+
+PERINTAH_BELUM_TERSEDIA: dict[str, str] = {}  # perintah → tahap (§23); semua perintah sudah tersedia
+
+
+class KesalahanArgumen(Exception):
+    pass
+
+
+class _Parser(argparse.ArgumentParser):
+    def error(self, message: str):  # argparse memanggil sys.exit(2); kode 2 di sini berarti data
+        raise KesalahanArgumen(f"{self.prog}: {message}")
+
+
+def buat_parser() -> argparse.ArgumentParser:
+    umum = argparse.ArgumentParser(add_help=False)
+    umum.add_argument("--config", default=argparse.SUPPRESS, metavar="PATH",
+                      help="berkas config (default: config.yaml di folder kerja; .bat menjalankan dari folder proyek)")
+    umum.add_argument("--akar", default=argparse.SUPPRESS, metavar="DIR",
+                      help="dasar semua path relatif di config (default: folder berisi config)")
+
+    p = _Parser(prog="asisten_bei_turun", description="Asisten keputusan saham BEI — " + DISCLAIMER_SINGKAT,
+                parents=[umum])
+    p.add_argument("--versi", action="version", version=f"asisten-bei-turun {__version__} — {DISCLAIMER_SINGKAT}")
+    sub = p.add_subparsers(dest="perintah", metavar="perintah", parser_class=_Parser)
+    sub.required = True
+
+    def tambah(nama: str, bantuan: str) -> argparse.ArgumentParser:
+        return sub.add_parser(nama, parents=[umum], help=bantuan, description=f"{bantuan}. {DISCLAIMER_SINGKAT}")
+
+    cek = tambah("cek", "validasi config + input")
+    cek.add_argument("--silang", nargs=2, metavar=("KODE", "TANGGAL"),
+                     help="cetak bar cache, F(d), dan nilai nominal untuk dicocokkan dengan sumber resmi")
+
+    unduh = tambah("unduh", "perbarui cache data harga")
+    unduh.add_argument("--penuh", action="store_true", help="unduh ulang penuh semua simbol")
+    unduh.add_argument("--simbol", metavar="K1,K2", help="hanya simbol ini (pisahkan dengan koma)")
+
+    bt = tambah("backtest", "backtest (§16)")
+    bt.add_argument("--strategi", metavar="pb,bo,mr,acak",
+                    help="hanya run strategi ini (default: semua, ditambah run gabungan_aktif dan gabungan_lolos)")
+    bt.add_argument("--mode", metavar="edge,realistis", help="hanya mode ini (default: semua)")
+    h = tambah("harian", "run harian (§18)")
+    h.add_argument("--jadwal", action="store_true",
+                   help="mode terjadwal: tunggu batas bar final dan data hari ini; keluar 0 bila t sudah LENGKAP")
+    h.add_argument("--offline", action="store_true", help="hanya membaca cache (tanpa unduh)")
+    h.add_argument("--tanggal", metavar="YYYY-MM-DD", help="replay untuk hari bursa ini (tidak mencatat ke jurnal)")
+    h.add_argument("--tanpa-notifikasi", action="store_true", help="jangan kirim Telegram")
+    h.add_argument("--catat", action="store_true", help="replay --tanggal tetap mencatat ke jurnal")
+    h.add_argument("--catat-ulang", action="store_true",
+                   help="hapus sinyal tanggal yang diproses di jurnal lalu bangkitkan ulang (dicatat di run.catatan)")
+    j = tambah("jurnal", "jurnal kertas (§17)")
+    j.add_argument("--ekspor", action="store_true", help="ekspor setiap tabel ke output/jurnal/<tabel>.csv")
+    j.add_argument("--rekonsiliasi", action="store_true",
+                   help="bandingkan sinyal yang ditampilkan live dengan sinyal dari data terkini")
+    tg = tambah("uji-telegram", "uji notifikasi Telegram (§18.3)")
+    tg.add_argument("--cari-chat-id", action="store_true")
+    return p
+
+
+def _jalankan(args: argparse.Namespace, keluar: Callable[[str], None]) -> int:
+    from .config import muat_config
+
+    ctx = muat_config(getattr(args, "config", "config.yaml"), getattr(args, "akar", None))
+    log = operasional.siapkan_log(ctx)
+    log.info("mulai: %s (asisten-bei-turun %s)", args.perintah, __version__)
+    try:
+        if args.perintah == "cek":
+            from .cek import jalankan_cek
+
+            silang = tuple(args.silang) if args.silang else None
+            return jalankan_cek(ctx, silang_kode=silang, keluar=keluar).kode_keluar
+        if args.perintah == "unduh":
+            from .unduh import jalankan_unduh, parse_daftar_simbol
+
+            try:
+                simbol = parse_daftar_simbol(args.simbol) if args.simbol is not None else None
+            except ValueError as e:
+                raise KesalahanArgumen(f"--simbol: {e}") from None
+            return jalankan_unduh(ctx, penuh=args.penuh, simbol=simbol, keluar=keluar).kode_keluar
+        if args.perintah == "backtest":
+            from .backtest.jalankan import jalankan_backtest, parse_daftar_mode, parse_daftar_strategi
+
+            try:
+                strategi = parse_daftar_strategi(args.strategi) if args.strategi is not None else None
+            except ValueError as e:
+                raise KesalahanArgumen(f"--strategi: {e}") from None
+            try:
+                mode = parse_daftar_mode(args.mode) if args.mode is not None else None
+            except ValueError as e:
+                raise KesalahanArgumen(f"--mode: {e}") from None
+            return jalankan_backtest(ctx, strategi=strategi, mode=mode, keluar=keluar).kode_keluar
+        if args.perintah == "harian":
+            from datetime import date
+
+            from .harian import OpsiHarian, jalankan_harian
+
+            tanggal = None
+            if args.tanggal is not None:
+                try:
+                    tanggal = date.fromisoformat(args.tanggal.strip())
+                except ValueError:
+                    raise KesalahanArgumen(f"--tanggal: {args.tanggal!r} bukan tanggal YYYY-MM-DD") from None
+            if args.catat and tanggal is None:
+                keluar("Catatan: --catat hanya berpengaruh bersama --tanggal; run biasa selalu mencatat ke jurnal.")
+            opsi = OpsiHarian(jadwal=args.jadwal, offline=args.offline, tanggal=tanggal,
+                              tanpa_notifikasi=args.tanpa_notifikasi, catat=args.catat, catat_ulang=args.catat_ulang)
+            return jalankan_harian(ctx, opsi, keluar=keluar).kode_keluar
+        if args.perintah == "jurnal":
+            from .harian import jalankan_jurnal
+
+            return jalankan_jurnal(ctx, ekspor=args.ekspor, rekonsiliasi=args.rekonsiliasi, keluar=keluar).kode_keluar
+        if args.perintah == "uji-telegram":
+            from .notifikasi.telegram import jalankan_uji_telegram
+
+            return jalankan_uji_telegram(ctx, cari_chat_id=args.cari_chat_id, keluar=keluar)
+        tahap = PERINTAH_BELUM_TERSEDIA[args.perintah]
+        keluar(f"Perintah {args.perintah} belum tersedia pada versi ini (dikerjakan pada {tahap}, SPEC §23).")
+        keluar("")
+        keluar(DISCLAIMER)
+        return operasional.KODE_ERROR
+    finally:
+        log.info("selesai: %s", args.perintah)
+
+
+def _error_jadwal(args: argparse.Namespace | None, kode: int, rincian: str | list[str],
+                  keluar: Callable[[str], None]) -> None:
+    """`harian --jadwal` yang berakhir dengan kode 1, 3, atau 5 (tanpa laporan) → pesan error Telegram (§18.3).
+    Kode 2 dan 6 sudah tercantum di pesan laporan harian. Config tidak valid: tetap dicoba lewat `.env` di --akar
+    (atau folder config), karena status `aktif` tidak bisa dibaca."""
+    if args is None or getattr(args, "perintah", None) != "harian" or not getattr(args, "jadwal", False):
+        return
+    if getattr(args, "tanpa_notifikasi", False):
+        return
+    from pathlib import Path
+
+    config = Path(getattr(args, "config", "config.yaml"))
+    akar = Path(getattr(args, "akar", None) or config.resolve().parent)
+    try:
+        from .config import muat_config
+
+        if not muat_config(config, akar).cfg.notifikasi.telegram.aktif:
+            return
+    except Exception:
+        pass  # config tidak valid: tetap coba kirim
+    from .notifikasi.telegram import kirim_error
+
+    hasil = kirim_error(akar, f"run harian terjadwal gagal (kode keluar {kode})", rincian)
+    if not hasil.berhasil:
+        keluar("PERINGATAN: Notifikasi Telegram gagal: " + "; ".join(hasil.galat))
+
+
+def main(argv: Sequence[str] | None = None, keluar: Callable[[str], None] | None = None) -> int:
+    operasional.pasang_penyaring_rahasia()
+    keluar = keluar or (lambda s: print(s, flush=True))
+    from .config import ConfigTidakValid
+    from .inputs import InputTidakValid
+
+    log = logging.getLogger(operasional.NAMA_LOGGER)
+    args = None
+    try:
+        args = buat_parser().parse_args(argv)
+        keluar(DISCLAIMER_SINGKAT)
+        return _jalankan(args, keluar)
+    except KesalahanArgumen as e:
+        keluar(f"ERROR argumen: {e}")
+        keluar("Lihat `python -m asisten_bei_turun --help`.")
+        keluar(DISCLAIMER_SINGKAT)
+        return operasional.KODE_INPUT
+    except ConfigTidakValid as e:
+        keluar("ERROR config tidak valid:")
+        for m in e.pesan:
+            keluar(f"  - {m}")
+        _error_jadwal(args, operasional.KODE_INPUT, ["config tidak valid:", *e.pesan], keluar)
+        keluar(DISCLAIMER)
+        return operasional.KODE_INPUT
+    except InputTidakValid as e:
+        keluar("ERROR input tidak valid (jalankan cek untuk rinciannya):")
+        for m in e.masalah:
+            keluar(f"  - {m}")
+        _error_jadwal(args, operasional.KODE_INPUT, ["input tidak valid:", *(str(m) for m in e.masalah)], keluar)
+        keluar(DISCLAIMER)
+        return operasional.KODE_INPUT
+    except operasional.KunciDipegang as e:
+        keluar(f"ERROR: {e}")
+        _error_jadwal(args, operasional.KODE_KUNCI, str(e), keluar)
+        keluar(DISCLAIMER_SINGKAT)
+        return operasional.KODE_KUNCI
+    except KeyboardInterrupt:
+        keluar("Dihentikan pengguna.")
+        return operasional.KODE_ERROR
+    except Exception as e:  # error tak terduga: kode 1, jejak lengkap ke log & stderr (tersensor)
+        if log.handlers:  # tanpa handler (config gagal dimuat) logging mencetak jejak ganda ke stderr
+            log.exception("error tak terduga")
+        keluar(f"ERROR tak terduga: {type(e).__name__}: {e}")
+        print(traceback.format_exc(), file=sys.stderr)
+        _error_jadwal(args, operasional.KODE_ERROR, f"error tak terduga: {type(e).__name__}: {e}", keluar)
+        keluar(DISCLAIMER_SINGKAT)
+        return operasional.KODE_ERROR
+    finally:
+        operasional.tutup_log()
+
+
+if __name__ == "__main__":  # pragma: no cover
+    sys.exit(main())
