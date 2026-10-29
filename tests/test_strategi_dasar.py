@@ -21,14 +21,14 @@ T = tgl(N - 1)
 class _Uji(Strategi):
     """Strategi uji: semua aturan lolos, level dari parameter (ruang tersesuaikan)."""
 
-    kode = "PB"
+    kode = "TP"
 
     def __init__(self, cfg, *, close, atr, stop, maks_jarak=None):
         super().__init__(cfg)
         self._close, self._atr, self._stop, self._maks = close, atr, stop, maks_jarak
 
     def evaluasi(self, dv, kode, bei):
-        cek = [CekAturan("PB1", "uji", True)]
+        cek = [CekAturan("TP1", "uji", True)]
         return self._bangun_sinyal(
             dv, kode, cek, close=self._close, atr=self._atr, stop_tersesuaikan=self._stop,
             k_sinyal=0.5, target_r=2.0, rata_nilai=1e10, maks_jarak_stop_atr=self._maks,
@@ -68,7 +68,7 @@ def test_stop_tidak_sah_gagal_cek_stop_tanpa_pengecualian(kw):
     ev = _ev(**kw)
     assert ev.sinyal is None
     assert ev.aturan_gagal == ["STOP"]
-    assert [c.kode for c in ev.cek] == ["PB1", "STOP"]
+    assert [c.kode for c in ev.cek] == ["TP1", "STOP"]
 
 
 @pytest.mark.parametrize("stop", [1e-9, 4e-7, 7.1e-15])

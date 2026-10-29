@@ -41,7 +41,7 @@ def pesan_harian(lap: "LaporanHarian", *, kode_keluar: int = 0) -> str:
         baris.append("")
         baris.append("<b>Rencana beli</b>")
         for r in lap.rencana:
-            target = _h(r.target[-1][2]) if r.target else ("trailing" if r.strategi == "BO" else "keluar SMA")
+            target = _h(r.target[-1][2]) if r.target else ("trailing" if r.strategi == "TB" else "keluar SMA")
             baris.append(f"• {e(r.kode)} {e(r.strategi)}: {r.lot} lot, limit <code>{e(_h(r.harga_maks))}</code>, "
                          f"stop <code>{e(_h(r.stop))}</code>, target {e(target)}, risiko {e(teks.rupiah(r.risiko_idr))}")
             for g in r.ketergantungan:

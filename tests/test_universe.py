@@ -247,7 +247,7 @@ def test_urutan_syarat_konstituen_lalu_exclude_lalu_data():
 def test_portofolio_tidak_memengaruhi_eligibilitas():
     from asisten_bei_turun.inputs import BarisPortofolio
 
-    p = BarisPortofolio("AAAA", tgl(T - 3), Decimal(1000), 1, "PB", Decimal(950), None, None, None, "", 2)
+    p = BarisPortofolio("AAAA", tgl(T - 3), Decimal(1000), 1, "TP", Decimal(950), None, None, None, "", 2)
     assert _nilai({"AAAA": _datar()}, _masukan(portofolio=[p])).status["AAAA"].eligible
 
 

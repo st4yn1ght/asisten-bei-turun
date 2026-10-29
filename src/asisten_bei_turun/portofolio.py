@@ -12,7 +12,7 @@ Untuk setiap baris:
    sudah diperbarui ke nilai pasca-split dan baris yang dibiarkan sama-sama benar, tanpa penyesuaian ganda.
 2. **Pemutaran ulang (§15.4).** Mesin exit bersama (`exit.py`, §15.1) diputar dari `tanggal_beli` sampai `t`
    dengan `harga_beli` sebagai harga isi: hari entry = `keluar_hari_entry` → `intraday(hari_entry=True)` →
-   `tutup`; hari berikutnya = `buka` → `intraday` → `tutup`. Target PB = harga beli + `target_r` × (harga beli
+   `tutup`; hari berikutnya = `buka` → `intraday` → `tutup`. Target TP = harga beli + `target_r` × (harga beli
    − stop_awal), dibulatkan ke bawah pada tanggal beli. Risiko rencana = `lembar × risiko_lembar(harga_beli,
    stop_awal)` (§4.1: harga_beli menggantikan harga_maks); ≤ 0 → R "n/a".
 3. **Saran**, kondisi pertama yang cocok (§15.4 #1–#7): TIDAK_DAPAT_DIEVALUASI, INFO_MANUAL, JUAL (stop_awal ≥
@@ -55,7 +55,7 @@ TIDAK_DAPAT_DIEVALUASI = "TIDAK_DAPAT_DIEVALUASI"
 INFO_MANUAL = "INFO_MANUAL"
 
 MANUAL = "MANUAL"
-STRATEGI_DIPUTAR = frozenset({"PB", "BO", "MR"})
+STRATEGI_DIPUTAR = frozenset({"TP", "TB", "PJ"})
 
 # Exit oleh order otomatis pada t (§15.4 #5); exit lain pada t berasal dari jual terjadwal (#4).
 EXIT_ORDER_OTOMATIS = frozenset({
@@ -230,11 +230,11 @@ def bangun_posisi(baris: "BarisPortofolio", dv: "DataView", sektor: str, cfg: "C
     fee = biaya.fee_beli(nilai, cfg)
     risiko = lembar_nom * biaya.risiko_lembar(_d(baris.harga_beli), _d(baris.stop_awal), cfg)
     target = None
-    if baris.strategi == "PB" and _d(baris.harga_beli) > _d(baris.stop_awal):
+    if baris.strategi == "TP" and _d(baris.harga_beli) > _d(baris.stop_awal):
         from .strategi.dasar import hitung_target
 
         isi_nom, stop_nom = ex._nom(harga, f_tb), ex._nom(stop, f_tb)
-        target = hitung_target(isi_nom, stop_nom, float(cfg.strategi.pb.target_r), bei, tb) / f_tb
+        target = hitung_target(isi_nom, stop_nom, float(cfg.strategi.tp.target_r), bei, tb) / f_tb
     return ex.Posisi(
         kode=kode, strategi=baris.strategi, sektor=sektor, tanggal_sinyal=tb, tanggal_entry=tb,
         lembar=lembar, harga_beli=harga, biaya_beli_idr=nilai + fee, fee_beli_idr=fee,
@@ -344,12 +344,12 @@ def putar_ulang(
 def _alasan_jadwal(alasan: str, pos: ex.Posisi, dv: "DataView", cfg: "Config", hari_ke: int, f_t: Decimal) -> str:
     """Teks alasan jual terjadwal dari close t (§15.4 #6)."""
     if alasan == ex.KELUAR_SMA:
-        n = int(cfg.strategi.mr.sma_keluar)
+        n = int(cfg.strategi.pj.sma_keluar)
         baris = dv.baris(pos.kode)
         sma = float(baris[k_sma(n)]) if baris is not None else math.nan
         close = pos.close_valid_terakhir
         teks_sma = teks.STRIP if math.isnan(sma) else _h(ex._nom(_d(sma), f_t))
-        return f"MR: close {_h(None if close is None else ex._nom(close, f_t))} > SMA{n} {teks_sma}"
+        return f"PJ: close {_h(None if close is None else ex._nom(close, f_t))} > SMA{n} {teks_sma}"
     if alasan == ex.STOP_WAKTU:
         p = ex._param_strategi(cfg, pos.strategi)
         return f"stop waktu: hari ke-{hari_ke} ≥ {int(p.stop_waktu_hari)} hari ({pos.strategi})"
@@ -406,7 +406,7 @@ def evaluasi_baris(
         lonjakan = lonjakan_tanpa_split(dv, kode, baris.tanggal_beli,
                                         float(cfg.data.validasi.lonjakan_mencurigakan_pct), anomali_ok)
 
-    # Pemutaran ulang: PB/BO/MR dengan risiko > 0, data ada, dan bukan §15.3.
+    # Pemutaran ulang: TP/TB/PJ dengan risiko > 0, data ada, dan bukan §15.3.
     putar: _Putar | None = None
     if ada and baris.strategi in STRATEGI_DIPUTAR and risiko is not None and lonjakan is None:
         putar = putar_ulang(pos, pasar, t, bei=bei, status_pasar_pada=status_pasar_pada)

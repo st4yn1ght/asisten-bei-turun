@@ -47,7 +47,7 @@ fee jual 0,25%, dan slippage 0,10% sudah dihitung. Lot dihitung dari `harga_maks
 | 10% | ≈ Rp 2.870 | ≈ Rp 1.430 | ≈ Rp 287 ribu |
 | 12% | ≈ Rp 2.410 | ≈ Rp 1.200 | ≈ Rp 241 ribu |
 
-Jarak stop tipikal pada saham dengan ATR 2–3% dari harga: BO ≈ 5–7,4%, MR ≈ 6–8,9%; PB paling bervariasi.
+Jarak stop tipikal pada saham dengan ATR 2–3% dari harga: TB ≈ 5–7,4%, PJ ≈ 6–8,9%; TP paling bervariasi.
 
 Akibatnya:
 
@@ -204,14 +204,14 @@ Bila data hari itu belum lengkap, program menunggu dan mencoba lagi (`data.tungg
 |---|---|
 | Malam (setelah laporan ± 19:30) | Baca ringkasan aksi di Telegram atau `laporan.html`. Siapkan order untuk besok. |
 | Pagi `t+1`, sebelum pra-pembukaan | Pasang order **BELI limit di harga_maks** sesuai laporan. Pasang order JUAL untuk saran "JUAL di pembukaan" dengan cara yang membuat order terisi di harga pembukaan (sesuai fitur broker Anda). |
-| Segera setelah pembukaan | Cek setiap order beli. Tidak terisi → **tarik**. Terisi sebagian → tarik sisanya. Terisi → **pasang order otomatis stop (dan target untuk PB) hari itu juga**. Bila harga isi ≤ stop → jual segera. |
+| Segera setelah pembukaan | Cek setiap order beli. Tidak terisi → **tarik**. Terisi sebagian → tarik sisanya. Terisi → **pasang order otomatis stop (dan target untuk TP) hari itu juga**. Bila harga isi ≤ stop → jual segera. |
 | Setelah ada transaksi | Perbarui `input\portfolio.csv` dan `input\akun.yaml` (contoh di bawah). |
-| Setiap sore, posisi BO | Perbarui level order otomatis stop (trailing) sesuai laporan. |
+| Setiap sore, posisi TB | Perbarui level order otomatis stop (trailing) sesuai laporan. |
 
 **Contoh dengan angka fiktif:**
 
-- **Beli terisi:** 1 lot `AAAA` di 2.010, strategi PB, stop 1.888.
-  - Tambah baris di `portfolio.csv`: `AAAA,2026-10-16,2010,1,PB,1888,,,,`
+- **Beli terisi:** 1 lot `AAAA` di 2.010, strategi TP, stop 1.888.
+  - Tambah baris di `portfolio.csv`: `AAAA,2026-10-16,2010,1,TP,1888,,,,`
   - Kurangi kas di `akun.yaml` sebesar 2.010 × 100 × 1,0015 = **201.301,50**, lalu ubah `diperbarui`.
   - Target = 2.010 + 2 × (2.010 − 1.888) = **2.254**.
 - **Jual 1 lot di 2.254:**
@@ -241,7 +241,7 @@ Laporan juga mengingatkan bila rekomendasi kemarin menurut data seharusnya teris
 | `pasang.bat` | — | Membuat `.venv` dan memasang dependensi |
 | `cek.bat` | `cek [--silang KODE TANGGAL]` | Validasi config + semua input (hanya membaca); `--silang` mencetak satu bar untuk dicocokkan dengan sumber resmi |
 | `unduh.bat` | `unduh [--penuh] [--simbol K1,K2]` | Memperbarui cache harga |
-| `backtest.bat` | `backtest [--strategi pb,bo,mr,acak] [--mode edge,realistis]` | Backtest dan gerbang |
+| `backtest.bat` | `backtest [--strategi tp,tb,pj,acak] [--mode edge,realistis]` | Backtest dan gerbang |
 | `harian.bat` | `harian [--offline] [--tanggal D] [--tanpa-notifikasi] [--catat] [--catat-ulang]` | Laporan harian (+ Telegram) |
 | `harian_terjadwal.bat` | `harian --jadwal` | Dipanggil Task Scheduler |
 | `jurnal.bat` | `jurnal [--ekspor] [--rekonsiliasi]` | Ringkasan jurnal kertas (paper trading), ekspor CSV, rekonsiliasi |
@@ -303,7 +303,7 @@ Setelah instalasi dan setiap upgrade dependensi (SPEC §22.3):
    - Setelah itu setel `pengali_volume_terverifikasi: true`.
 4. `backtest.bat` → ringkasan terbuka. ACAK tidak tampak menguntungkan. Jumlah transaksi per tahun masuk akal.
    Grafik IHSG sesuai pengetahuan umum (mis. penurunan tajam 2020).
-5. **Hitung tangan** satu transaksi dari `transaksi_pb_edge.csv`: sinyal tampak di grafik; harga entry =
+5. **Hitung tangan** satu transaksi dari `transaksi_tp_edge.csv`: sinyal tampak di grafik; harga entry =
    min(open hari berikutnya × 1,001, harga_maks); exit sesuai aturan; fee benar.
 6. `harian.bat` → baca laporan dan hitung ulang sizing satu kandidat dengan kalkulator (rumus SPEC §14.1).
 7. `uji_telegram.bat` → pesan diterima.

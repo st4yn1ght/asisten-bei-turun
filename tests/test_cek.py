@@ -308,11 +308,11 @@ def test_keluaran_selalu_memuat_disclaimer(akar_uji, siapkan):
     [
         ("universe.csv", "kode,nama,sektor\nAAAA,Satu,Keuangan\nAAAA,Dua,Energi\n"),  # kode ganda
         ("universe.csv", "kode,nama\nAAAA,Satu\n"),  # kolom sektor wajib hilang
-        ("portfolio.csv", HEADER_PORTO + "AAAA,2026-10-08,1500,0,PB,1400,,,,\n"),  # lot < 1
+        ("portfolio.csv", HEADER_PORTO + "AAAA,2026-10-08,1500,0,TP,1400,,,,\n"),  # lot < 1
         ("portfolio.csv", HEADER_PORTO + "AAAA,2026-10-08,1500,1,XX,1400,,,,\n"),  # strategi bukan enum
-        ("portfolio.csv", HEADER_PORTO + "AAAA,2026-10-16,1500,1,PB,1400,,,,\n"),  # tanggal_beli > t
-        ("portfolio.csv", HEADER_PORTO + "AAAA,2026-10-10,1500,1,PB,1400,,,,\n"),  # Sabtu
-        ("portfolio.csv", HEADER_PORTO + "AAAA,2026-12-25,1500,1,PB,1400,,,,\n"),  # libur & > t
+        ("portfolio.csv", HEADER_PORTO + "AAAA,2026-10-16,1500,1,TP,1400,,,,\n"),  # tanggal_beli > t
+        ("portfolio.csv", HEADER_PORTO + "AAAA,2026-10-10,1500,1,TP,1400,,,,\n"),  # Sabtu
+        ("portfolio.csv", HEADER_PORTO + "AAAA,2026-12-25,1500,1,TP,1400,,,,\n"),  # libur & > t
     ],
     ids=["kode_ganda", "kolom_hilang", "lot_nol", "strategi_asing", "beli_sesudah_t", "beli_sabtu", "beli_libur"],
 )
@@ -324,14 +324,14 @@ def test_input_error_kode_3(akar_uji, berkas, isi):
 
 
 def test_tanggal_beli_sama_dengan_t_sah(akar_uji):
-    tulis_input(akar_uji, "portfolio.csv", HEADER_PORTO + "AAAA,2026-10-15,1500,1,PB,1400,,,,\n")
+    tulis_input(akar_uji, "portfolio.csv", HEADER_PORTO + "AAAA,2026-10-15,1500,1,TP,1400,,,,\n")
     assert cek(akar_uji).kode == 0
 
 
 def test_tanggal_beli_t_sebelum_batas_bar_final_error(akar_uji, atur_waktu):
     """19:00 < jam_run 19:30 → t = 2026-10-14, jadi tanggal_beli 2026-10-15 > t."""
     atur_waktu("2026-10-15T19:00:00+07:00")
-    tulis_input(akar_uji, "portfolio.csv", HEADER_PORTO + "AAAA,2026-10-15,1500,1,PB,1400,,,,\n")
+    tulis_input(akar_uji, "portfolio.csv", HEADER_PORTO + "AAAA,2026-10-15,1500,1,TP,1400,,,,\n")
     h = cek(akar_uji)
     assert h.kode == 3
     assert h.ada("2026-10-14")  # t yang dipakai tercantum
@@ -339,7 +339,7 @@ def test_tanggal_beli_t_sebelum_batas_bar_final_error(akar_uji, atur_waktu):
 
 def test_tanggal_beli_pada_libur_holidays_error(akar_uji):
     tulis_libur(akar_uji, "2026-10-08", "2026-12-25", "2027-01-01")
-    tulis_input(akar_uji, "portfolio.csv", HEADER_PORTO + "AAAA,2026-10-08,1500,1,PB,1400,,,,\n")
+    tulis_input(akar_uji, "portfolio.csv", HEADER_PORTO + "AAAA,2026-10-08,1500,1,TP,1400,,,,\n")
     h = cek(akar_uji)
     assert h.kode == 3
     assert any("portfolio.csv" in b and "2026-10-08" in b for b in h.error()), h.teks
@@ -351,9 +351,9 @@ def test_tanggal_beli_pada_libur_holidays_error(akar_uji):
         ("universe.csv", "kode;nama;sektor\nAAAA;Satu (FIKTIF);Keuangan\n"),
         ("exclude.csv", "kode;alasan;tanggal_mulai;tanggal_akhir\n"),
         ("holidays.csv", f"tanggal;keterangan\n2026-12-25;{FIKTIF}\n2027-01-01;{FIKTIF}\n"),
-        ("portfolio.csv", HEADER_PORTO + 'AAAA,2026-10-08,"1500,5",1,PB,1400,,,,\n'),  # koma desimal
-        ("portfolio.csv", HEADER_PORTO + "AAAA,2026-10-08,1500,5,1,PB,1400,,,,\n"),  # koma desimal tak berkutip
-        ("portfolio.csv", HEADER_PORTO + "AAAA,08/10/2026,1500,1,PB,1400,,,,\n"),  # format tanggal lain
+        ("portfolio.csv", HEADER_PORTO + 'AAAA,2026-10-08,"1500,5",1,TP,1400,,,,\n'),  # koma desimal
+        ("portfolio.csv", HEADER_PORTO + "AAAA,2026-10-08,1500,5,1,TP,1400,,,,\n"),  # koma desimal tak berkutip
+        ("portfolio.csv", HEADER_PORTO + "AAAA,08/10/2026,1500,1,TP,1400,,,,\n"),  # format tanggal lain
         ("holidays.csv", f"tanggal,keterangan\n25/12/2026,{FIKTIF}\n2027-01-01,{FIKTIF}\n"),
     ],
     ids=["universe_titik_koma", "exclude_titik_koma", "libur_titik_koma", "koma_desimal_berkutip",
@@ -369,7 +369,7 @@ def test_format_regional_indonesia_error_dengan_pesan_khusus(akar_uji, berkas, i
 
 def test_bom_excel_diterima(akar_uji):
     tulis_input(akar_uji, "universe.csv", "kode,nama,sektor\nAAAA,Satu (FIKTIF),Keuangan\n", encoding="utf-8-sig")
-    tulis_input(akar_uji, "portfolio.csv", HEADER_PORTO + "AAAA,2026-10-08,1500,1,PB,1400,,,,\n", encoding="utf-8-sig")
+    tulis_input(akar_uji, "portfolio.csv", HEADER_PORTO + "AAAA,2026-10-08,1500,1,TP,1400,,,,\n", encoding="utf-8-sig")
     h = cek(akar_uji)
     assert h.kode == 0, h.teks
     assert h.error() == []
@@ -380,7 +380,7 @@ def test_bom_excel_diterima(akar_uji):
     [
         ("ZZZZ,2026-10-08,1500,1,MANUAL,1400,,,,", 3),  # di luar universe, sektor kosong → ERROR
         ("ZZZZ,2026-10-08,1500,1,MANUAL,1400,Properti,,,", 0),  # di luar universe, sektor diisi
-        ("AAAA,2026-10-08,1500,1,PB,1400,,,,", 0),  # di universe: sektor boleh kosong
+        ("AAAA,2026-10-08,1500,1,TP,1400,,,,", 0),  # di universe: sektor boleh kosong
     ],
     ids=["luar_universe_tanpa_sektor", "luar_universe_bersektor", "dalam_universe_tanpa_sektor"],
 )
@@ -399,7 +399,7 @@ def test_sektor_portofolio_wajib_bila_di_luar_universe(akar_uji, baris, kode_har
 )
 def test_stop_awal_tidak_di_bawah_harga_beli_hanya_peringatan(akar_uji, stop, peringatan):
     """§6.5: stop_awal ≥ harga_beli → PERINGATAN (bukan ERROR), kode 0."""
-    tulis_input(akar_uji, "portfolio.csv", HEADER_PORTO + f"AAAA,2026-10-08,1500,1,PB,{stop},,,,\n")
+    tulis_input(akar_uji, "portfolio.csv", HEADER_PORTO + f"AAAA,2026-10-08,1500,1,TP,{stop},,,,\n")
     h = cek(akar_uji)
     assert h.kode == 0, h.teks
     assert h.error() == []
@@ -420,7 +420,7 @@ def test_umur_akun_hanya_peringatan(akar_uji, diperbarui, peringatan):
 
 
 def test_error_dan_peringatan_bersamaan_kode_3(akar_uji):
-    tulis_input(akar_uji, "portfolio.csv", HEADER_PORTO + "AAAA,2026-10-08,1500,1,PB,1600,,,,\n"
+    tulis_input(akar_uji, "portfolio.csv", HEADER_PORTO + "AAAA,2026-10-08,1500,1,TP,1600,,,,\n"
                 "ZZZZ,2026-10-08,900,1,MANUAL,800,,,,\n")
     (akar_uji / ".env.txt").write_text("x=1\n", encoding="utf-8")
     h = cek(akar_uji)
@@ -684,7 +684,7 @@ def test_tahun_tanpa_entri_holidays_tidak_dibandingkan(akar_uji):
 def tulis_holdout_log(akar: Path, *nilai: str) -> None:
     path = akar / "output" / "backtest" / "holdout_log.csv"
     path.parent.mkdir(parents=True, exist_ok=True)
-    baris = [f"2026-09-0{i + 1}T20:00:00+07:00,{v},abcd1234,ef567890,pb,edge,1.5,40\n" for i, v in enumerate(nilai)]
+    baris = [f"2026-09-0{i + 1}T20:00:00+07:00,{v},abcd1234,ef567890,tp,edge,1.5,40\n" for i, v in enumerate(nilai)]
     path.write_text(f"# {DISCLAIMER_TEKS}. Log holdout uji {FIKTIF}.\n" + HEADER_HOLDOUT + "".join(baris),
                     encoding="utf-8")
 

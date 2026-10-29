@@ -47,8 +47,8 @@ if TYPE_CHECKING:  # pragma: no cover
 
 log = logging.getLogger(__name__)
 
-STRATEGI_GERBANG: tuple[str, ...] = ("PB", "BO", "MR")  # ACAK tidak pernah dinilai gerbang (§12.4)
-STRATEGI_SEMUA: tuple[str, ...] = ("PB", "BO", "MR", "ACAK")
+STRATEGI_GERBANG: tuple[str, ...] = ("TP", "TB", "PJ")  # ACAK tidak pernah dinilai gerbang (§12.4)
+STRATEGI_SEMUA: tuple[str, ...] = ("TP", "TB", "PJ", "ACAK")
 MODE_GERBANG = "edge"
 
 FOLDER_BACKTEST = Path("output") / "backtest"
@@ -659,7 +659,7 @@ class BarisHoldoutLog:
     holdout_mulai: str
     hash_aturan: str  # global
     hash_input: str
-    strategi: str  # nama run (enum run_backtest, mis. "pb", "gabungan_aktif")
+    strategi: str  # nama run (enum run_backtest, mis. "tp", "gabungan_aktif")
     mode: str
     pf_r_holdout: str  # 4 desimal; "n/a" = tanpa kerugian; kosong = tanpa transaksi
     n_holdout: int

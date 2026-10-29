@@ -30,17 +30,17 @@ _TETAP = {
     "indikator.atr_periode": 14,
     "likuiditas.periode_hari": 20,
     "data.pengali_volume": 1,
-    "strategi.pb.sma_cepat": 20,
-    "strategi.pb.sma_tren": 50,
-    "strategi.pb.sma_panjang": 200,
-    "strategi.pb.lookback_swing_low": 5,
-    "strategi.bo.lookback_tertinggi": 20,
-    "strategi.bo.lookback_volume": 20,
-    "strategi.bo.sma_tren": 50,
-    "strategi.bo.sma_panjang": 200,
-    "strategi.mr.rsi_periode": 2,
-    "strategi.mr.sma_tren": 200,
-    "strategi.mr.sma_keluar": 5,
+    "strategi.tp.sma_cepat": 20,
+    "strategi.tp.sma_tren": 50,
+    "strategi.tp.sma_panjang": 200,
+    "strategi.tp.lookback_swing_low": 5,
+    "strategi.tb.lookback_tertinggi": 20,
+    "strategi.tb.lookback_volume": 20,
+    "strategi.tb.sma_tren": 50,
+    "strategi.tb.sma_panjang": 200,
+    "strategi.pj.rsi_periode": 2,
+    "strategi.pj.sma_tren": 200,
+    "strategi.pj.sma_keluar": 5,
     "kondisi_pasar.sma_pendek": 50,
     "kondisi_pasar.sma_panjang": 200,
     "kondisi_pasar.breadth_sma": 50,
@@ -342,7 +342,7 @@ class TestRSI:
 
     def test_bar_tanpa_transaksi_tidak_masuk(self):
         # Close bar volume 0 (50) akan membuat lonjakan naik palsu bila ikut.
-        cfg = _cfg({"strategi.mr.rsi_periode": 2})
+        cfg = _cfg({"strategi.pj.rsi_periode": 2})
         hasil = ind.hitung_indikator(VALID_A, cfg)["rsi_2"]
         _sama(hasil, ref_rsi(VALID_A["close"].tolist(), 2))
         # 2026-03-06: selisih bar valid = 11→13.5 (+2.5), bukan 50→13.5.
@@ -419,9 +419,9 @@ class TestHitungIndikator:
     def test_p4_kunci_config_mengubah_kolom(self):
         cfg = _cfg(
             {
-                "strategi.pb.sma_cepat": 7, "strategi.mr.rsi_periode": 3, "strategi.bo.lookback_tertinggi": 9,
-                "strategi.pb.lookback_swing_low": 4, "strategi.bo.lookback_volume": 11, "skor.rs_lookback": 13,
-                "kondisi_pasar.breadth_sma": 30, "strategi.mr.sma_keluar": 6,
+                "strategi.tp.sma_cepat": 7, "strategi.pj.rsi_periode": 3, "strategi.tb.lookback_tertinggi": 9,
+                "strategi.tp.lookback_swing_low": 4, "strategi.tb.lookback_volume": 11, "skor.rs_lookback": 13,
+                "kondisi_pasar.breadth_sma": 30, "strategi.pj.sma_keluar": 6,
             }
         )
         h = ind.hitung_indikator(_acak(80, 2), cfg)
@@ -464,7 +464,7 @@ class TestHitungIndikator:
             ind.hitung_indikator(VALID_A.iloc[::-1], _cfg())
 
     def test_data_a_lewat_hitung_indikator(self):
-        cfg = _cfg({"indikator.atr_periode": 3, "strategi.mr.sma_keluar": 3})
+        cfg = _cfg({"indikator.atr_periode": 3, "strategi.pj.sma_keluar": 3})
         h = ind.hitung_indikator(VALID_A, cfg)
         assert "2026-03-05" not in h.index.strftime("%Y-%m-%d")
         _sama(h["tr"], TR_A)

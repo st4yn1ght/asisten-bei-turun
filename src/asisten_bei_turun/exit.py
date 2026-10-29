@@ -13,7 +13,7 @@ Langkah per posisi per hari bursa `d` (dipanggil berurutan oleh pemakai, §16.2)
   stop → open × (1 − slip); gap di atas target → open (limit, tanpa slippage).
 - `intraday` (langkah 5–6): stop `low ≤ S` → `S × (1 − slip)`, didahulukan dari target; target `high ≥ T`
   → `T`. Di hari entry hanya bila `entry.stop_aktif_hari_entry`.
-- `tutup` (langkah 7): perbarui trailing BO (tidak pernah turun, dibulatkan ke atas, berlaku besok), lalu
+- `tutup` (langkah 7): perbarui trailing TB (tidak pernah turun, dibulatkan ke atas, berlaku besok), lalu
   aturan berbasis close untuk dijadwalkan jual di open berikutnya, prioritas
   `PAKSA_JUAL_PASAR` > `KELUAR_SMA` > `STOP_WAKTU`.
 
@@ -64,7 +64,7 @@ MELEWATI_HOLDOUT = "MELEWATI_HOLDOUT"
 URUTAN_TANDA = (ANOMALI, TERTUNDA_ARB, TERTUNDA_TANPA_TRANSAKSI, SUMBER_MANUAL, MELEWATI_HOLDOUT)
 
 PRIORITAS_JADWAL = (PAKSA_JUAL_PASAR, KELUAR_SMA, STOP_WAKTU)  # §15.1 langkah 7
-STRATEGI_TRAILING = frozenset({"BO"})  # exit pada level stop berlabel TRAILING (§4.3 catatan)
+STRATEGI_TRAILING = frozenset({"TB"})  # exit pada level stop berlabel TRAILING (§4.3 catatan)
 
 
 def _d(x) -> Decimal:
@@ -177,7 +177,7 @@ class Posisi:
     """Satu posisi terbuka. Harga & level di ruang tersesuaikan (Decimal); `lembar` = lembar_adj."""
 
     kode: str
-    strategi: str  # PB | BO | MR | ACAK
+    strategi: str  # TP | TB | PJ | ACAK
     sektor: str
     tanggal_sinyal: date
     tanggal_entry: date
@@ -186,7 +186,7 @@ class Posisi:
     biaya_beli_idr: Decimal
     fee_beli_idr: Decimal
     stop_awal: Decimal
-    stop: Decimal  # S yang berlaku untuk hari berikutnya (stop tetap atau trailing BO)
+    stop: Decimal  # S yang berlaku untuk hari berikutnya (stop tetap atau trailing TB)
     target: Decimal | None
     risiko_awal_idr: Decimal  # risiko rencana §4.1 (> 0)
     harga_maks: Decimal  # adj (rencana)
@@ -309,7 +309,7 @@ def biaya_isi(order: Order, bar: BarHari, cfg: "Config") -> tuple[Decimal, Decim
 
 def isi_order(order: Order, bar: BarHari, cfg: "Config", bei: AturanBEI) -> Posisi:
     """Buat posisi dari order yang terisi pada open `bar.tanggal` (pemakai sudah memastikan lolos semua
-    cek). Target PB/ACAK = harga beli + target_r × (harga beli − stop), nominal hari itu, ke bawah."""
+    cek). Target TP/ACAK = harga beli + target_r × (harga beli − stop), nominal hari itu, ke bawah."""
     lembar, harga, fee, total = biaya_isi(order, bar, cfg)
     stop_adj = order.stop / order.faktor_sinyal
     acuan_beli = min(bar.open, order.harga_maks / order.faktor_sinyal)
@@ -498,7 +498,7 @@ def perbarui_nilai(pos: Posisi, bar: BarHari) -> None:
 
 def _param_strategi(cfg: "Config", strategi: str):
     s = cfg.strategi
-    return {"PB": s.pb, "BO": s.bo, "MR": s.mr, "ACAK": s.acak}[strategi]
+    return {"TP": s.tp, "TB": s.tb, "PJ": s.pj, "ACAK": s.acak}[strategi]
 
 
 def tutup(
@@ -510,7 +510,7 @@ def tutup(
     kal: "Kalender",
     status_pasar: str | None,
 ) -> str | None:
-    """Langkah 7 §15.1 pada close `bar.tanggal`: nilai, trailing BO, lalu jadwal jual berbasis close.
+    """Langkah 7 §15.1 pada close `bar.tanggal`: nilai, trailing TB, lalu jadwal jual berbasis close.
     Mengembalikan alasan yang dijadwalkan (atau None). Bar tidak valid → tidak ada pembaruan.
     Nilai posisi diperbarui terpisah lewat `perbarui_nilai` (sebelum ekuitas dihitung, §16.2 langkah 4)."""
     if not pos.terbuka or not bar.valid:
@@ -519,7 +519,7 @@ def tutup(
     perbarui_nilai(pos, bar)
     p = _param_strategi(cfg, pos.strategi)
 
-    # Trailing BO: trail_d = max(trail_{d−1}, HHV_sejak_entry(high)_d − k × ATR_d), ke atas, berlaku besok.
+    # Trailing TB: trail_d = max(trail_{d−1}, HHV_sejak_entry(high)_d − k × ATR_d), ke atas, berlaku besok.
     if pos.strategi in STRATEGI_TRAILING:
         baris = dv.baris(pos.kode)
         atr = float(baris["atr"]) if baris is not None else math.nan
@@ -540,7 +540,7 @@ def tutup(
     if cfg.kondisi_pasar.jangan_beli_paksa_jual and status_pasar == JANGAN_BELI:
         alasan.append(PAKSA_JUAL_PASAR)
     hari_ke = kal.nomor_hari(pos.tanggal_entry, d)
-    if (pos.strategi == "MR" and hari_ke >= int(p.min_hari_tahan)
+    if (pos.strategi == "PJ" and hari_ke >= int(p.min_hari_tahan)
             and not _sma_melewati_split(dv, pos.kode, int(p.sma_keluar))):
         baris = dv.baris(pos.kode)
         sma = float(baris[k_sma(int(p.sma_keluar))]) if baris is not None else math.nan

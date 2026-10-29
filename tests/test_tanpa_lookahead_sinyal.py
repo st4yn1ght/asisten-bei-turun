@@ -9,7 +9,7 @@ Untuk setiap tanggal uji `t`, keluaran mesin dihitung dua kali:
 
 Yang dibandingkan (toleransi 0; NaN dianggap sama):
 
-- `EvaluasiStrategi` setiap strategi (PB, BO, MR, ACAK, dan ACAK berpeluang 100% agar level harga
+- `EvaluasiStrategi` setiap strategi (TP, TB, PJ, ACAK, dan ACAK berpeluang 100% agar level harga
   teruji di hampir setiap pasangan) atas setiap saham — termasuk teks setiap cek aturan;
 - setiap field `Sinyal` (harga_ref, harga_maks, stop, atr, faktor_split, k_sinyal, target_r,
   rata_nilai, fraksi_dipakai, valid, alasan_tidak_valid, …; daftar field diambil dari dataclass sehingga
@@ -202,9 +202,9 @@ def _normal(x):
 
 def test_bentuk_pembanding_memuat_semua_field_dan_peka():
     """Pembanding benar-benar memuat setiap field Sinyal dan membedakan perubahan sekecil apa pun."""
-    cek = (CekAturan("PB1", "close 1.000,00 > SMA50 990,00", True),)
+    cek = (CekAturan("TP1", "close 1.000,00 > SMA50 990,00", True),)
     s = Sinyal(
-        tanggal=date(2024, 1, 2), kode="AAAA", strategi="PB", cek=cek, harga_ref=Decimal("1000"),
+        tanggal=date(2024, 1, 2), kode="AAAA", strategi="TP", cek=cek, harga_ref=Decimal("1000"),
         harga_maks=Decimal("1010"), stop=Decimal("950"), atr=Decimal("20"), faktor_split=1.0, k_sinyal=0.5,
         target_r=2.0, rata_nilai=math.nan, fraksi_dipakai=False,
     )
@@ -221,7 +221,7 @@ def test_bentuk_pembanding_memuat_semua_field_dan_peka():
         {"k_sinyal": 0.5 + 1e-15},
         {"valid": False},
         {"rata_nilai": 1.0},
-        {"cek": (CekAturan("PB1", "close 1.000,00 > SMA50 990,01", True),)},
+        {"cek": (CekAturan("TP1", "close 1.000,00 > SMA50 990,01", True),)},
     ):
         assert _normal(dataclasses.replace(s, **ubah)) != bentuk, ubah
     # Decimal dengan nilai sama tetapi representasi berbeda tetap dianggap berbeda (hasil hitungan yang
@@ -302,13 +302,13 @@ TANGGAL_KHUSUS = [
 
 
 def _tanggal_bersinyal() -> list[pd.Timestamp]:
-    """Tanggal sinyal pertama setiap (strategi PB/BO/MR, saham) pada data penuh, plus setiap tanggal
+    """Tanggal sinyal pertama setiap (strategi TP/TB/PJ, saham) pada data penuh, plus setiap tanggal
     sinyal STOP_TERLALU_JAUH — menjamin uji tidak hampa untuk setiap strategi."""
     dp = pasar_penuh()
     bei = AturanBEI(CFG_LA)
     pertama: dict[tuple[str, str], pd.Timestamp] = {}
     tidak_valid: set[pd.Timestamp] = set()
-    utama = [(n, s) for n, s in STRATEGI if n in ("PB", "BO", "MR")]
+    utama = [(n, s) for n, s in STRATEGI if n in ("TP", "TB", "PJ")]
     for t in HARI[200:600]:
         dv = dp.tampilan(t.date())
         for k in KODE_UJI:
@@ -367,7 +367,7 @@ def test_t_la1b_sinyal_skor_stop_harga_maks_potong_sama_dengan_penuh():
 
     # Uji tidak hampa: setiap strategi benar-benar menghasilkan sinyal di sampel; jalur F(t) = 5 dan
     # F(t) = 1, STOP_TERLALU_JAUH, bar tanpa data, dan K_rs dengan banyak saham eligible ikut teruji.
-    for nama in ("PB", "BO", "MR", "ACAK", "ACAK100"):
+    for nama in ("TP", "TB", "PJ", "ACAK", "ACAK100"):
         assert sinyal_per_strategi[nama] >= 1, (nama, sinyal_per_strategi)
     assert sinyal_per_strategi["ACAK100"] >= 300, sinyal_per_strategi
     assert {1.0, 5.0} <= faktor_sinyal, faktor_sinyal
@@ -402,10 +402,10 @@ POS_PRA_SPLIT_CCCC_TETAP = [230, 251, 268, 287, 300, 316, 333, 340, 344, 346, 34
 
 
 def _pos_sinyal_cccc_pra_split() -> list[int]:
-    """Posisi HARI[200:350] dengan sinyal PB/BO/MR CCCC pada data penuh (F(t) = 5)."""
+    """Posisi HARI[200:350] dengan sinyal TP/TB/PJ CCCC pada data penuh (F(t) = 5)."""
     dp = pasar_penuh()
     bei = AturanBEI(CFG_LA)
-    utama = [s for n, s in STRATEGI if n in ("PB", "BO", "MR")]
+    utama = [s for n, s in STRATEGI if n in ("TP", "TB", "PJ")]
     return [p for p in range(200, POS_SPLIT_CCCC)
             if any(st.evaluasi(dp.tampilan(HARI[p].date()), "CCCC", bei).sinyal for st in utama)]
 
@@ -566,7 +566,7 @@ def _ds_mentah(dv: DataView, kode: str) -> DataSaham:
 
 
 class KanariIntipBesok(Breakout):
-    """BO + syarat 'close besok > close hari ini' yang dibaca dari bar valid sesudah as_of."""
+    """TB + syarat 'close besok > close hari ini' yang dibaca dari bar valid sesudah as_of."""
 
     def evaluasi(self, dv, kode, bei):
         ev = super().evaluasi(dv, kode, bei)
@@ -672,7 +672,7 @@ def test_t_la3_kanari_indikator_shift_min1_menggagalkan_t_la1b(monkeypatch):
                 terdeteksi += bool(salah)
                 kategori.update(k for k, _ in salah)
             assert terdeteksi == len(tanggal), (terdeteksi, kategori)
-            assert {"PB", "BO", "MR"} <= set(kategori), kategori
+            assert {"TP", "TB", "PJ"} <= set(kategori), kategori
     finally:
         pasar_penuh.cache_clear()  # jangan wariskan pasar kanari ke uji lain
         pasar_potong.cache_clear()

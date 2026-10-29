@@ -112,7 +112,7 @@ class RencanaBeli:
     stop: Decimal
     metode_stop: str
     jarak_stop_pct: Decimal
-    target: list[tuple[str, Decimal, Decimal]]  # (label, harga isi, target) — PB
+    target: list[tuple[str, Decimal, Decimal]]  # (label, harga isi, target) — TP
     teks_target: str
     lot: int
     lembar: int
@@ -273,13 +273,13 @@ class LaporanHarian:
 
 def metode_stop(strategi: str, cfg: "Config") -> str:
     s = cfg.strategi
-    if strategi == "PB":
-        return (f"LLV{s.pb.lookback_swing_low} − {teks.angka(s.pb.penyangga_stop_atr, 1)} × ATR"
+    if strategi == "TP":
+        return (f"LLV{s.tp.lookback_swing_low} − {teks.angka(s.tp.penyangga_stop_atr, 1)} × ATR"
                 f"{cfg.indikator.atr_periode}")
-    if strategi == "BO":
-        return f"close − {teks.angka(s.bo.stop_atr, 1)} × ATR{cfg.indikator.atr_periode}; lalu trailing"
-    if strategi == "MR":
-        return f"close − {teks.angka(s.mr.stop_atr, 1)} × ATR{cfg.indikator.atr_periode}"
+    if strategi == "TB":
+        return f"close − {teks.angka(s.tb.stop_atr, 1)} × ATR{cfg.indikator.atr_periode}; lalu trailing"
+    if strategi == "PJ":
+        return f"close − {teks.angka(s.pj.stop_atr, 1)} × ATR{cfg.indikator.atr_periode}"
     return strategi
 
 
@@ -310,11 +310,11 @@ def rencana_beli(
         teks_target = f"target = harga isi + {r} × (harga isi − stop), dibulatkan ke bawah"
         if target:
             rr = biaya.rr_bersih(target[-1][2], P, S, cfg)
-    elif sg.strategi == "BO":
+    elif sg.strategi == "TB":
         teks_target = "tanpa target: trailing stop, diperbarui setiap sore (lihat laporan harian)"
-    elif sg.strategi == "MR":
-        teks_target = (f"tanpa target: jual di pembukaan setelah close > SMA{cfg.strategi.mr.sma_keluar} "
-                       f"(mulai hari ke-{cfg.strategi.mr.min_hari_tahan})")
+    elif sg.strategi == "PJ":
+        teks_target = (f"tanpa target: jual di pembukaan setelah close > SMA{cfg.strategi.pj.sma_keluar} "
+                       f"(mulai hari ke-{cfg.strategi.pj.min_hari_tahan})")
     instruksi = (
         f"Pasang order BELI limit di {h(P)}, {sz.lot} lot, sebelum pra-pembukaan t+1. Segera setelah harga "
         "pembukaan terbentuk, cek order Anda. Jika belum terisi (open > harga_maks), tarik (withdraw) order; jangan "

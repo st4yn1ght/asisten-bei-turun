@@ -6,7 +6,7 @@ Kontrak setiap strategi (`Strategi.evaluasi`):
   untuk `x_{t−k}` (bar valid ke-k sebelum t). Kolom indikator memakai nama dari `indikator.k_*` dengan
   periode dari config (P4) — tidak ada angka aturan yang ditulis langsung di kode.
 - Mengembalikan `EvaluasiStrategi` berisi SEMUA cek aturan (lolos atau tidak) dengan nilai aktual, agar
-  laporan bisa menulis "PB4: close 2.000 > high kemarin 1.985 ✓" dan uji bisa memeriksa alasan gagal.
+  laporan bisa menulis "TP4: close 2.000 > high kemarin 1.985 ✓" dan uji bisa memeriksa alasan gagal.
 - Nilai NaN, atau ATR ≤ 0/NaN pada aturan yang membagi dengan ATR, membuat aturan **tidak terpenuhi** (§9).
 - Sinyal hanya dibuat bila semua aturan lolos; level harga dibangun lewat `Strategi._bangun_sinyal`.
 
@@ -32,12 +32,12 @@ if TYPE_CHECKING:  # pragma: no cover
     from ..config import Config
     from ..data.tampilan import DataView
 
-URUTAN_STRATEGI: tuple[str, ...] = ("PB", "BO", "MR", "ACAK")  # pemecah nilai sama §13.2 langkah 4
+URUTAN_STRATEGI: tuple[str, ...] = ("TP", "TB", "PJ", "ACAK")  # pemecah nilai sama §13.2 langkah 4
 
 
 @dataclass(frozen=True)
 class CekAturan:
-    kode: str  # "PB1".."PB5", "BO1".., "MR1".., "ACAK", "STOP"
+    kode: str  # "TP1".."TP5", "TB1".., "PJ1".., "ACAK", "STOP"
     uraian: str  # dengan nilai aktual, mis. "close 2.000 > high kemarin 1.985"
     lolos: bool
 
@@ -55,7 +55,7 @@ class Sinyal:
 
     tanggal: date
     kode: str
-    strategi: str  # "PB" | "BO" | "MR" | "ACAK"
+    strategi: str  # "TP" | "TB" | "PJ" | "ACAK"
     cek: tuple[CekAturan, ...]
     harga_ref: Decimal  # close_t nominal
     harga_maks: Decimal  # nominal, dibulatkan ke bawah
@@ -63,7 +63,7 @@ class Sinyal:
     atr: Decimal  # ATR_t nominal
     faktor_split: float  # F(t) yang dipakai untuk konversi ke nominal
     k_sinyal: float  # §13.1, dalam [0, 1]
-    target_r: float | None  # kelipatan R untuk target (PB, ACAK); None untuk BO/MR
+    target_r: float | None  # kelipatan R untuk target (TP, ACAK); None untuk TB/PJ
     rata_nilai: float  # RataNilai_t (Rupiah, invarian split)
     fraksi_dipakai: bool  # False = harga hanya rupiah bulat → peringatan pembulatan manual
     valid: bool = True  # False → STOP_TERLALU_JAUH (§13.2 langkah 2)
@@ -162,7 +162,7 @@ class Strategi(ABC):
         - Bila close/ATR/stop tidak terdefinisi (NaN, ATR ≤ 0), stop ≤ 0, atau stop ≥ harga_maks setelah
           pembulatan (mis. ATR sangat kecil), aturan "STOP" gagal → tanpa sinyal (§12). Strategi boleh
           memeriksa lebih dulu dengan uraian yang lebih rinci; pemeriksaan ini jaring pengaman bersama.
-        - Bila `maks_jarak_stop_atr` diisi (PB): (harga_maks − stop)/ATR_nominal > batas → sinyal
+        - Bila `maks_jarak_stop_atr` diisi (TP): (harga_maks − stop)/ATR_nominal > batas → sinyal
           `valid=False` (`STOP_TERLALU_JAUH`), tetap dikembalikan agar dicatat di jurnal.
         """
         cek = list(cek)
@@ -224,7 +224,7 @@ class Strategi(ABC):
 
 
 def daftar_strategi(cfg: "Config", termasuk_acak: bool = False, hanya: Iterable[str] | None = None) -> list[Strategi]:
-    """Strategi aktif (urutan PB, BO, MR), ditambah ACAK bila diminta (backtest saja).
+    """Strategi aktif (urutan TP, TB, PJ), ditambah ACAK bila diminta (backtest saja).
     `hanya`: batasi ke kode tertentu (mis. backtest per strategi); kode tak dikenal → ValueError."""
     from .acak import Acak
     from .breakout import Breakout
@@ -233,12 +233,12 @@ def daftar_strategi(cfg: "Config", termasuk_acak: bool = False, hanya: Iterable[
 
     semua: dict[str, Strategi] = {}
     s = cfg.strategi
-    if s.pb.aktif:
-        semua["PB"] = Pullback(cfg)
-    if s.bo.aktif:
-        semua["BO"] = Breakout(cfg)
-    if s.mr.aktif:
-        semua["MR"] = Oversold(cfg)
+    if s.tp.aktif:
+        semua["TP"] = Pullback(cfg)
+    if s.tb.aktif:
+        semua["TB"] = Breakout(cfg)
+    if s.pj.aktif:
+        semua["PJ"] = Oversold(cfg)
     if termasuk_acak:
         semua["ACAK"] = Acak(cfg)
     if hanya is not None:

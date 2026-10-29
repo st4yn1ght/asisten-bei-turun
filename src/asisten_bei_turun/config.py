@@ -393,9 +393,9 @@ class StrategiAcak(_M):
 
 
 class Strategi(_M):
-    pb: StrategiPB
-    bo: StrategiBO
-    mr: StrategiMR
+    tp: StrategiPB
+    tb: StrategiBO
+    pj: StrategiMR
     acak: StrategiAcak
 
 

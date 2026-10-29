@@ -83,7 +83,7 @@ def masukan(**kw) -> Masukan:
 
 def baris_portofolio(kode="ABCD", tanggal_beli=date(2026, 10, 8), harga_per_tanggal=None, baris=2, **kw):
     nilai = dict(
-        kode=kode, tanggal_beli=tanggal_beli, harga_beli=Decimal("2850"), lot=2, strategi="PB",
+        kode=kode, tanggal_beli=tanggal_beli, harga_beli=Decimal("2850"), lot=2, strategi="TP",
         stop_awal=Decimal("2720"), sektor=None, harga_per_tanggal=harga_per_tanggal, lembar=None,
         catatan="", baris=baris,
     )
@@ -304,7 +304,7 @@ class TestBacaCsvKetat:
         assert any(PESAN_REGIONAL in m.pesan for m in masalah)
 
     def test_kolom_berlebih_koma_desimal(self, tmp_path):
-        teks = HEADER_PORTOFOLIO + "\nABCD,2026-10-08,2850,5,2,PB,2720,,,,\nEFGH,2026-10-08,1000,1,PB,950,,,,\n"
+        teks = HEADER_PORTOFOLIO + "\nABCD,2026-10-08,2850,5,2,TP,2720,,,,\nEFGH,2026-10-08,1000,1,TP,950,,,,\n"
         p = tulis(tmp_path / "p.csv", teks)
         baris, masalah = baca_csv_ketat(p, HEADER_PORTOFOLIO.split(","))
         assert [b["kode"] for b in baris] == ["EFGH"]  # baris lain tetap dibaca
@@ -312,7 +312,7 @@ class TestBacaCsvKetat:
         assert masalah[0].baris == 2 and PESAN_REGIONAL in masalah[0].pesan
 
     def test_kolom_kurang(self, tmp_path):
-        p = tulis(tmp_path / "p.csv", HEADER_PORTOFOLIO + "\nABCD,2026-10-08,2850,2,PB,2720\n")
+        p = tulis(tmp_path / "p.csv", HEADER_PORTOFOLIO + "\nABCD,2026-10-08,2850,2,TP,2720\n")
         baris, masalah = baca_csv_ketat(p, HEADER_PORTOFOLIO.split(","))
         assert baris == []
         assert masalah[0].baris == 2
@@ -596,12 +596,12 @@ def tulis_portofolio(tmp_path: Path, *baris: str, header: str = HEADER_PORTOFOLI
 
 class TestPortofolio:
     def test_contoh_spec(self, tmp_path):
-        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,2,PB,2720,,,,")
+        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,2,TP,2720,,,,")
         hasil, masalah = baca_portofolio(p, {"ABCD"})
         assert masalah == []
         (b,) = hasil
         assert b == BarisPortofolio(
-            kode="ABCD", tanggal_beli=date(2026, 10, 8), harga_beli=Decimal("2850"), lot=2, strategi="PB",
+            kode="ABCD", tanggal_beli=date(2026, 10, 8), harga_beli=Decimal("2850"), lot=2, strategi="TP",
             stop_awal=Decimal("2720"), sektor=None, harga_per_tanggal=None, lembar=None, catatan="", baris=2,
         )
         assert isinstance(b.harga_beli, Decimal) and isinstance(b.stop_awal, Decimal)
@@ -618,13 +618,13 @@ class TestPortofolio:
         assert b.tanggal_acuan() == date(2026, 10, 9)   # harga_per_tanggal
 
     def test_header_minimal_tanpa_kolom_opsional(self, tmp_path):
-        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,2,BO,2720",
+        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,2,TB,2720",
                              header="kode,tanggal_beli,harga_beli,lot,strategi,stop_awal")
         (b,), masalah = baca_portofolio(p, {"ABCD"})
         assert masalah == [] and b.sektor is None and b.lembar is None and b.catatan == ""
 
     def test_sektor_wajib_di_luar_universe(self, tmp_path):
-        p = tulis_portofolio(tmp_path, "XXXX,2026-10-08,2850,2,PB,2720,,,,", "YYYY,2026-10-08,2850,2,PB,2720,Energi,,,")
+        p = tulis_portofolio(tmp_path, "XXXX,2026-10-08,2850,2,TP,2720,,,,", "YYYY,2026-10-08,2850,2,TP,2720,Energi,,,")
         hasil, masalah = baca_portofolio(p, {"ABCD"}, "input/portfolio.csv")
         assert [b.kode for b in hasil] == ["YYYY"]
         (m,) = error(masalah)
@@ -632,11 +632,11 @@ class TestPortofolio:
         assert str(m).startswith("ERROR input/portfolio.csv baris 2:")
 
     def test_sektor_tidak_wajib_di_dalam_universe(self, tmp_path):
-        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,2,PB,2720,,,,")
+        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,2,TP,2720,,,,")
         assert error(baca_portofolio(p, {"ABCD"})[1]) == []
 
     def test_kode_ganda_error(self, tmp_path):
-        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,2,PB,2720,,,,", "ABCD,2026-10-09,2900,1,PB,2750,,,,")
+        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,2,TP,2720,,,,", "ABCD,2026-10-09,2900,1,TP,2750,,,,")
         hasil, masalah = baca_portofolio(p, {"ABCD"})
         assert len(hasil) == 1
         (m,) = error(masalah)
@@ -644,7 +644,7 @@ class TestPortofolio:
 
     @pytest.mark.parametrize("stop", ["2850", "2900"])
     def test_stop_di_atas_harga_beli_peringatan(self, tmp_path, stop):
-        p = tulis_portofolio(tmp_path, f"ABCD,2026-10-08,2850,2,PB,{stop},,,,")
+        p = tulis_portofolio(tmp_path, f"ABCD,2026-10-08,2850,2,TP,{stop},,,,")
         hasil, masalah = baca_portofolio(p, {"ABCD"})
         assert len(hasil) == 1                     # bukan ERROR: baris tetap dipakai (saran JUAL, §15.4 #3)
         assert error(masalah) == []
@@ -656,54 +656,54 @@ class TestPortofolio:
         [("0", "lot harus > 0"), ("-1", "lot harus > 0"), ("1.5", "bilangan bulat"), ("", "wajib diisi")],
     )
     def test_lot_tidak_valid(self, tmp_path, lot, potongan):
-        p = tulis_portofolio(tmp_path, f"ABCD,2026-10-08,2850,{lot},PB,2720,,,,")
+        p = tulis_portofolio(tmp_path, f"ABCD,2026-10-08,2850,{lot},TP,2720,,,,")
         hasil, masalah = baca_portofolio(p, {"ABCD"})
         assert hasil == [] and potongan in error(masalah)[0].pesan
 
-    @pytest.mark.parametrize("strategi", ["ACAK", "pb", "XX", ""])
+    @pytest.mark.parametrize("strategi", ["ACAK", "tp", "XX", ""])
     def test_strategi_tidak_valid(self, tmp_path, strategi):
         p = tulis_portofolio(tmp_path, f"ABCD,2026-10-08,2850,2,{strategi},2720,,,,")
         hasil, masalah = baca_portofolio(p, {"ABCD"})
         assert hasil == [] and "strategi" in error(masalah)[0].pesan
 
-    @pytest.mark.parametrize("strategi", ["PB", "BO", "MR", "MANUAL"])
+    @pytest.mark.parametrize("strategi", ["TP", "TB", "PJ", "MANUAL"])
     def test_strategi_valid(self, tmp_path, strategi):
         p = tulis_portofolio(tmp_path, f"ABCD,2026-10-08,2850,2,{strategi},2720,,,,")
         (b,), masalah = baca_portofolio(p, {"ABCD"})
         assert masalah == [] and b.strategi == strategi
 
-    @pytest.mark.parametrize("kolom_baris", ["ABCD,2026-10-08,0,2,PB,2720,,,,", "ABCD,2026-10-08,2850,2,PB,0,,,,",
-                                             "ABCD,2026-10-08,-5,2,PB,2720,,,,", "ABCD,2026-10-08,2850,2,PB,,,,,"])
+    @pytest.mark.parametrize("kolom_baris", ["ABCD,2026-10-08,0,2,TP,2720,,,,", "ABCD,2026-10-08,2850,2,TP,0,,,,",
+                                             "ABCD,2026-10-08,-5,2,TP,2720,,,,", "ABCD,2026-10-08,2850,2,TP,,,,,"])
     def test_harga_dan_stop_harus_positif(self, tmp_path, kolom_baris):
         hasil, masalah = baca_portofolio(tulis_portofolio(tmp_path, kolom_baris), {"ABCD"})
         assert hasil == [] and error(masalah)
 
     def test_lembar_tidak_valid(self, tmp_path):
-        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,2,PB,2720,,,0,", "EFGH,2026-10-08,2850,2,PB,2720,Energi,,12.5,")
+        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,2,TP,2720,,,0,", "EFGH,2026-10-08,2850,2,TP,2720,Energi,,12.5,")
         hasil, masalah = baca_portofolio(p, {"ABCD"})
         assert hasil == [] and [m.baris for m in error(masalah)] == [2, 3]
 
     def test_koma_desimal_dikutip(self, tmp_path):
-        p = tulis_portofolio(tmp_path, 'ABCD,2026-10-08,"2850,5",2,PB,2720,,,,')
+        p = tulis_portofolio(tmp_path, 'ABCD,2026-10-08,"2850,5",2,TP,2720,,,,')
         hasil, masalah = baca_portofolio(p, {"ABCD"})
         assert hasil == []
         (m,) = error(masalah)
         assert m.baris == 2 and "harga_beli" in m.pesan and PESAN_REGIONAL in m.pesan
 
     def test_koma_desimal_tanpa_kutip(self, tmp_path):
-        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,5,2,PB,2720,,,,")
+        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,5,2,TP,2720,,,,")
         hasil, masalah = baca_portofolio(p, {"ABCD"})
         assert hasil == [] and PESAN_REGIONAL in error(masalah)[0].pesan
 
     def test_tanggal_regional(self, tmp_path):
-        p = tulis_portofolio(tmp_path, "ABCD,08/10/2026,2850,2,PB,2720,,,,")
+        p = tulis_portofolio(tmp_path, "ABCD,08/10/2026,2850,2,TP,2720,,,,")
         hasil, masalah = baca_portofolio(p, {"ABCD"})
         assert hasil == []
         (m,) = error(masalah)
         assert m.baris == 2 and "tanggal_beli" in m.pesan and PESAN_REGIONAL in m.pesan
 
     def test_berpemisah_titik_koma(self, tmp_path):
-        p = tulis(tmp_path / "portfolio.csv", HEADER_PORTOFOLIO.replace(",", ";") + "\nABCD;2026-10-08;2850;2;PB;2720;;;;\n")
+        p = tulis(tmp_path / "portfolio.csv", HEADER_PORTOFOLIO.replace(",", ";") + "\nABCD;2026-10-08;2850;2;TP;2720;;;;\n")
         hasil, masalah = baca_portofolio(p, {"ABCD"})
         assert hasil == [] and PESAN_REGIONAL in error(masalah)[0].pesan
 
@@ -715,7 +715,7 @@ class TestPortofolio:
             assert f"kolom {kolom}" in teks
 
     def test_harga_per_tanggal_sebelum_tanggal_beli(self, tmp_path):
-        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,2,PB,2720,,2026-10-07,,")
+        p = tulis_portofolio(tmp_path, "ABCD,2026-10-08,2850,2,TP,2720,,2026-10-07,,")
         hasil, masalah = baca_portofolio(p, {"ABCD"})
         assert hasil == [] and "harga_per_tanggal" in error(masalah)[0].pesan
 
@@ -850,7 +850,7 @@ def isi_input_lengkap(akar: Path) -> None:
     tulis(akar / "input/universe.csv", "kode,nama,sektor\nAAAA,Contoh Satu Tbk,Keuangan\nBBBB,Contoh Dua Tbk,Infrastruktur\n", bom=True)
     tulis(akar / "input/breadth_universe.csv", "kode\nAAAA\nCCCC\n")
     tulis(akar / "input/exclude.csv", "kode,alasan,tanggal_mulai,tanggal_akhir\nEEEE,Suspensi,2026-10-01,\n")
-    tulis(akar / "input/portfolio.csv", HEADER_PORTOFOLIO + "\nAAAA,2026-10-08,2850,2,PB,2720,,,,\nXXXX,2026-10-08,1000,1,MANUAL,900,Energi,,,\n")
+    tulis(akar / "input/portfolio.csv", HEADER_PORTOFOLIO + "\nAAAA,2026-10-08,2850,2,TP,2720,,,,\nXXXX,2026-10-08,1000,1,MANUAL,900,Energi,,,\n")
     tulis(akar / "input/akun.yaml", "kas_idr: 2429145\ndiperbarui: 2026-10-15\n")
     tulis(akar / "input/holidays.csv", "tanggal,keterangan\n2026-12-25,FIKTIF – KHUSUS UJI\n2027-01-01,FIKTIF – KHUSUS UJI\n")
 
@@ -880,7 +880,7 @@ class TestMuatMasukan:
 
     def test_path_relatif_di_pesan_dan_error_kode_3(self, ctx_tmp, tmp_path):
         isi_input_lengkap(tmp_path)
-        tulis(tmp_path / "input/portfolio.csv", HEADER_PORTOFOLIO + "\nZZZZ,2026-10-08,2850,2,PB,2720,,,,\n")
+        tulis(tmp_path / "input/portfolio.csv", HEADER_PORTOFOLIO + "\nZZZZ,2026-10-08,2850,2,TP,2720,,,,\n")
         m = muat_masukan(ctx_tmp)
         assert m.ada_error()
         (galat,) = m.daftar_error()
@@ -922,7 +922,7 @@ class TestMuatMasukan:
 
     def test_sektor_silang(self, ctx_tmp, tmp_path):
         isi_input_lengkap(tmp_path)
-        tulis(tmp_path / "input/portfolio.csv", HEADER_PORTOFOLIO + "\nAAAA,2026-10-08,2850,2,PB,2720,Perbankan,,,\nXXXX,2026-10-08,1000,1,MANUAL,900,keuangan,,,\n")
+        tulis(tmp_path / "input/portfolio.csv", HEADER_PORTOFOLIO + "\nAAAA,2026-10-08,2850,2,TP,2720,Perbankan,,,\nXXXX,2026-10-08,1000,1,MANUAL,900,keuangan,,,\n")
         m = muat_masukan(ctx_tmp)
         assert not m.ada_error()
         teks = [str(p) for p in m.daftar_peringatan()]
@@ -1027,8 +1027,8 @@ def test_portofolio_harga_dengan_satu_titik_ribuan_diberi_peringatan(tmp_path):
     p = tmp_path / "portfolio.csv"
     p.write_text(
         "kode,tanggal_beli,harga_beli,lot,strategi,stop_awal,sektor,harga_per_tanggal,lembar,catatan\n"
-        "ZXQA,2026-10-08,2.850,2,PB,2.720,Fiktif,,,\n"
-        "ZXQB,2026-10-08,2850,2,PB,2720,Fiktif,,,\n"
+        "ZXQA,2026-10-08,2.850,2,TP,2.720,Fiktif,,,\n"
+        "ZXQB,2026-10-08,2850,2,TP,2720,Fiktif,,,\n"
         "ZXQC,2026-10-08,120.667,3,MANUAL,110,Fiktif,,,rata-rata sah dengan 3 desimal\n",
         encoding="utf-8",
     )

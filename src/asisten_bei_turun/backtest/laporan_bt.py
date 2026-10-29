@@ -81,7 +81,7 @@ TEKS_ACAK = (
 TEKS_TERSELEKSI = "terseleksi dengan holdout — optimis"
 TEKS_SUBSET_LEMAH = "keunggulan belum terbukti pada saham yang terjangkau modal Anda"
 
-URUTAN_RUN: tuple[str, ...] = ("pb", "bo", "mr", "acak", "gabungan_aktif", "gabungan_lolos")
+URUTAN_RUN: tuple[str, ...] = ("tp", "tb", "pj", "acak", "gabungan_aktif", "gabungan_lolos")
 URUTAN_MODE: tuple[str, ...] = ("edge", "realistis")
 
 # Warna grafik (palet kategorikal tervalidasi: slot 1 biru, slot 2 jingga; IHSG = tinta sekunder netral).
@@ -164,7 +164,7 @@ class RunMode:
 
     nama: str  # enum run_backtest
     mode: str  # enum mode
-    strategi: tuple[str, ...]  # strategi yang sinyalnya ikut (PB/BO/MR/ACAK)
+    strategi: tuple[str, ...]  # strategi yang sinyalnya ikut (TP/TB/PJ/ACAK)
     hasil: mesin.HasilSimulasi
     pembagian: jd.PembagianPeriode
     metrik: list[jd.MetrikPeriode]
@@ -226,7 +226,7 @@ class LaporanBacktest:
     hash_input: str
     hash8: str
     folder_run: str  # relatif terhadap --akar (posix)
-    strategi_diminta: tuple[str, ...]  # PB/BO/MR/ACAK
+    strategi_diminta: tuple[str, ...]  # TP/TB/PJ/ACAK
     mode_diminta: tuple[str, ...]
     runs: list[RunMode]
     konteks: dict[str, "KonteksRisiko"]
@@ -760,7 +760,7 @@ def _blok_gerbang(lap: LaporanBacktest) -> list:
     hasil: list = [_Judul(2, "Status gerbang (mode edge, run strategi itu sendiri)")]
     if not lap.gerbang:
         alasan = ("mode edge tidak dijalankan" if "edge" not in lap.mode_diminta
-                  else "tidak ada strategi PB/BO/MR yang dijalankan")
+                  else "tidak ada strategi TP/TB/PJ yang dijalankan")
         hasil.append(_Paragraf(f"Gerbang tidak dinilai pada run ini ({alasan}); gate_status.json tidak diubah "
                                "untuk strategi mana pun.", "catatan"))
         return hasil
@@ -850,7 +850,7 @@ def _blok_diagnostik(lap: LaporanBacktest) -> list:
                   f"ya — {TEKS_SUBSET_LEMAH}" if s.lemah else "tidak"] for k, s in lap.subset.items()]
         hasil.append(_Tabel(["Strategi", "n terjangkau / n holdout edge", "PF_R", "Ekspektansi R", "Lemah"], baris))
     else:
-        hasil.append(_Paragraf("Tidak dihitung (memerlukan run PB/BO/MR mode edge).", "catatan"))
+        hasil.append(_Paragraf("Tidak dihitung (memerlukan run TP/TB/PJ mode edge).", "catatan"))
 
     hasil.append(_Judul(3, "Disiplin holdout (§16.4)"))
     log = lap.holdout_log
@@ -1294,7 +1294,7 @@ def ringkasan_terminal(lap: LaporanBacktest, folder: str | Path | None = None) -
             if sub is not None and sub.lemah:
                 hasil.append(f"    PERINGATAN: {TEKS_SUBSET_LEMAH} (subset terjangkau n {sub.n}, PF_R {sub.pf_r.teks()})")
     else:
-        hasil.append("Gerbang tidak dinilai pada run ini (memerlukan mode edge dan strategi PB/BO/MR).")
+        hasil.append("Gerbang tidak dinilai pada run ini (memerlukan mode edge dan strategi TP/TB/PJ).")
     if lap.holdout_log is not None and (lap.holdout_log.n_baris or lap.holdout_log.tidak_terbaca):
         hasil.append(lap.holdout_log.teks())
     if acak_mencurigakan(lap):

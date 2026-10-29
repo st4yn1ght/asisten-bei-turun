@@ -47,9 +47,9 @@ RATA_NILAI = 20_000_000_000.0  # Rp 20 miliar (float, seperti `Sinyal.rata_nilai
 T = date(2026, 10, 15)
 
 # Kandidat §14.2 (harga sudah bulat; fraksi belum diverifikasi).
-A = (D(2030), D(1888))  # PB: harga_maks 2.000 + 30; stop LLV5 1.900 − 12
-B = (D(9125), D(8500))  # BO: 9.000 + 125; 9.000 − 500
-C = (D(458), D(410))  # MR: 450 + 8; 450 − 40
+A = (D(2030), D(1888))  # TP: harga_maks 2.000 + 30; stop LLV5 1.900 − 12
+B = (D(9125), D(8500))  # TB: 9.000 + 125; 9.000 − 500
+C = (D(458), D(410))  # PJ: 450 + 8; 450 − 40
 
 
 def _sz(
@@ -115,7 +115,7 @@ def test_anggaran_dan_alokasi_maks_14_2(status, anggaran):
 class _StrategiUji(Strategi):
     """Strategi kosong, hanya untuk memakai `_bangun_sinyal` (pembangun level harga bersama)."""
 
-    kode = "PB"
+    kode = "TP"
 
     def evaluasi(self, dv, kode, bei):  # pragma: no cover - tidak dipakai
         raise NotImplementedError
@@ -124,12 +124,12 @@ class _StrategiUji(Strategi):
 @pytest.mark.parametrize(
     "close, atr, stop_dari_cfg, harga_maks, stop",
     [
-        # A (PB): 2.000 + 0,5 × 60 = 2.030; LLV5 1.900 − penyangga 0,2 × 60 = 1.888
-        (2000.0, 60.0, lambda c: 1900.0 - c.strategi.pb.penyangga_stop_atr * 60.0, 2030, 1888),
-        # B (BO): 9.000 + 0,5 × 250 = 9.125; 9.000 − 2,0 × 250 = 8.500
-        (9000.0, 250.0, lambda c: 9000.0 - c.strategi.bo.stop_atr * 250.0, 9125, 8500),
-        # C (MR): 450 + 0,5 × 16 = 458; 450 − 2,5 × 16 = 410
-        (450.0, 16.0, lambda c: 450.0 - c.strategi.mr.stop_atr * 16.0, 458, 410),
+        # A (TP): 2.000 + 0,5 × 60 = 2.030; LLV5 1.900 − penyangga 0,2 × 60 = 1.888
+        (2000.0, 60.0, lambda c: 1900.0 - c.strategi.tp.penyangga_stop_atr * 60.0, 2030, 1888),
+        # B (TB): 9.000 + 0,5 × 250 = 9.125; 9.000 − 2,0 × 250 = 8.500
+        (9000.0, 250.0, lambda c: 9000.0 - c.strategi.tb.stop_atr * 250.0, 9125, 8500),
+        # C (PJ): 450 + 0,5 × 16 = 458; 450 − 2,5 × 16 = 410
+        (450.0, 16.0, lambda c: 450.0 - c.strategi.pj.stop_atr * 16.0, 458, 410),
     ],
 )
 def test_harga_maks_dan_stop_tabel_14_2(close, atr, stop_dari_cfg, harga_maks, stop):
@@ -270,12 +270,12 @@ def _sinyal(kode: str, strategi: str, P: Decimal, S: Decimal, rata: float = RATA
 @pytest.mark.parametrize(
     "status_pasar, nama, strategi, harapan_status, harapan_lot, potongan_alasan",
     [
-        (BOLEH_BELI, "A", "PB", REKOMENDASI, 1, ()),
-        (BOLEH_BELI, "B", "BO", TIDAK_TERJANGKAU, 0, ("Rp 66.841,63", "2,23%", "Rp 30.000")),
-        (BOLEH_BELI, "C", "MR", REKOMENDASI, 5, ()),
-        (HATI_HATI, "A", "PB", TIDAK_TERJANGKAU, 0, ("Rp 15.164,83", "Rp 15.000")),
-        (HATI_HATI, "B", "BO", TIDAK_TERJANGKAU, 0, ("Rp 66.841,63",)),
-        (HATI_HATI, "C", "MR", REKOMENDASI, 2, ()),
+        (BOLEH_BELI, "A", "TP", REKOMENDASI, 1, ()),
+        (BOLEH_BELI, "B", "TB", TIDAK_TERJANGKAU, 0, ("Rp 66.841,63", "2,23%", "Rp 30.000")),
+        (BOLEH_BELI, "C", "PJ", REKOMENDASI, 5, ()),
+        (HATI_HATI, "A", "TP", TIDAK_TERJANGKAU, 0, ("Rp 15.164,83", "Rp 15.000")),
+        (HATI_HATI, "B", "TB", TIDAK_TERJANGKAU, 0, ("Rp 66.841,63",)),
+        (HATI_HATI, "C", "PJ", REKOMENDASI, 2, ()),
     ],
 )
 def test_seleksi_contoh_14_2(status_pasar, nama, strategi, harapan_status, harapan_lot, potongan_alasan):
@@ -395,7 +395,7 @@ def test_alokasi_maks_tepat_dengan_fee_minimum(P, alokasi, lot_alokasi):
 
 @pytest.mark.parametrize("P, harapan", [(9950, REKOMENDASI), (9951, TIDAK_TERJANGKAU)])
 def test_seleksi_alokasi_maks_tepat(P, harapan):
-    h = _seleksi([_sinyal("UJIX", "BO", D(P), D(9900))], cfg=CFG_M5000)
+    h = _seleksi([_sinyal("UJIX", "TB", D(P), D(9900))], cfg=CFG_M5000)
     (k,) = h.kandidat
     assert k.status == harapan
     if harapan == TIDAK_TERJANGKAU:
@@ -459,7 +459,7 @@ def test_izinkan_true_batas_alokasi_likuid_kas_tetap_berlaku(ubah, lot, pembatas
 
 
 def test_seleksi_izinkan_true_rekomendasi_dengan_tanda():
-    h = _seleksi([_sinyal("UJIB", "BO", *B)], cfg=CFG_IZIN)
+    h = _seleksi([_sinyal("UJIB", "TB", *B)], cfg=CFG_IZIN)
     (k,) = h.kandidat
     assert k.status == REKOMENDASI
     assert k.sizing.lot == 1 and k.sizing.risiko_di_atas_anggaran
@@ -538,7 +538,7 @@ def test_seleksi_status_dari_pembatas(ubah, harapan):
     rata = ubah.get("rata", RATA_NILAI)
     porto = KeadaanPortofolio(posisi=(), kas_idr=D(ubah.get("kas", KAS)), ekuitas_idr=EKUITAS)
     h = seleksi(
-        [_sinyal("UJIC", "MR", *C, rata=rata)], status_pasar=BOLEH_BELI, portofolio=porto,
+        [_sinyal("UJIC", "PJ", *C, rata=rata)], status_pasar=BOLEH_BELI, portofolio=porto,
         konteks=resolusi_konteks(CFG, "live"), cfg=CFG, strategi_lolos=None, deduplikasi=True,
         sektor_dari=lambda kode: "SEKTOR_UJI",
     )

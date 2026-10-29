@@ -6,7 +6,7 @@ BUKAN SARAN INVESTASI
 
 Tanggal data t: 2025-09-10 — untuk hari bursa t+1: 2025-09-11
 
-Dibuat: 2025-09-10 20:00:00 WIB — hash8 44b5deb5 — versi 0.1.0 — REPLAY (--tanggal)
+Dibuat: 2025-09-10 20:00:00 WIB — hash8 2d1ece58 — versi 0.1.0 — REPLAY (--tanggal)
 
 Status data run: LENGKAP
 
@@ -49,9 +49,9 @@ _(Grafik Breadth 120 hari bursa: lihat laporan.html)_
 
 | Strategi | Status | Data backtest s/d | PF_R holdout | Subset terjangkau lemah | Alasan |
 |---|---|---|---|---|---|
-| PB | LOLOS | 2025-11-28 | n/a (tanpa kerugian) | tidak | — |
-| BO | LOLOS | 2025-11-28 | 0,00 | tidak | — |
-| MR | LOLOS | 2025-11-28 | 0,70 | tidak | — |
+| TP | LOLOS | 2025-11-28 | n/a (tanpa kerugian) | tidak | — |
+| TB | LOLOS | 2025-11-28 | 0,00 | tidak | — |
+| PJ | LOLOS | 2025-11-28 | 0,70 | tidak | — |
 
 ## Akun
 
@@ -71,11 +71,11 @@ Tidak ada posisi di portfolio.csv.
 
 ## Rencana beli
 
-**UJIPB — Ujipb Tbk (FIKTIF – KHUSUS UJI) (Sektor Fiktif A), PB, skor 75,2**
+**UJIPB — Ujipb Tbk (FIKTIF – KHUSUS UJI) (Sektor Fiktif A), TP, skor 75,2**
 
 | Item | Isi |
 |---|---|
-| Alasan sinyal | PB1: close 1.710,49 > SMA50 1.700,73 dan SMA50 1.700,73 > SMA200 1.573,79 ✓; PB2: SMA50 1.700,73 > SMA50 10 bar lalu 1.685,53 ✓; PB3: low ≤ SMA20 dalam 4 bar terakhir: hari ini low 1.667,06 ≤ SMA20 1.723,77; 1 bar lalu low 1.660,38 ≤ SMA20 1.723,98; 2 bar lalu low 1.678,85 ≤ SMA20 1.726,10; 3 bar lalu low 1.697,52 ≤ SMA20 1.727,19 ✓; PB4: close 1.710,49 > high kemarin 1.699,12 dan close 1.710,49 > open 1.670,40 ✓; PB5: (close 1.710,49 − SMA20 1.723,77) / ATR 28,38 = -0,47 ≤ 1,00 ✓ |
+| Alasan sinyal | TP1: close 1.710,49 > SMA50 1.700,73 dan SMA50 1.700,73 > SMA200 1.573,79 ✓; TP2: SMA50 1.700,73 > SMA50 10 bar lalu 1.685,53 ✓; TP3: low ≤ SMA20 dalam 4 bar terakhir: hari ini low 1.667,06 ≤ SMA20 1.723,77; 1 bar lalu low 1.660,38 ≤ SMA20 1.723,98; 2 bar lalu low 1.678,85 ≤ SMA20 1.726,10; 3 bar lalu low 1.697,52 ≤ SMA20 1.727,19 ✓; TP4: close 1.710,49 > high kemarin 1.699,12 dan close 1.710,49 > open 1.670,40 ✓; TP5: (close 1.710,49 − SMA20 1.723,77) / ATR 28,38 = -0,47 ≤ 1,00 ✓ |
 | Harga referensi (close t) | 1.710,49 |
 | Instruksi masuk | Pasang order BELI limit di 1.724, 3 lot, sebelum pra-pembukaan t+1. Segera setelah harga pembukaan terbentuk, cek order Anda. Jika belum terisi (open > harga_maks), tarik (withdraw) order; jangan biarkan antre sepanjang hari, karena bisa terisi belakangan di harga yang tidak diuji backtest. Jika hanya terisi sebagian, tarik sisanya dan catat lot yang terisi saja. |
 | Stop loss | 1.655 (LLV5 − 0,2 × ATR14); jarak 4,00% |
@@ -86,13 +86,13 @@ Tidak ada posisi di portfolio.csv.
 | Langkah setelah terisi | Pasang order otomatis stop di 1.655 (dan target di 1.862) hari itu juga. Jika harga isi sudah ≤ stop, stop telah terlewati: jual segera. Perbarui portfolio.csv dan akun.yaml (§19.6). |
 | Peringatan | Harga belum dibulatkan ke fraksi: bulatkan limit beli dan target ke BAWAH, stop ke ATAS ke fraksi harga valid. |
 
-_(Grafik UJIPB (PB, rencana): lihat laporan.html)_
+_(Grafik UJIPB (TP, rencana): lihat laporan.html)_
 
-**UJIGAP — Ujigap Tbk (FIKTIF – KHUSUS UJI) (Sektor Fiktif F), PB, skor 68,2**
+**UJIGAP — Ujigap Tbk (FIKTIF – KHUSUS UJI) (Sektor Fiktif F), TP, skor 68,2**
 
 | Item | Isi |
 |---|---|
-| Alasan sinyal | PB1: close 1.352,76 > SMA50 1.345,04 dan SMA50 1.345,04 > SMA200 1.234,81 ✓; PB2: SMA50 1.345,04 > SMA50 10 bar lalu 1.333,02 ✓; PB3: low ≤ SMA20 dalam 4 bar terakhir: hari ini low 1.318,41 ≤ SMA20 1.363,26; 1 bar lalu low 1.313,13 ≤ SMA20 1.363,43; 2 bar lalu low 1.327,73 ≤ SMA20 1.365,11; 3 bar lalu low 1.342,50 ≤ SMA20 1.365,97 ✓; PB4: close 1.352,76 > high kemarin 1.343,76 dan close 1.352,76 > open 1.321,05 ✓; PB5: (close 1.352,76 − SMA20 1.363,26) / ATR 22,44 = -0,47 ≤ 1,00 ✓ |
+| Alasan sinyal | TP1: close 1.352,76 > SMA50 1.345,04 dan SMA50 1.345,04 > SMA200 1.234,81 ✓; TP2: SMA50 1.345,04 > SMA50 10 bar lalu 1.333,02 ✓; TP3: low ≤ SMA20 dalam 4 bar terakhir: hari ini low 1.318,41 ≤ SMA20 1.363,26; 1 bar lalu low 1.313,13 ≤ SMA20 1.363,43; 2 bar lalu low 1.327,73 ≤ SMA20 1.365,11; 3 bar lalu low 1.342,50 ≤ SMA20 1.365,97 ✓; TP4: close 1.352,76 > high kemarin 1.343,76 dan close 1.352,76 > open 1.321,05 ✓; TP5: (close 1.352,76 − SMA20 1.363,26) / ATR 22,44 = -0,47 ≤ 1,00 ✓ |
 | Harga referensi (close t) | 1.352,76 |
 | Instruksi masuk | Pasang order BELI limit di 1.363, 4 lot, sebelum pra-pembukaan t+1. Segera setelah harga pembukaan terbentuk, cek order Anda. Jika belum terisi (open > harga_maks), tarik (withdraw) order; jangan biarkan antre sepanjang hari, karena bisa terisi belakangan di harga yang tidak diuji backtest. Jika hanya terisi sebagian, tarik sisanya dan catat lot yang terisi saja. |
 | Stop loss | 1.309 (LLV5 − 0,2 × ATR14); jarak 3,96% |
@@ -103,7 +103,7 @@ _(Grafik UJIPB (PB, rencana): lihat laporan.html)_
 | Langkah setelah terisi | Pasang order otomatis stop di 1.309 (dan target di 1.471) hari itu juga. Jika harga isi sudah ≤ stop, stop telah terlewati: jual segera. Perbarui portfolio.csv dan akun.yaml (§19.6). |
 | Peringatan | Harga belum dibulatkan ke fraksi: bulatkan limit beli dan target ke BAWAH, stop ke ATAS ke fraksi harga valid. |
 
-_(Grafik UJIGAP (PB, rencana): lihat laporan.html)_
+_(Grafik UJIGAP (TP, rencana): lihat laporan.html)_
 
 _Skor adalah heuristik pemeringkat, bukan peluang keberhasilan._
 
@@ -111,9 +111,9 @@ _Skor adalah heuristik pemeringkat, bukan peluang keberhasilan._
 
 | Kode | Strategi | Skor | Status | Alasan |
 |---|---|---|---|---|
-| UJIMAHAL | PB | 74,5 | TIDAK_TERJANGKAU | risiko 1 lot = Rp 63.694,30 (2,12% ekuitas) > anggaran Rp 30.000 (1%, status BOLEH BELI) |
-| UJIMAHAL2 | PB | 64,3 | TIDAK_TERJANGKAU | nilai 1 lot Rp 1.051.575 > alokasi maks Rp 1.000.000 |
-| UJISEKTOR | PB | 60,3 | BATAS_SEKTOR | sektor Sektor Fiktif A sudah mencapai 1 posisi |
+| UJIMAHAL | TP | 74,5 | TIDAK_TERJANGKAU | risiko 1 lot = Rp 63.694,30 (2,12% ekuitas) > anggaran Rp 30.000 (1%, status BOLEH BELI) |
+| UJIMAHAL2 | TP | 64,3 | TIDAK_TERJANGKAU | nilai 1 lot Rp 1.051.575 > alokasi maks Rp 1.000.000 |
+| UJISEKTOR | TP | 60,3 | BATAS_SEKTOR | sektor Sektor Fiktif A sudah mencapai 1 posisi |
 
 ## Daftar pantau
 
@@ -141,19 +141,19 @@ Seri: OK 51, SEBAGIAN 0, GAGAL 0; data basi 0; anomali 0; sumber CSV manual 0. R
 
 Periode kertas 1 mulai 2025-09-10, modal Rp 3.000.000; ekuitas Rp 3.000.000 pada 2025-09-10. Ini BUKAN portofolio nyata Anda.
 
-Order kertas MENUNGGU (bar t+1 belum ada): UJIGAP PB, UJIPB PB
+Order kertas MENUNGGU (bar t+1 belum ada): UJIGAP TP, UJIPB TP
 
 | Strategi | n jurnal | Rata-rata R | PF_R | n holdout | Rata-rata R holdout | PF_R holdout |
 |---|---|---|---|---|---|---|
-| PB | 0 | — | n/a (tanpa transaksi) | 6 | 0,31 | 657,68 |
-| BO | 0 | — | n/a (tanpa transaksi) | 1 | -0,31 | 0,00 |
-| MR | 0 | — | n/a (tanpa transaksi) | 25 | 0,01 | 1,04 |
+| TP | 0 | — | n/a (tanpa transaksi) | 6 | 0,31 | 657,68 |
+| TB | 0 | — | n/a (tanpa transaksi) | 1 | -0,31 | 0,00 |
+| PJ | 0 | — | n/a (tanpa transaksi) | 25 | 0,01 | 1,04 |
 
-_Penyimpangan PB: sampel jurnal 0 < 20: belum diuji_
+_Penyimpangan TP: sampel jurnal 0 < 20: belum diuji_
 
-_Penyimpangan BO: sampel jurnal 0 < 20: belum diuji_
+_Penyimpangan TB: sampel jurnal 0 < 20: belum diuji_
 
-_Penyimpangan MR: sampel jurnal 0 < 20: belum diuji_
+_Penyimpangan PJ: sampel jurnal 0 < 20: belum diuji_
 
 ## Peringatan
 

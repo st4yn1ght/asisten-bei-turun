@@ -1,5 +1,5 @@
-"""Uji T-ST strategi MR (SPEC §12.3, §13.1 K_sinyal MR) dan ACAK (§12.4), pembulatan level (§4.1),
-konversi nominal F(t) (§8.4), serta T-CFG untuk kunci `strategi.mr.*` / `strategi.acak.*` yang dipakai
+"""Uji T-ST strategi PJ (SPEC §12.3, §13.1 K_sinyal PJ) dan ACAK (§12.4), pembulatan level (§4.1),
+konversi nominal F(t) (§8.4), serta T-CFG untuk kunci `strategi.pj.*` / `strategi.acak.*` yang dipakai
 `Oversold.evaluasi` / `Acak.evaluasi` (§22.1).
 
 Semua data di sini **fiktif** dan deterministik. Fraksi harga belum terverifikasi di config rilis, sehingga
@@ -9,7 +9,7 @@ Fixture dasar (260 bar valid, posisi 0..259; t = posisi 259 = HARI[259] = 2024-1
 
 - Bar i ≤ 257: close_i = 1000 + i, open = close, high = close + 10, low = close − 10, volume 1.000.000.
   TR_0 = high − low = 20; TR_i = max(20, |high_i − close_{i−1}| = 11, |low_i − close_{i−1}| = 9) = 20.
-  Setiap langkah close s dengan |s| ≤ 10 tetap memberi TR = 20 (dipakai varian MR1).
+  Setiap langkah close s dengan |s| ≤ 10 tetap memberi TR = 20 (dipakai varian PJ1).
 - Bar t−1 (i = 258): close 1251 (turun 6), high 1261, low 1241 → TR = max(20, 4, 16) = 20 → ATR = 20.
 - Bar t (i = 259): close 1242 (turun 9), open 1242, high 1255, low 1228, volume 1.000.000.
   TR_t = max(27, |1255 − 1251| = 4, |1228 − 1251| = 23) = 27
@@ -17,16 +17,16 @@ Fixture dasar (260 bar valid, posisi 0..259; t = posisi 259 = HARI[259] = 2024-1
 - RSI(2) Wilder: semua selisih +1 sampai bar 257 → avg_naik = 1, avg_turun = 0 (tepat).
   bar 258: avg_naik = (1 + 0)/2 = 0,5;  avg_turun = (0 + 6)/2 = 3
   bar 259: avg_naik = 0,5/2 = 0,25;     avg_turun = (3 + 9)/2 = 6
-  RSI = 100 − 100/(1 + 0,25/6) = 100 − 100 × 24/25 = 4 → MR2: 4 < 10 ✓
-- MR1: SMA200_t = (Σ_{i=60}^{257}(1000 + i) + 1251 + 1242)/200
+  RSI = 100 − 100/(1 + 0,25/6) = 100 − 100 × 24/25 = 4 → PJ2: 4 < 10 ✓
+- PJ1: SMA200_t = (Σ_{i=60}^{257}(1000 + i) + 1251 + 1242)/200
                 = (198.000 + 317 × 99 + 2.493)/200 = (198.000 + 31.383 + 2.493)/200 = 231.876/200 = 1.159,38
        1242 > 1.159,38 ✓
-- MR3: close_{t−1} − close_t = 1251 − 1242 = 9 ≤ 3,0 × 20,5 = 61,5 ✓
+- PJ3: close_{t−1} − close_t = 1251 − 1242 = 9 ≤ 3,0 × 20,5 = 61,5 ✓
 - Level (ruang tersesuaikan, F(t) = 1):
   harga_maks = 1242 + 0,5 × 20,5 = 1.252,25 → bulat ke BAWAH 1.252 (bukan 1.253)
-  stop MR    = 1242 − 2,5 × 20,5 = 1.190,75 → bulat ke ATAS 1.191 (bukan 1.190)
+  stop PJ    = 1242 − 2,5 × 20,5 = 1.190,75 → bulat ke ATAS 1.191 (bukan 1.190)
   stop ACAK  = 1242 − 2,0 × 20,5 = 1.201 (bulat)
-- K_sinyal MR = clip((10 − 4)/10, 0, 1) = 0,6; K_sinyal ACAK = 0,5.
+- K_sinyal PJ = clip((10 − 4)/10, 0, 1) = 0,6; K_sinyal ACAK = 0,5.
 - RataNilai_t = (Σ_{i=240}^{257}(1000 + i) + 1251 + 1242) × 10⁶/20 = (18.000 + 4.473 + 2.493) × 10⁶/20
               = 24.966 × 10⁶/20 = 1.248.300.000.
 """
@@ -60,7 +60,7 @@ KODE = "ABCD"  # saham fiktif
 N = 260
 T = N - 1  # posisi t di HARI
 TGL_T = tgl(T)  # 2024-12-27
-ATURAN_MR = ["MR1", "MR2", "MR3"]
+ATURAN_PJ = ["PJ1", "PJ2", "PJ3"]
 SEED_DEFAULT = 12345  # strategi.acak.seed di config rilis
 U_DASAR = 0.304339514001792  # u(12345, 2024-12-27, "ABCD"), lihat test_nilai_u_sesuai_rumus_spec
 
@@ -141,9 +141,9 @@ def evaluasi(
 
 def assert_hanya_gagal(hasil: EvaluasiStrategi, aturan: list[str]) -> None:
     assert hasil.sinyal is None
-    assert hasil.strategi == "MR" and hasil.kode == KODE
+    assert hasil.strategi == "PJ" and hasil.kode == KODE
     # Semua aturan selalu dievaluasi dan dicantumkan, walau ada yang gagal lebih dulu.
-    assert [c.kode for c in hasil.cek] == ATURAN_MR
+    assert [c.kode for c in hasil.cek] == ATURAN_PJ
     assert hasil.aturan_gagal == aturan
 
 
@@ -164,24 +164,24 @@ SESUDAH_T = [1243.0, 1244.0, 1245.0, 1246.0, 1247.0]  # bar t+1..t+5 (ruang ters
 
 
 # ===========================================================================
-# MR — fixture lulus semua aturan
+# PJ — fixture lulus semua aturan
 # ===========================================================================
 
 
-def test_mr_lolos_semua_aturan_level_dan_k_sinyal():
+def test_pj_lolos_semua_aturan_level_dan_k_sinyal():
     hasil = evaluasi()
-    assert hasil.strategi == "MR" and hasil.kode == KODE
+    assert hasil.strategi == "PJ" and hasil.kode == KODE
     assert hasil.aturan_gagal == []
-    assert [c.kode for c in hasil.cek] == ATURAN_MR
+    assert [c.kode for c in hasil.cek] == ATURAN_PJ
     # Uraian memuat nilai aktual (gaya Indonesia).
     assert [c.teks() for c in hasil.cek] == [
-        "MR1: close 1.242,00 > SMA200 1.159,38 ✓",
-        "MR2: RSI(2) 4,00 < 10,00 ✓",
-        "MR3: close kemarin 1.251,00 − close 1.242,00 = 9,00 ≤ 3,00 × ATR 20,50 = 61,50 ✓",
+        "PJ1: close 1.242,00 > SMA200 1.159,38 ✓",
+        "PJ2: RSI(2) 4,00 < 10,00 ✓",
+        "PJ3: close kemarin 1.251,00 − close 1.242,00 = 9,00 ≤ 3,00 × ATR 20,50 = 61,50 ✓",
     ]
     s = hasil.sinyal
     assert s is not None
-    assert s.tanggal == TGL_T and s.kode == KODE and s.strategi == "MR"
+    assert s.tanggal == TGL_T and s.kode == KODE and s.strategi == "PJ"
     assert s.cek == hasil.cek
     assert s.faktor_split == 1.0
     assert s.harga_ref == Decimal("1242")
@@ -190,73 +190,73 @@ def test_mr_lolos_semua_aturan_level_dan_k_sinyal():
     assert s.harga_maks == Decimal("1252")
     assert s.stop == Decimal("1191")
     assert s.k_sinyal == pytest.approx(0.6, abs=1e-12)  # (10 − 4)/10
-    assert s.target_r is None  # MR tanpa target tetap
+    assert s.target_r is None  # PJ tanpa target tetap
     assert s.rata_nilai == pytest.approx(1_248_300_000.0, rel=1e-12)
-    assert s.valid is True and s.alasan_tidak_valid is None  # MR tidak memakai maks_jarak_stop_atr
+    assert s.valid is True and s.alasan_tidak_valid is None  # PJ tidak memakai maks_jarak_stop_atr
     assert s.fraksi_dipakai is False  # fraksi belum terverifikasi → rupiah bulat
 
 
 # ===========================================================================
-# MR — satu varian per aturan yang hanya melanggar aturan itu
+# PJ — satu varian per aturan yang hanya melanggar aturan itu
 # ===========================================================================
 
-# MR1: tonjolan trapesium m = 34, datar 20 → luas 9 × 34 × 54 = 16.524
+# PJ1: tonjolan trapesium m = 34, datar 20 → luas 9 × 34 × 54 = 16.524
 #      SMA200_t = (231.876 + 16.524)/200 = 248.400/200 = 1.242 = close_t → "close > SMA" gagal (batas sama).
 #      RSI, ATR, close_{t−1} tidak berubah (lihat close_dataran).
-# MR2: close_t = 1250 (turun 1): avg_turun = (3 + 1)/2 = 2, avg_naik = 0,25
+# PJ2: close_t = 1250 (turun 1): avg_turun = (3 + 1)/2 = 2, avg_naik = 0,25
 #      RSI = 100 × 0,25/2,25 = 11,11 ≥ 10 ✗. TR_t = max(27, |1263 − 1251|, |1236 − 1251|) = 27 → ATR 20,5.
-#      SMA200 = (229.383 + 1251 + 1250)/200 = 1.159,42 < 1250 ✓; MR3: 1 ≤ 61,5 ✓.
-# MR3: close_t = 1178 (turun 73), high 1185, low 1175:
+#      SMA200 = (229.383 + 1251 + 1250)/200 = 1.159,42 < 1250 ✓; PJ3: 1 ≤ 61,5 ✓.
+# PJ3: close_t = 1178 (turun 73), high 1185, low 1175:
 #      TR_t = max(10, |1185 − 1251| = 66, |1175 − 1251| = 76) = 76 → ATR_t = (260 + 76)/14 = 24
 #      73 > 3,0 × 24 = 72 ✗. RSI = 100 × 0,25/(0,25 + (3 + 73)/2) = 25/38,25 = 0,65 ✓;
 #      SMA200 = (229.383 + 1251 + 1178)/200 = 1.159,06 < 1178 ✓.
-VARIAN_MR = {
-    "MR1-close-sama-dengan-SMA200": (
+VARIAN_PJ = {
+    "PJ1-close-sama-dengan-SMA200": (
         lambda: buat_df(close_dataran(34, 20)),
-        "MR1: close 1.242,00 > SMA200 1.242,00 ✗",
+        "PJ1: close 1.242,00 > SMA200 1.242,00 ✗",
     ),
-    "MR2-RSI-tidak-jenuh-jual": (
+    "PJ2-RSI-tidak-jenuh-jual": (
         lambda: buat_df(close_t=1250.0),
-        "MR2: RSI(2) 11,11 < 10,00 ✗",
+        "PJ2: RSI(2) 11,11 < 10,00 ✗",
     ),
-    "MR3-jatuh-ekstrem-sehari": (
+    "PJ3-jatuh-ekstrem-sehari": (
         lambda: buat_df(close_t=1178.0, high_t=1185.0, low_t=1175.0),
-        "MR3: close kemarin 1.251,00 − close 1.178,00 = 73,00 ≤ 3,00 × ATR 24,00 = 72,00 ✗",
+        "PJ3: close kemarin 1.251,00 − close 1.178,00 = 73,00 ≤ 3,00 × ATR 24,00 = 72,00 ✗",
     ),
 }
 
 
-@pytest.mark.parametrize("nama", list(VARIAN_MR))
-def test_mr_varian_satu_aturan_gagal(nama):
-    buat, teks_gagal = VARIAN_MR[nama]
+@pytest.mark.parametrize("nama", list(VARIAN_PJ))
+def test_pj_varian_satu_aturan_gagal(nama):
+    buat, teks_gagal = VARIAN_PJ[nama]
     hasil = evaluasi(buat())
     assert_hanya_gagal(hasil, [nama.split("-")[0]])
     gagal = [c for c in hasil.cek if not c.lolos]
     assert gagal[0].teks() == teks_gagal
 
 
-def test_mr1_batas_dua_sisi():
+def test_pj1_batas_dua_sisi():
     # Sisi lolos dekat batas: datar 19 → luas 9 × 34 × 53 = 16.218 → SMA200 = 248.094/200 = 1.240,47 < 1242.
     hasil = evaluasi(buat_df(close_dataran(34, 19)))
     assert hasil.sinyal is not None
-    assert hasil.cek[0].teks() == "MR1: close 1.242,00 > SMA200 1.240,47 ✓"
-    # Sisi gagal tepat di batas (SMA200 = close) sudah diuji di VARIAN_MR; via config: SMA(1)_t = close_t.
-    hasil = evaluasi(cfg=cfg_uji({"strategi.mr.sma_tren": 1}))
-    assert_hanya_gagal(hasil, ["MR1"])
+    assert hasil.cek[0].teks() == "PJ1: close 1.242,00 > SMA200 1.240,47 ✓"
+    # Sisi gagal tepat di batas (SMA200 = close) sudah diuji di VARIAN_PJ; via config: SMA(1)_t = close_t.
+    hasil = evaluasi(cfg=cfg_uji({"strategi.pj.sma_tren": 1}))
+    assert_hanya_gagal(hasil, ["PJ1"])
     assert hasil.cek[0].uraian == "close 1.242,00 > SMA1 1.242,00"
 
 
-def test_mr2_batas_dua_sisi():
+def test_pj2_batas_dua_sisi():
     # RSI_t = 4 tepat (lihat docstring). rsi_maks = 4 → "4 < 4" gagal; sedikit di atas 4 → lolos.
-    hasil = evaluasi(cfg=cfg_uji({"strategi.mr.rsi_maks": 4.0}))
-    assert_hanya_gagal(hasil, ["MR2"])
+    hasil = evaluasi(cfg=cfg_uji({"strategi.pj.rsi_maks": 4.0}))
+    assert_hanya_gagal(hasil, ["PJ2"])
     sedikit_di_atas = math.nextafter(4.0, math.inf)
-    hasil = evaluasi(cfg=cfg_uji({"strategi.mr.rsi_maks": sedikit_di_atas}))
+    hasil = evaluasi(cfg=cfg_uji({"strategi.pj.rsi_maks": sedikit_di_atas}))
     assert hasil.sinyal is not None
     assert 0.0 < hasil.sinyal.k_sinyal < 1e-12  # (rsi_maks − 4)/rsi_maks ≈ 0
 
 
-def test_mr3_batas_dua_sisi():
+def test_pj3_batas_dua_sisi():
     # close_t = 1179 (turun 72), high 1185, low 1175 → TR_t = 76, ATR_t = 24: 72 ≤ 3 × 24 = 72 → lolos.
     hasil = evaluasi(buat_df(close_t=1179.0, high_t=1185.0, low_t=1175.0))
     assert hasil.aturan_gagal == []
@@ -266,12 +266,12 @@ def test_mr3_batas_dua_sisi():
     assert s.atr == Decimal("24")
     assert s.harga_maks == Decimal("1191")  # 1179 + 0,5 × 24
     assert s.stop == Decimal("1119")  # 1179 − 2,5 × 24
-    # Turun 73 (sisi gagal) diuji di VARIAN_MR.
+    # Turun 73 (sisi gagal) diuji di VARIAN_PJ.
 
 
-def test_mr3_memakai_close_bar_valid_sebelumnya():
+def test_pj3_memakai_close_bar_valid_sebelumnya():
     # Bar tanpa transaksi (volume 0, close 1400) di antara t−1 dan t tidak dihitung (§4.1 x_{t−k}).
-    # Bila dipakai: 1400 − 1242 = 158 > 61,5 → MR3 gagal. Bar dasar digeser satu (i = 1..257) agar t tetap
+    # Bila dipakai: 1400 − 1242 = 158 > 61,5 → PJ3 gagal. Bar dasar digeser satu (i = 1..257) agar t tetap
     # di HARI[T]; jendela SMA200/RSI/ATR atas bar valid tetap sama.
     df = buat_df(close_dasar()[1:], close_nol=1400.0)
     assert df.loc[HARI[T - 1], "volume"] == 0.0
@@ -282,29 +282,29 @@ def test_mr3_memakai_close_bar_valid_sebelumnya():
 
 
 # ===========================================================================
-# MR — NaN / riwayat kurang / ATR tidak sah
+# PJ — NaN / riwayat kurang / ATR tidak sah
 # ===========================================================================
 
 
-def test_mr_riwayat_kurang_untuk_sma_tren():
-    # 150 bar valid (close 1110..1257, lalu 1251, 1242): SMA200 NaN → MR1 gagal; ATR (14) dan RSI (2)
-    # tetap 20,5 dan 4 → MR2/MR3 lolos.
+def test_pj_riwayat_kurang_untuk_sma_tren():
+    # 150 bar valid (close 1110..1257, lalu 1251, 1242): SMA200 NaN → PJ1 gagal; ATR (14) dan RSI (2)
+    # tetap 20,5 dan 4 → PJ2/PJ3 lolos.
     hasil = evaluasi(buat_df([1000.0 + i for i in range(110, T - 1)]))
-    assert_hanya_gagal(hasil, ["MR1"])
+    assert_hanya_gagal(hasil, ["PJ1"])
     assert hasil.cek[0].uraian == "close 1.242,00 > SMA200 —"
 
 
-def test_mr_atr_nan_membuat_mr3_gagal():
-    # 12 bar valid < atr_periode 14 → ATR NaN → MR3 gagal; SMA200 NaN → MR1 gagal; RSI(2) = 4 → MR2 lolos.
+def test_pj_atr_nan_membuat_pj3_gagal():
+    # 12 bar valid < atr_periode 14 → ATR NaN → PJ3 gagal; SMA200 NaN → PJ1 gagal; RSI(2) = 4 → PJ2 lolos.
     hasil = evaluasi(buat_df([1000.0 + i for i in range(248, T - 1)]))
-    assert_hanya_gagal(hasil, ["MR1", "MR3"])
+    assert_hanya_gagal(hasil, ["PJ1", "PJ3"])
     assert "ATR tidak sah" in hasil.cek[2].uraian
 
 
-def test_mr_dua_bar_semua_aturan_tetap_dicantumkan():
+def test_pj_dua_bar_semua_aturan_tetap_dicantumkan():
     # Hanya t−1 dan t: SMA, RSI(2) (butuh 3 bar), dan ATR NaN → ketiga aturan gagal, semua tercantum.
     hasil = evaluasi(buat_df([]))
-    assert_hanya_gagal(hasil, ["MR1", "MR2", "MR3"])
+    assert_hanya_gagal(hasil, ["PJ1", "PJ2", "PJ3"])
     assert hasil.cek[1].uraian == "RSI(2) — < 10,00"
 
 
@@ -329,25 +329,25 @@ class _DVPalsu:
 
 
 @pytest.mark.parametrize("atr", [0.0, -1.0, math.nan])
-def test_mr3_atr_tidak_sah_tidak_terpenuhi(atr):
+def test_pj3_atr_tidak_sah_tidak_terpenuhi(atr):
     # Tanpa penjagaan, ATR = 0 dan harga tidak turun memberi "0 ≤ 3 × 0" → lolos. §9: harus gagal.
     cfg = cfg_uji()
     dv = _DVPalsu(cfg, {"close": 1242.0, "atr": atr, "sma_200": 1100.0, "rsi_2": 4.0, "rata_nilai": 1e9}, 1242.0)
     hasil = Oversold(cfg).evaluasi(dv, KODE, AturanBEI(cfg))
-    assert_hanya_gagal(hasil, ["MR3"])
+    assert_hanya_gagal(hasil, ["PJ3"])
     assert "ATR tidak sah" in hasil.cek[2].uraian
 
 
-def test_mr_stop_tidak_positif_tanpa_sinyal():
+def test_pj_stop_tidak_positif_tanpa_sinyal():
     # stop_atr 61: stop = 1242 − 61 × 20,5 = −8,5 ≤ 0 → cek STOP gagal (tidak melempar error).
-    hasil = evaluasi(cfg=cfg_uji({"strategi.mr.stop_atr": 61.0}))
+    hasil = evaluasi(cfg=cfg_uji({"strategi.pj.stop_atr": 61.0}))
     assert hasil.sinyal is None
-    assert [c.kode for c in hasil.cek] == ATURAN_MR + ["STOP"]
+    assert [c.kode for c in hasil.cek] == ATURAN_PJ + ["STOP"]
     assert hasil.aturan_gagal == ["STOP"]
 
 
 # ===========================================================================
-# MR & ACAK — tidak ada bar valid pada t
+# PJ & ACAK — tidak ada bar valid pada t
 # ===========================================================================
 
 
@@ -372,7 +372,7 @@ def test_tanpa_bar_valid_pada_t(kelas, kasus):
 # ===========================================================================
 
 
-def test_mr_split_sesudah_t_konversi_nominal_lalu_dibulatkan():
+def test_pj_split_sesudah_t_konversi_nominal_lalu_dibulatkan():
     # F(t) = 5 (split 1:5 pada t+3; split 1:2 pada t−100 tidak ikut).
     # harga_maks = 1.252,25 × 5 = 6.261,25 → 6.261 (bulat-dulu-lalu-kali akan memberi 1.252 × 5 = 6.260)
     # stop       = 1.190,75 × 5 = 5.953,75 → 5.954 (bulat-dulu-lalu-kali akan memberi 1.191 × 5 = 5.955)
@@ -406,7 +406,7 @@ def test_acak_split_sesudah_t_konversi_nominal():
 
 
 # ===========================================================================
-# T-CFG — setiap kunci strategi.mr.* yang dipakai evaluasi berpengaruh
+# T-CFG — setiap kunci strategi.pj.* yang dipakai evaluasi berpengaruh
 # ===========================================================================
 
 
@@ -430,27 +430,27 @@ def _sinyal(**harap) -> Callable[[EvaluasiStrategi], None]:
 
 
 # Dasar: sinyal dengan harga_maks 1252, stop 1191, k_sinyal 0,6.
-KASUS_CFG_MR = [
+KASUS_CFG_PJ = [
     # SMA(1)_t = close_t → "close > SMA" gagal. (Implementasi yang memakai sma_200 tetap lolos → terdeteksi.)
-    ("strategi.mr.sma_tren", 1, _gagal("MR1")),
+    ("strategi.pj.sma_tren", 1, _gagal("PJ1")),
     # RSI(3): avg_naik 1 → 2/3 → 4/9; avg_turun 0 → 6/3 = 2 → (2 × 2 + 9)/3 = 13/3
     #         RSI = 100 × (4/9)/(4/9 + 13/3) = 400/43 = 9,30 < 10 → K = (10 − 400/43)/10 = 3/43
-    ("strategi.mr.rsi_periode", 3, _sinyal(k_sinyal=3 / 43)),
+    ("strategi.pj.rsi_periode", 3, _sinyal(k_sinyal=3 / 43)),
     # RSI(5): avg_naik 1 → 0,8 → 0,64; avg_turun 0 → 6/5 = 1,2 → (1,2 × 4 + 9)/5 = 2,76
-    #         RSI = 100 × 0,64/3,4 = 18,82 ≥ 10 → MR2 gagal
-    ("strategi.mr.rsi_periode", 5, _gagal("MR2")),
-    ("strategi.mr.rsi_maks", 3.0, _gagal("MR2")),  # 4 < 3 salah
-    ("strategi.mr.rsi_maks", 20.0, _sinyal(k_sinyal=0.8)),  # (20 − 4)/20
-    ("strategi.mr.maks_turun_harian_atr", 0.4, _gagal("MR3")),  # 9 > 0,4 × 20,5 = 8,2
-    ("strategi.mr.stop_atr", 3.0, _sinyal(stop=Decimal("1181"))),  # 1242 − 61,5 = 1.180,5 → ke atas 1.181
+    #         RSI = 100 × 0,64/3,4 = 18,82 ≥ 10 → PJ2 gagal
+    ("strategi.pj.rsi_periode", 5, _gagal("PJ2")),
+    ("strategi.pj.rsi_maks", 3.0, _gagal("PJ2")),  # 4 < 3 salah
+    ("strategi.pj.rsi_maks", 20.0, _sinyal(k_sinyal=0.8)),  # (20 − 4)/20
+    ("strategi.pj.maks_turun_harian_atr", 0.4, _gagal("PJ3")),  # 9 > 0,4 × 20,5 = 8,2
+    ("strategi.pj.stop_atr", 3.0, _sinyal(stop=Decimal("1181"))),  # 1242 − 61,5 = 1.180,5 → ke atas 1.181
     ("entry.gap_maks_atr", 1.0, _sinyal(harga_maks=Decimal("1262"))),  # 1242 + 20,5 = 1.262,5 → ke bawah
 ]
 
 
 @pytest.mark.parametrize(
-    "kunci, nilai, periksa", KASUS_CFG_MR, ids=[f"{k}={v}" for k, v, _ in KASUS_CFG_MR]
+    "kunci, nilai, periksa", KASUS_CFG_PJ, ids=[f"{k}={v}" for k, v, _ in KASUS_CFG_PJ]
 )
-def test_cfg_mr_kunci_berpengaruh(kunci, nilai, periksa):
+def test_cfg_pj_kunci_berpengaruh(kunci, nilai, periksa):
     dasar = evaluasi()
     assert dasar.sinyal is not None and dasar.sinyal.k_sinyal == pytest.approx(0.6)
     hasil = evaluasi(cfg=cfg_uji({kunci: nilai}))
@@ -459,24 +459,24 @@ def test_cfg_mr_kunci_berpengaruh(kunci, nilai, periksa):
     assert (hasil.cek, hasil.sinyal) != (dasar.cek, dasar.sinyal)
 
 
-def test_cfg_mr_uraian_mengikuti_periode():
-    hasil = evaluasi(cfg=cfg_uji({"strategi.mr.rsi_periode": 3}))
+def test_cfg_pj_uraian_mengikuti_periode():
+    hasil = evaluasi(cfg=cfg_uji({"strategi.pj.rsi_periode": 3}))
     assert hasil.cek[1].uraian == "RSI(3) 9,30 < 10,00"
-    hasil = evaluasi(cfg=cfg_uji({"strategi.mr.sma_tren": 150}))
+    hasil = evaluasi(cfg=cfg_uji({"strategi.pj.sma_tren": 150}))
     assert hasil.cek[0].uraian.startswith("close 1.242,00 > SMA150 ")
 
 
-def test_cfg_mr_semua_kunci_sinyal_teruji():
-    """Setiap kunci strategi.mr yang dipakai aturan sinyal punya kasus T-CFG (aktif: uji daftar_strategi)."""
-    teruji = {k.split(".")[-1] for k, *_ in KASUS_CFG_MR if k.startswith("strategi.mr.")}
+def test_cfg_pj_semua_kunci_sinyal_teruji():
+    """Setiap kunci strategi.pj yang dipakai aturan sinyal punya kasus T-CFG (aktif: uji daftar_strategi)."""
+    teruji = {k.split(".")[-1] for k, *_ in KASUS_CFG_PJ if k.startswith("strategi.pj.")}
     assert teruji | {"aktif"} == {"aktif", "sma_tren", "rsi_periode", "rsi_maks", "maks_turun_harian_atr", "stop_atr"}
 
 
 @pytest.mark.parametrize(
     "kunci, nilai",
-    [("strategi.mr.sma_keluar", 7), ("strategi.mr.min_hari_tahan", 3), ("strategi.mr.stop_waktu_hari", 8)],
+    [("strategi.pj.sma_keluar", 7), ("strategi.pj.min_hari_tahan", 3), ("strategi.pj.stop_waktu_hari", 8)],
 )
-def test_cfg_mr_kunci_exit_tidak_mengubah_sinyal(kunci, nilai):
+def test_cfg_pj_kunci_exit_tidak_mengubah_sinyal(kunci, nilai):
     # Kunci exit dipakai mesin exit (§15), bukan aturan sinyal §12.3.
     assert evaluasi(cfg=cfg_uji({kunci: nilai})) == evaluasi()
 
@@ -486,15 +486,15 @@ def test_cfg_mr_kunci_exit_tidak_mengubah_sinyal(kunci, nilai):
 # ===========================================================================
 
 
-def test_daftar_strategi_mr_aktif_dan_nonaktif():
+def test_daftar_strategi_pj_aktif_dan_nonaktif():
     aktif = daftar_strategi(cfg_uji())
-    assert [s.kode for s in aktif] == ["PB", "BO", "MR"]
+    assert [s.kode for s in aktif] == ["TP", "TB", "PJ"]
     assert isinstance(aktif[2], Oversold)
-    tanpa_mr = daftar_strategi(cfg_uji({"strategi.mr.aktif": False}))
-    assert "MR" not in [s.kode for s in tanpa_mr]
-    assert not any(isinstance(s, Oversold) for s in tanpa_mr)
-    assert [type(s) for s in daftar_strategi(cfg_uji(), hanya=["mr"])] == [Oversold]
-    assert daftar_strategi(cfg_uji({"strategi.mr.aktif": False}), hanya=["mr"]) == []
+    tanpa_pj = daftar_strategi(cfg_uji({"strategi.pj.aktif": False}))
+    assert "PJ" not in [s.kode for s in tanpa_pj]
+    assert not any(isinstance(s, Oversold) for s in tanpa_pj)
+    assert [type(s) for s in daftar_strategi(cfg_uji(), hanya=["pj"])] == [Oversold]
+    assert daftar_strategi(cfg_uji({"strategi.pj.aktif": False}), hanya=["pj"]) == []
 
 
 def test_daftar_strategi_acak_hanya_bila_diminta():
@@ -502,7 +502,7 @@ def test_daftar_strategi_acak_hanya_bila_diminta():
     assert "ACAK" not in [s.kode for s in daftar_strategi(cfg)]
     assert "ACAK" not in [s.kode for s in daftar_strategi(cfg, termasuk_acak=False)]
     dengan = daftar_strategi(cfg, termasuk_acak=True)
-    assert [s.kode for s in dengan] == ["PB", "BO", "MR", "ACAK"]
+    assert [s.kode for s in dengan] == ["TP", "TB", "PJ", "ACAK"]
     assert isinstance(dengan[-1], Acak)
     assert [type(s) for s in daftar_strategi(cfg, termasuk_acak=True, hanya=["acak"])] == [Acak]
     assert daftar_strategi(cfg, termasuk_acak=False, hanya=["acak"]) == []

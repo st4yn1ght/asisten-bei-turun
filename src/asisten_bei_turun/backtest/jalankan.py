@@ -1,4 +1,4 @@
-"""Perintah `backtest` (SPEC §16, §19.2 `backtest [--strategi pb,bo,mr,acak] [--mode edge,realistis]`).
+"""Perintah `backtest` (SPEC §16, §19.2 `backtest [--strategi tp,tb,pj,acak] [--mode edge,realistis]`).
 
 Urutan:
 
@@ -9,13 +9,13 @@ Urutan:
    backtest (§16.1) = `backtest.selesai`, atau hari bursa terakhir ≤ t yang punya bar IHSG valid. Berkas
    kualitas `output/kualitas/<YYYYMMDD-HHMMSS>_backtest.csv` dinilai as-of akhir data.
 4. Keputusan harian (status pasar, eligibilitas `AturanUniverse.backtest`, sinyal, skor) dihitung sekali
-   (`mesin.siapkan_keputusan`) untuk semua strategi yang diperlukan — PB/BO/MR/ACAK dibangun langsung, juga
+   (`mesin.siapkan_keputusan`) untuk semua strategi yang diperlukan — TP/TB/PJ/ACAK dibangun langsung, juga
    yang `aktif: false`, karena run per strategi tetap menjalankannya.
 5. Run (§16.1 "Run yang dijalankan", §16.3): per strategi yang diminta × mode yang diminta; tanpa
    `--strategi` juga `gabungan_aktif` (strategi `aktif`, tanpa ACAK) dan `gabungan_lolos` (strategi aktif yang
    lolos gerbang edge pada run yang sama; memerlukan mode edge, dilewati dengan catatan bila tidak ada).
    Identitas akuntansi gagal → kode 1, tanpa ringkasan (tidak ada keluaran parsial yang menyesatkan).
-6. Gerbang (PB/BO/MR, mode edge), subset terjangkau, jalur per sinyal, log holdout, `gate_status.json`
+6. Gerbang (TP/TB/PJ, mode edge), subset terjangkau, jalur per sinyal, log holdout, `gate_status.json`
    (digabung, hanya dengan mode edge), dan semua berkas folder run (`laporan_bt`).
 
 Waktu hanya dari `waktu.sekarang()`; satu `saat` (waktu mulai) menamai folder run, berkas kualitas, baris log
@@ -48,9 +48,9 @@ from . import metrik as mt
 
 log = logging.getLogger("asisten_bei_turun.backtest")
 
-STRATEGI_CLI: tuple[str, ...] = ("pb", "bo", "mr", "acak")  # enum strategi, huruf kecil (§4.3)
+STRATEGI_CLI: tuple[str, ...] = ("tp", "tb", "pj", "acak")  # enum strategi, huruf kecil (§4.3)
 MODE_CLI: tuple[str, ...] = ("edge", "realistis")  # enum mode (§4.3)
-STRATEGI_GABUNGAN: tuple[str, ...] = ("PB", "BO", "MR")  # ACAK tidak pernah ikut run gabungan (§12.4)
+STRATEGI_GABUNGAN: tuple[str, ...] = ("TP", "TB", "PJ")  # ACAK tidak pernah ikut run gabungan (§12.4)
 LANGKAH_KEMAJUAN_PCT = 10
 
 
@@ -71,7 +71,7 @@ def _parse_daftar(teks: str, sah: Sequence[str], nama: str) -> tuple[str, ...]:
 
 
 def parse_daftar_strategi(teks: str) -> tuple[str, ...]:
-    """`--strategi pb,bo,mr,acak` → kode strategi huruf kecil, urutan kanonik. Nilai tak dikenal → ValueError."""
+    """`--strategi tp,tb,pj,acak` → kode strategi huruf kecil, urutan kanonik. Nilai tak dikenal → ValueError."""
     return _parse_daftar(teks, STRATEGI_CLI, "strategi")
 
 
@@ -95,13 +95,13 @@ def daftar_simbol_backtest(masukan: Masukan) -> list[str]:
 
 
 def _buat_strategi(cfg, kode: Sequence[str]) -> list[Strategi]:
-    """Objek strategi untuk `kode` (urutan PB, BO, MR, ACAK), tanpa memandang `aktif`."""
+    """Objek strategi untuk `kode` (urutan TP, TB, PJ, ACAK), tanpa memandang `aktif`."""
     from ..strategi.acak import Acak
     from ..strategi.breakout import Breakout
     from ..strategi.oversold import Oversold
     from ..strategi.pullback import Pullback
 
-    kelas = {"PB": Pullback, "BO": Breakout, "MR": Oversold, "ACAK": Acak}
+    kelas = {"TP": Pullback, "TB": Breakout, "PJ": Oversold, "ACAK": Acak}
     return [kelas[k](cfg) for k in URUTAN_STRATEGI if k in set(kode)]
 
 

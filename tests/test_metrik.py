@@ -37,7 +37,7 @@ def buat_posisi(
     r: float | Decimal | None,
     *,
     risiko: Decimal = D(1000),
-    strategi: str = "PB",
+    strategi: str = "TP",
     alasan: str = ex.STOP_WAKTU,
     tanda: tuple[str, ...] = (),
     meta: dict | None = None,
@@ -388,11 +388,11 @@ def test_sinyal_dilewati_per_status():
     """Kunci = status_isi bila order sudah dibuat (BATAL_*, MENUNGGU), selain itu status_sinyal; urutan enum §4.3."""
     S = mesin.SinyalDilewati
     daftar = [
-        S(tgl(0), "A", "PB", 1.0, "REKOMENDASI", "BATAL_GAP", ""),
-        S(tgl(0), "B", "PB", 1.0, "SLOT_PENUH", None, ""),
-        S(tgl(1), "C", "PB", 1.0, "TIDAK_TERJANGKAU", None, ""),
-        S(tgl(1), "D", "PB", 1.0, "SLOT_PENUH", None, ""),
-        S(tgl(2), "E", "PB", 1.0, "REKOMENDASI", "MENUNGGU", ""),
+        S(tgl(0), "A", "TP", 1.0, "REKOMENDASI", "BATAL_GAP", ""),
+        S(tgl(0), "B", "TP", 1.0, "SLOT_PENUH", None, ""),
+        S(tgl(1), "C", "TP", 1.0, "TIDAK_TERJANGKAU", None, ""),
+        S(tgl(1), "D", "TP", 1.0, "SLOT_PENUH", None, ""),
+        S(tgl(2), "E", "TP", 1.0, "REKOMENDASI", "MENUNGGU", ""),
     ]
     hasil = mt.hitung_dilewati(daftar)
     assert hasil == {"SLOT_PENUH": 2, "TIDAK_TERJANGKAU": 1, "MENUNGGU": 1, "BATAL_GAP": 1}
@@ -439,13 +439,13 @@ def _hasil_periode() -> tuple[mesin.HasilSimulasi, dict[str, ex.Posisi]]:
     }
     S = mesin.SinyalDilewati
     dilewati = [
-        S(date(2023, 11, 1), "X", "PB", 1.0, "SLOT_PENUH", None, ""),
-        S(date(2024, 2, 29), "Y", "PB", 1.0, "BATAS_SEKTOR", None, ""),
-        S(date(2024, 3, 4), "Z", "PB", 1.0, "REKOMENDASI", "BATAL_GAP", ""),
+        S(date(2023, 11, 1), "X", "TP", 1.0, "SLOT_PENUH", None, ""),
+        S(date(2024, 2, 29), "Y", "TP", 1.0, "BATAS_SEKTOR", None, ""),
+        S(date(2024, 3, 4), "Z", "TP", 1.0, "REKOMENDASI", "BATAL_GAP", ""),
     ]
     transaksi = sorted(pos.values(), key=lambda p: p.tanggal_entry)
     h = mesin.HasilSimulasi(
-        mesin.SpesifikasiRun.per_strategi("PB"), "edge", D(1_000_000), t0, transaksi, rows, dilewati,
+        mesin.SpesifikasiRun.per_strategi("TP"), "edge", D(1_000_000), t0, transaksi, rows, dilewati,
         D(1_000_000), D(1_000_000),
     )
     return h, pos
@@ -457,32 +457,32 @@ def _kode(xs) -> list[str]:
 
 def test_penugasan_periode_berdasarkan_tanggal_entry():
     h, _ = _hasil_periode()
-    pb = jd.bagi_periode(h, CFG_PERIODE)
-    assert pb.akhir_insample == date(2024, 2, 29) and pb.akhir_data == AKHIR
-    assert _kode(pb.in_sample.tertutup) == ["T1", "T2", "T6"]
-    assert _kode(pb.in_sample.terbuka) == ["T3"]
-    assert _kode(pb.holdout.tertutup) == ["T4"] and _kode(pb.holdout.terbuka) == ["T5"]
-    assert _kode(pb.penuh.tertutup) == ["T1", "T2", "T3", "T4", "T6"] and _kode(pb.penuh.terbuka) == ["T5"]
-    j = {tp.periode.kunci: tp for tp in pb.jendela}
+    tp = jd.bagi_periode(h, CFG_PERIODE)
+    assert tp.akhir_insample == date(2024, 2, 29) and tp.akhir_data == AKHIR
+    assert _kode(tp.in_sample.tertutup) == ["T1", "T2", "T6"]
+    assert _kode(tp.in_sample.terbuka) == ["T3"]
+    assert _kode(tp.holdout.tertutup) == ["T4"] and _kode(tp.holdout.terbuka) == ["T5"]
+    assert _kode(tp.penuh.tertutup) == ["T1", "T2", "T3", "T4", "T6"] and _kode(tp.penuh.terbuka) == ["T5"]
+    j = {tp.periode.kunci: tp for tp in tp.jendela}
     assert list(j) == ["2023", "2024"]
     assert _kode(j["2023"].tertutup) == ["T1", "T2"]  # T2 keluar 2024 tetapi masuk 2023
     assert _kode(j["2024"].tertutup) == ["T6"] and _kode(j["2024"].terbuka) == ["T3"]
-    assert [s.kode for s in pb.in_sample.dilewati] == ["X", "Y"] and [s.kode for s in pb.holdout.dilewati] == ["Z"]
+    assert [s.kode for s in tp.in_sample.dilewati] == ["X", "Y"] and [s.kode for s in tp.holdout.dilewati] == ["Z"]
 
 
 def test_terbuka_pada_akhir_insample_dinilai_close_hari_itu_dan_melewati_holdout():
     h, pos = _hasil_periode()
-    pb = jd.bagi_periode(h, CFG_PERIODE)
-    (t3,) = pb.in_sample.terbuka
+    tp = jd.bagi_periode(h, CFG_PERIODE)
+    (t3,) = tp.in_sample.terbuka
     assert t3.tanggal_nilai == date(2024, 2, 29) and t3.nilai_idr == D(103_000)
     assert t3.pnl_idr == D(3000) and t3.r == D(3)  # bukan +2R hasil exit di periode holdout
     assert ex.MELEWATI_HOLDOUT in t3.tanda
     assert ex.MELEWATI_HOLDOUT not in pos["T3"].tanda  # bagi_periode tidak mengubah posisi
-    m = mt.metrik_transaksi(pb.in_sample.tertutup, KAL, terbuka=pb.in_sample.terbuka)
+    m = mt.metrik_transaksi(tp.in_sample.tertutup, KAL, terbuka=tp.in_sample.terbuka)
     assert m.n_tertutup == 3 and m.n_terbuka == 1
     assert m.pf_r.nilai == D("0.5")  # +1 / |−1 − 1|; T3 tidak masuk PF
     assert m.per_tanda[ex.MELEWATI_HOLDOUT] == 1
-    (t5,) = pb.holdout.terbuka
+    (t5,) = tp.holdout.terbuka
     assert t5.tanggal_nilai == AKHIR and t5.nilai_idr == D(99_000) and ex.MELEWATI_HOLDOUT not in t5.tanda
     # Penandaan eksplisit untuk berkas transaksi.
     assert jd.tandai_melewati_holdout(h, CFG_PERIODE) == [pos["T3"]]
@@ -495,11 +495,11 @@ def test_tanda_terbuka_insample_memakai_tanda_pada_akhir_insample():
     h, pos = _hasil_periode()
     pos["T3"].meta["tanda_pada"] = {date(2024, 2, 29): frozenset()}
     pos["T3"].tanda.add(ex.ANOMALI)  # terjadi 2024-03-04, di holdout
-    pb = jd.bagi_periode(h, CFG_PERIODE)
-    (t3,) = pb.in_sample.terbuka
+    tp = jd.bagi_periode(h, CFG_PERIODE)
+    (t3,) = tp.in_sample.terbuka
     assert t3.tanda == {ex.MELEWATI_HOLDOUT}
-    assert mt.metrik_transaksi(pb.in_sample.tertutup, KAL, terbuka=pb.in_sample.terbuka).per_tanda[ex.ANOMALI] == 0
-    assert mt.metrik_transaksi(pb.penuh.tertutup, KAL, terbuka=pb.penuh.terbuka).per_tanda[ex.ANOMALI] == 1
+    assert mt.metrik_transaksi(tp.in_sample.tertutup, KAL, terbuka=tp.in_sample.terbuka).per_tanda[ex.ANOMALI] == 0
+    assert mt.metrik_transaksi(tp.penuh.tertutup, KAL, terbuka=tp.penuh.terbuka).per_tanda[ex.ANOMALI] == 1
 
 
 def test_nilai_pada_akhir_insample_wajib_dicatat_mesin():
@@ -513,17 +513,17 @@ def test_titik_awal_setiap_periode_dan_jendela():
     """Titik awal = close hari bursa terakhir sebelum periode: in-sample/penuh/2023 → baris titik awal
     2023-09-29; holdout → 2024-02-29; jendela 2024 → Jumat 2023-12-29."""
     h, _ = _hasil_periode()
-    pb = jd.bagi_periode(h, CFG_PERIODE)
-    assert pb.in_sample.tanggal_awal == pb.penuh.tanggal_awal == date(2023, 9, 29)
-    assert pb.holdout.tanggal_awal == date(2024, 2, 29)
-    j = {tp.periode.kunci: tp for tp in pb.jendela}
+    tp = jd.bagi_periode(h, CFG_PERIODE)
+    assert tp.in_sample.tanggal_awal == tp.penuh.tanggal_awal == date(2023, 9, 29)
+    assert tp.holdout.tanggal_awal == date(2024, 2, 29)
+    j = {tp.periode.kunci: tp for tp in tp.jendela}
     assert j["2023"].tanggal_awal == date(2023, 9, 29) and j["2024"].tanggal_awal == date(2023, 12, 29)
-    assert j["2024"].ekuitas[-1].tanggal == date(2024, 2, 29) and pb.in_sample.ekuitas[-1].tanggal == date(2024, 2, 29)
-    assert pb.holdout.ekuitas[-1].tanggal == AKHIR and pb.holdout.ekuitas[1].tanggal == HOLDOUT
+    assert j["2024"].ekuitas[-1].tanggal == date(2024, 2, 29) and tp.in_sample.ekuitas[-1].tanggal == date(2024, 2, 29)
+    assert tp.holdout.ekuitas[-1].tanggal == AKHIR and tp.holdout.ekuitas[1].tanggal == HOLDOUT
     assert j["2023"].ekuitas[-1].tanggal == date(2023, 12, 29)
     # E_awal holdout = ekuitas strategi pada close 2024-02-29.
-    m = mt.metrik_ekuitas(pb.holdout.ekuitas)
-    assert m.e_awal == pb.in_sample.ekuitas[-1].ekuitas
+    m = mt.metrik_ekuitas(tp.holdout.ekuitas)
+    assert m.e_awal == tp.in_sample.ekuitas[-1].ekuitas
 
 
 def test_label_jendela_parsial_dan_penuh():
@@ -532,8 +532,8 @@ def test_label_jendela_parsial_dan_penuh():
     assert j[-1].mulai == date(2024, 1, 1) and j[-1].akhir == date(2024, 9, 30)
     j2 = jd.daftar_jendela(date(2015, 3, 2), date(2016, 1, 1))
     assert [(p.label, p.parsial) for p in j2] == [("2015 (parsial)", True)]
-    pb = jd.bagi_periode(_hasil_periode()[0], CFG_PERIODE)
-    assert [tp.periode.label for tp in pb.semua()] == ["In-sample", "Holdout", "Penuh", "2023 (parsial)", "2024 (parsial)"]
+    tp = jd.bagi_periode(_hasil_periode()[0], CFG_PERIODE)
+    assert [tp.periode.label for tp in tp.semua()] == ["In-sample", "Holdout", "Penuh", "2023 (parsial)", "2024 (parsial)"]
 
 
 def test_label_parsial_memakai_hari_bursa_pertama_dan_terakhir():
@@ -547,8 +547,8 @@ def test_label_parsial_memakai_hari_bursa_pertama_dan_terakhir():
 
 def test_jendela_dipotong_di_akhir_data_bila_holdout_belum_tercapai():
     cfg = cfg_uji({"backtest.mulai": MULAI.isoformat(), "backtest.holdout_mulai": "2025-01-01"})
-    pb = jd.bagi_periode(_hasil_periode()[0], cfg, KAL)
-    j = {tp.periode.kunci: tp.periode for tp in pb.jendela}
+    tp = jd.bagi_periode(_hasil_periode()[0], cfg, KAL)
+    j = {tp.periode.kunci: tp.periode for tp in tp.jendela}
     assert (j["2024"].mulai, j["2024"].akhir, j["2024"].label) == (date(2024, 1, 1), AKHIR, "2024 (parsial)")
 
 
@@ -556,12 +556,12 @@ def test_sinyal_dilewati_yang_diputuskan_di_open_holdout_tidak_masuk_insample():
     # Sinyal pada akhir in-sample (2024-02-29) dibatalkan di open holdout pertama (2024-03-01): hasilnya memakai
     # harga holdout, jadi hanya masuk periode penuh (menurut tanggal sinyal), bukan in-sample atau jendelanya.
     h, _ = _hasil_periode()
-    h.dilewati.append(mesin.SinyalDilewati(date(2024, 2, 29), "W", "PB", 1.0, "REKOMENDASI", "BATAL_GAP", "",
+    h.dilewati.append(mesin.SinyalDilewati(date(2024, 2, 29), "W", "TP", 1.0, "REKOMENDASI", "BATAL_GAP", "",
                                            date(2024, 3, 1)))
-    pb = jd.bagi_periode(h, CFG_PERIODE, KAL)
-    assert [s.kode for s in pb.in_sample.dilewati] == ["X", "Y"]
-    assert "W" not in [s.kode for tp in pb.jendela for s in tp.dilewati]
-    assert "W" in [s.kode for s in pb.penuh.dilewati]
+    tp = jd.bagi_periode(h, CFG_PERIODE, KAL)
+    assert [s.kode for s in tp.in_sample.dilewati] == ["X", "Y"]
+    assert "W" not in [s.kode for tp in tp.jendela for s in tp.dilewati]
+    assert "W" in [s.kode for s in tp.penuh.dilewati]
 
 
 def test_tanggal_penilaian_untuk_mesin():
@@ -588,23 +588,23 @@ def test_titik_awal_pembanding_ihsg_periode_pertama_dan_holdout():
     close[AKHIR] = D(8085)
     ek = mt.ekuitas_ihsg(tanggal, close, D(1_000_000))
     assert ek[0] == D(1_000_000) and ek[-1] == D(1_155_000)
-    pb = jd.bagi_periode(h, CFG_PERIODE)
-    pn = mt.metrik_ihsg(pb.penuh.ekuitas, close)
+    tp = jd.bagi_periode(h, CFG_PERIODE)
+    pn = mt.metrik_ihsg(tp.penuh.ekuitas, close)
     assert pn.close_awal == D(7000) and pn.imbal_hasil == pytest.approx(0.155)
     assert pn.seri.e_awal == D(1_000_000)
-    ho = mt.metrik_ihsg(pb.holdout.ekuitas, close, cagr_strategi=0.5)
+    ho = mt.metrik_ihsg(tp.holdout.ekuitas, close, cagr_strategi=0.5)
     assert ho.close_awal == D(7700) and ho.imbal_hasil == pytest.approx(0.05)
-    assert ho.seri.e_awal == pb.holdout.ekuitas[0].ekuitas
+    assert ho.seri.e_awal == tp.holdout.ekuitas[0].ekuitas
     assert ho.seri.hari_kalender == (AKHIR - date(2024, 2, 29)).days
     assert ho.selisih_cagr == pytest.approx(0.5 - ho.cagr)
     # Return per jendela dari titik awal jendela: 2024 = close 2023-12-29 (7.000) → 2024-02-29 (7.700) = +10%.
-    ms = {m.periode.kunci: m for m in jd.metrik_semua_periode(pb, KAL, CFG_PERIODE, close_ihsg=close)}
+    ms = {m.periode.kunci: m for m in jd.metrik_semua_periode(tp, KAL, CFG_PERIODE, close_ihsg=close)}
     assert ms["2024"].ihsg.close_awal == D(7000) and ms["2024"].ihsg.imbal_hasil == pytest.approx(0.10)
     assert ms["2023"].ihsg.imbal_hasil == pytest.approx(0.0)
     assert ms["2024"].ihsg.selisih_cagr == pytest.approx(ms["2024"].ekuitas.cagr - ms["2024"].ihsg.cagr)
     # Tanpa close IHSG pada titik awal → tidak ada pembanding (tidak dikarang).
     tanpa = {d: v for d, v in close.items() if d != date(2024, 2, 29)}
-    assert mt.metrik_ihsg(pb.holdout.ekuitas, tanpa) is None
+    assert mt.metrik_ihsg(tp.holdout.ekuitas, tanpa) is None
     assert mt.ekuitas_ihsg(tanggal[:2], {}, D(1)) == [None, None]
 
 
@@ -633,22 +633,22 @@ def test_integrasi_mesin_periode_dan_metrik_konsisten():
     in-sample dinilai pada close hari itu."""
     cfg = pasar_integrasi()[0]
     h = simulasi_integrasi("edge")
-    pb = jd.bagi_periode(h, cfg)
-    assert len(h.transaksi) > 20 and pb.holdout.tertutup and pb.in_sample.terbuka
-    n_lintas = len(pb.in_sample.terbuka)
-    assert len(pb.in_sample.tertutup) + n_lintas + len(pb.holdout.tertutup) + len(pb.holdout.terbuka) == len(h.transaksi)
-    assert sum(len(tp.tertutup) for tp in pb.jendela) == len(pb.in_sample.tertutup)
-    assert all(cfg.backtest.mulai <= p.tanggal_entry < cfg.backtest.holdout_mulai for p in pb.in_sample.tertutup)
-    assert all(p.tanggal_entry >= cfg.backtest.holdout_mulai for p in pb.holdout.tertutup)
-    for t in pb.in_sample.terbuka:
-        assert t.tanggal_nilai == pb.akhir_insample and ex.MELEWATI_HOLDOUT in t.tanda
-        assert t.nilai_idr == t.posisi.meta["nilai_pada"][pb.akhir_insample]
-    ms = {m.periode.kunci: m for m in jd.metrik_semua_periode(pb, KAL, cfg)}
+    tp = jd.bagi_periode(h, cfg)
+    assert len(h.transaksi) > 20 and tp.holdout.tertutup and tp.in_sample.terbuka
+    n_lintas = len(tp.in_sample.terbuka)
+    assert len(tp.in_sample.tertutup) + n_lintas + len(tp.holdout.tertutup) + len(tp.holdout.terbuka) == len(h.transaksi)
+    assert sum(len(tp.tertutup) for tp in tp.jendela) == len(tp.in_sample.tertutup)
+    assert all(cfg.backtest.mulai <= p.tanggal_entry < cfg.backtest.holdout_mulai for p in tp.in_sample.tertutup)
+    assert all(p.tanggal_entry >= cfg.backtest.holdout_mulai for p in tp.holdout.tertutup)
+    for t in tp.in_sample.terbuka:
+        assert t.tanggal_nilai == tp.akhir_insample and ex.MELEWATI_HOLDOUT in t.tanda
+        assert t.nilai_idr == t.posisi.meta["nilai_pada"][tp.akhir_insample]
+    ms = {m.periode.kunci: m for m in jd.metrik_semua_periode(tp, KAL, cfg)}
     pn = ms["penuh"]
     # E_akhir − E_awal = Σ P&L tertutup + Σ (nilai TERBUKA − biaya beli)
     assert pn.ekuitas.e_akhir - pn.ekuitas.e_awal == pn.transaksi.total_pnl_idr + pn.transaksi.pnl_terbuka_idr
-    assert pn.ekuitas.e_awal == h.modal and pb.penuh.tanggal_awal == h.tanggal_awal
-    assert ms["holdout"].ekuitas.e_awal == next(b.ekuitas for b in h.ekuitas if b.tanggal == pb.akhir_insample)
+    assert pn.ekuitas.e_awal == h.modal and tp.penuh.tanggal_awal == h.tanggal_awal
+    assert ms["holdout"].ekuitas.e_awal == next(b.ekuitas for b in h.ekuitas if b.tanggal == tp.akhir_insample)
     assert all(m.memenuhi_syarat_g5 == (m.transaksi.n_tertutup >= cfg.gerbang.min_transaksi_per_jendela)
                for k, m in ms.items() if k.isdigit())
     assert sum(ms["penuh"].dilewati.values()) == len(h.dilewati)

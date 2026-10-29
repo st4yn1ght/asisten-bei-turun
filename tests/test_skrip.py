@@ -295,7 +295,7 @@ def test_readme_rutinitas_19_6_dengan_contoh_fiktif():
     readme = _readme()
     for angka in re.findall(r"\*\*[\d.,]+\*\*", spec):
         assert angka in readme, angka
-    assert "`AAAA,2026-10-16,2010,1,PB,1888,,,,`" in spec and "`AAAA,2026-10-16,2010,1,PB,1888,,,,`" in readme
+    assert "`AAAA,2026-10-16,2010,1,TP,1888,,,,`" in spec and "`AAAA,2026-10-16,2010,1,TP,1888,,,,`" in readme
 
 
 def test_readme_kode_keluar_20_1():

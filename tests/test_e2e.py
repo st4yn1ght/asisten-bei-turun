@@ -148,8 +148,8 @@ def test_fixture_deterministik_sama_dengan_pembangkit():
 
 
 def test_fixture_tanggal_kunci_hari_bursa_dan_berurutan():
-    assert bf.T_BO < T1 < T1_5 < bf.T_HATI < bf.T_TURUN < bf.T_KOSONG
-    for d in (bf.T_BO, T1, bf.T_HATI, bf.T_TURUN, bf.T_KOSONG):
+    assert bf.T_TB < T1 < T1_5 < bf.T_HATI < bf.T_TURUN < bf.T_KOSONG
+    for d in (bf.T_TB, T1, bf.T_HATI, bf.T_TURUN, bf.T_KOSONG):
         assert d in bf.IDX
 
 
@@ -168,14 +168,14 @@ def test_langkah1_backtest_gerbang_lolos_dan_ringkasan_lengkap(sk):
     assert sk.langkah["1"].kode == 0, sk.langkah["1"].teks
     md = (_folder_run(sk) / "ringkasan.md").read_text(encoding="utf-8")
     for bagian in ("PERINGATAN SURVIVORSHIP BIAS", "## Status gerbang", "## Diagnostik", "## Keterbatasan",
-                   "## Run pb", "## Run bo", "## Run mr", "## Run gabungan_lolos"):
+                   "## Run tp", "## Run tb", "## Run pj", "## Run gabungan_lolos"):
         assert bagian in md, bagian
     gerbang = json.loads((_folder_run(sk) / "gerbang_run.json").read_text(encoding="utf-8"))["strategi"]
-    assert {k: v["lolos"] for k, v in gerbang.items()} == {"PB": True, "BO": True, "MR": True}
+    assert {k: v["lolos"] for k, v in gerbang.items()} == {"TP": True, "TB": True, "PJ": True}
 
 
 def test_langkah1_ujisplit_sizing_nominal_di_backtest(sk):
-    df = pd.read_csv(_folder_run(sk) / "transaksi_pb_edge.csv", comment="#", dtype=str, keep_default_na=False)
+    df = pd.read_csv(_folder_run(sk) / "transaksi_tp_edge.csv", comment="#", dtype=str, keep_default_na=False)
     split = df[(df["kode"] == "UJISPLIT") & (df["tanggal_entry"] < "2024-10-01")]
     assert len(split) >= 1
     for _i, r in split.iterrows():
@@ -198,17 +198,17 @@ def test_langkah2_status_dan_seleksi_t1(sk):
     assert h.kode == 0, h.teks
     assert "Status pasar: BOLEH BELI (K3): Tren IHSG naik dan breadth sehat" in h.teks
     k = sk.kandidat["2"]
-    pb = baris(k, "UJIPB", "PB")
-    assert (pb["status_sinyal"], pb["lot"], pb["harga_maks"], pb["stop_awal"], pb["target_harga"]) == (
+    tp = baris(k, "UJIPB", "TP")
+    assert (tp["status_sinyal"], tp["lot"], tp["harga_maks"], tp["stop_awal"], tp["target_harga"]) == (
         "REKOMENDASI", "3", "1724", "1655", "1862")
-    mahal = baris(k, "UJIMAHAL", "PB")
+    mahal = baris(k, "UJIMAHAL", "TP")
     assert mahal["status_sinyal"] == "TIDAK_TERJANGKAU" and "risiko 1 lot" in mahal["alasan"]
-    mahal2 = baris(k, "UJIMAHAL2", "PB")
+    mahal2 = baris(k, "UJIMAHAL2", "TP")
     assert (mahal2["harga_maks"], mahal2["stop_awal"]) == ("10500", "10290")
     assert mahal2["status_sinyal"] == "TIDAK_TERJANGKAU"
     assert mahal2["alasan"] == "nilai 1 lot Rp 1.051.575 > alokasi maks Rp 1.000.000"
-    assert baris(k, "UJISEKTOR", "PB")["status_sinyal"] == "BATAS_SEKTOR"
-    assert baris(k, "UJIGAP", "PB")["status_sinyal"] == "REKOMENDASI"
+    assert baris(k, "UJISEKTOR", "TP")["status_sinyal"] == "BATAS_SEKTOR"
+    assert baris(k, "UJIGAP", "TP")["status_sinyal"] == "REKOMENDASI"
     assert "UJIBOLONG" not in set(k["kode"])
     md = (sk.laporan(T1) / "laporan.md").read_text(encoding="utf-8")
     assert "| UJIBOLONG | BAR_HILANG |" in md
@@ -273,9 +273,9 @@ def _hasil(dump: dict, kode: str, strategi: str, tanggal) -> tuple[dict, dict]:
 
 def test_langkah4_ujipb_terisi_ujigap_batal_gap(sk):
     assert sk.langkah["4"].kode == 0
-    _s, h = _hasil(sk.dump["4"], "UJIPB", "PB", T1)
+    _s, h = _hasil(sk.dump["4"], "UJIPB", "TP", T1)
     assert (h["status_isi"], h["tanggal_entry"]) == ("TERISI", str(T1_1))
-    _s, h = _hasil(sk.dump["4"], "UJIGAP", "PB", T1)
+    _s, h = _hasil(sk.dump["4"], "UJIGAP", "TP", T1)
     assert h["status_isi"] == "BATAL_GAP"
     kertas = [r for r in sk.dump["4"]["kertas_transaksi"] if r["kode"] == "UJIPB"]
     assert len(kertas) == 1 and kertas[0]["tanggal_entry"] == str(T1_1) and kertas[0]["status_isi"] == "TERISI"
@@ -289,12 +289,12 @@ def test_langkah5_susulan_dan_target(sk):
     dump = sk.dump["5"]
     susulan = [x for x in dump["sinyal"] if str(bf.geser(T1, 2)) <= x["tanggal_sinyal"] <= str(bf.geser(T1, 4))]
     assert susulan and all((x["susulan"], x["ditampilkan"]) == (1, 0) and x["status_live"] for x in susulan)
-    _s, hp = _hasil(dump, "UJIPB", "PB", T1)
+    _s, hp = _hasil(dump, "UJIPB", "TP", T1)
     assert (hp["alasan_exit"], hp["tanggal_exit"]) == ("TARGET", str(bf.geser(T1, 3)))
     kertas = next(r for r in dump["kertas_transaksi"] if r["kode"] == "UJIPB")
     assert (kertas["alasan_exit"], kertas["tanggal_exit"]) == ("TARGET", str(bf.geser(T1, 3)))
-    # UJIMR: sinyal MR T1+1, entry T1+2; close hari ke-3 (T1+4) > SMA5 → keluar di pembukaan T1+5.
-    _s, hm = _hasil(dump, "UJIMR", "MR", T1_1)
+    # UJIMR: sinyal PJ T1+1, entry T1+2; close hari ke-3 (T1+4) > SMA5 → keluar di pembukaan T1+5.
+    _s, hm = _hasil(dump, "UJIMR", "PJ", T1_1)
     assert (hm["tanggal_entry"], hm["alasan_exit"], hm["tanggal_exit"]) == (
         str(bf.geser(T1, 2)), "KELUAR_SMA", str(T1_5))
 
@@ -321,7 +321,7 @@ def _trailing_hitung_tangan(sk) -> tuple[Decimal, Decimal]:
     atr[13] = sum(tr[:14]) / 14
     for i in range(14, len(df)):
         atr[i] = (atr[i - 1] * 13 + tr[i]) / 14
-    entry = df.index.get_loc(pd.Timestamp(bf.geser(bf.T_BO, 1)))
+    entry = df.index.get_loc(pd.Timestamp(bf.geser(bf.T_TB, 1)))
     baris_ujibo = (E2E / "input_uji" / "portfolio_ujibo.csv").read_text(encoding="utf-8").splitlines()[1].split(",")
     trail = Decimal(baris_ujibo[5])
     riwayat = []
@@ -342,7 +342,7 @@ def test_langkah6_ujibo_tahan_dengan_trailing_hitung_tangan(sk):
     assert "UJIBO: TAHAN — stop besok " + bf_angka(besok) in bagian
     if besok != hari_ini:
         assert f"naik dari {bf_angka(hari_ini)}" in bagian
-        assert f"Perbarui stop BO UJIBO ke {bf_angka(besok)}" in h.teks
+        assert f"Perbarui stop TB UJIBO ke {bf_angka(besok)}" in h.teks
     assert sk.dump["6"] == sk.dump["5"]  # tanpa --catat: jurnal tidak berubah
 
 
@@ -360,10 +360,10 @@ def test_langkah7_jangan_beli_daftar_pantau(sk):
     assert h.kode == 0 and "Status pasar: JANGAN BELI" in h.teks
     k = sk.kandidat["7"]
     assert "REKOMENDASI" not in set(k["status_sinyal"])
-    assert baris(k, "UJIMR", "MR")["status_sinyal"] == "BAYANGAN_PASAR"
+    assert baris(k, "UJIMR", "PJ")["status_sinyal"] == "BAYANGAN_PASAR"
     md = (sk.laporan(bf.T_TURUN) / "laporan.md").read_text(encoding="utf-8")
     pantau = md.split("## Daftar pantau")[1].split("## ")[0]
-    assert "UJIMR MR" in pantau
+    assert "UJIMR PJ" in pantau
     tercatat = [x for x in sk.dump["7"]["sinyal"] if x["tanggal_sinyal"] == str(bf.T_TURUN)]
     assert tercatat and all(x["status_live"] == "BAYANGAN_PASAR" for x in tercatat)
 
@@ -386,7 +386,7 @@ def test_langkah9_belum_tersedia_dengan_saran_exit(sk):
     md = (sk.laporan(bf.T_KOSONG) / "laporan.md").read_text(encoding="utf-8")
     assert "DATA BELUM TERSEDIA" in md and "mungkin hari libur yang belum ada di holidays.csv" in md
     posisi = md.split("## Posisi dipegang")[1].split("## ")[0]
-    assert "| UJIBO | BO | TAHAN |" in posisi
+    assert "| UJIBO | TB | TAHAN |" in posisi
     assert not [x for x in sk.q("SELECT * FROM sinyal WHERE tanggal_sinyal = ?", (str(bf.T_KOSONG),))]
 
 

@@ -1,4 +1,4 @@
-"""Strategi sinyal (SPEC §12): PB, BO, MR, dan ACAK (khusus backtest)."""
+"""Strategi sinyal (SPEC §12): TP, TB, PJ, dan ACAK (khusus backtest)."""
 
 from .dasar import (
     URUTAN_STRATEGI,

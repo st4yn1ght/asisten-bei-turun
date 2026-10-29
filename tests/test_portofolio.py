@@ -2,7 +2,7 @@
 T-SK bagian portofolio live (slot/sektor dari saran §15.4 ke seleksi §13.2).
 
 Semua kode saham, harga, dan sektor FIKTIF. Config rilis (§7): fee 0,15 %/0,25 %, slippage 0,10 %, fee minimum 0,
-fraksi belum diverifikasi (pembulatan rupiah bulat), PB target 2R, BO trailing 3 × ATR(14), MR keluar SMA5 mulai
+fraksi belum diverifikasi (pembulatan rupiah bulat), TP target 2R, TB trailing 3 × ATR(14), PJ keluar SMA5 mulai
 hari ke-2. Bar sintetis `bantu_pasar.bar`: open = close, high = close × 1,01, low = close × 0,99.
 """
 
@@ -30,7 +30,7 @@ KAS = D("3000000")
 FB, FJ, SLIP = D("0.0015"), D("0.0025"), D("0.001")
 
 
-def baris(kode: str, tanggal_beli: date, harga: str, stop: str, *, lot: int = 1, strategi: str = "PB",
+def baris(kode: str, tanggal_beli: date, harga: str, stop: str, *, lot: int = 1, strategi: str = "TP",
           sektor: str | None = None, harga_per_tanggal: date | None = None, lembar: int | None = None,
           no: int = 2) -> BarisPortofolio:
     return BarisPortofolio(kode=kode, tanggal_beli=tanggal_beli, harga_beli=D(harga), lot=lot, strategi=strategi,
@@ -128,7 +128,7 @@ def test_4_exit_sebelum_t_dan_pengingat():
     assert any("ZPFE menurut data seharusnya sudah keluar" in p for p in h.pengingat)
 
 
-def _mr_naik_pada(pos_naik: int) -> pd.DataFrame:
+def _pj_naik_pada(pos_naik: int) -> pd.DataFrame:
     """Close datar 1.000, lalu 1.100 pada hari ke-`pos_naik` (close > SMA5)."""
     close = [1000.0] * N
     close[pos_naik] = 1100.0
@@ -136,9 +136,9 @@ def _mr_naik_pada(pos_naik: int) -> pd.DataFrame:
 
 
 def test_4_jual_terjadwal_di_pembukaan_t_bukan_tahan():
-    # MR dibeli t−3; close t−1 = 1.100 > SMA5 (hari ke-3) → KELUAR_SMA dijadwalkan untuk pembukaan t.
-    r = baris("ZPFF", tgl(N - 4), "1000", "900", strategi="MR")
-    s = satu(evaluasi({"ZPFF": _mr_naik_pada(N - 2)}, masukan(r)), "ZPFF")
+    # PJ dibeli t−3; close t−1 = 1.100 > SMA5 (hari ke-3) → KELUAR_SMA dijadwalkan untuk pembukaan t.
+    r = baris("ZPFF", tgl(N - 4), "1000", "900", strategi="PJ")
+    s = satu(evaluasi({"ZPFF": _pj_naik_pada(N - 2)}, masukan(r)), "ZPFF")
     assert (s.saran, s.nomor) == (pf.JUAL, 4)
     assert f"seharusnya keluar pada {T.isoformat()} (KELUAR_SMA)" in s.alasan
 
@@ -154,7 +154,7 @@ def test_5_exit_order_otomatis_pada_t_cek_order():
     assert not s.dijadwalkan_jual  # CEK ORDER tetap dihitung terisi
 
 
-def test_5_target_pb_pada_t():
+def test_5_target_tp_pada_t():
     df = ubah(datar(), N - 1, high=1101.0)  # target 1.000 + 2 × 50 = 1.100
     r = baris("ZPFG", tgl(N - 4), "1000", "950")
     s = satu(evaluasi({"ZPFG": df}, masukan(r)), "ZPFG")
@@ -170,34 +170,34 @@ def test_5_hari_entry_menghormati_stop_aktif_hari_entry(aktif, harapan):
     assert s.saran == harapan
 
 
-def test_6_mr_close_di_atas_sma5_jual_dengan_alasan():
-    r = baris("ZPFI", tgl(N - 3), "1000", "900", strategi="MR")
-    s = satu(evaluasi({"ZPFI": _mr_naik_pada(N - 1)}, masukan(r)), "ZPFI")
+def test_6_pj_close_di_atas_sma5_jual_dengan_alasan():
+    r = baris("ZPFI", tgl(N - 3), "1000", "900", strategi="PJ")
+    s = satu(evaluasi({"ZPFI": _pj_naik_pada(N - 1)}, masukan(r)), "ZPFI")
     assert (s.saran, s.nomor, s.jadwal) == (pf.JUAL, 6, "KELUAR_SMA")
-    assert s.alasan == "MR: close 1.100 > SMA5 1.020"  # (4 × 1.000 + 1.100) / 5
+    assert s.alasan == "PJ: close 1.100 > SMA5 1.020"  # (4 × 1.000 + 1.100) / 5
     assert s.dijadwalkan_jual
 
 
-def test_6_mr_hari_ke_1_belum_keluar_sma():
-    r = baris("ZPFI", T, "1000", "900", strategi="MR")
-    s = satu(evaluasi({"ZPFI": _mr_naik_pada(N - 1)}, masukan(r)), "ZPFI")
+def test_6_pj_hari_ke_1_belum_keluar_sma():
+    r = baris("ZPFI", T, "1000", "900", strategi="PJ")
+    s = satu(evaluasi({"ZPFI": _pj_naik_pada(N - 1)}, masukan(r)), "ZPFI")
     assert s.saran == pf.TAHAN  # min_hari_tahan 2
 
 
-def test_6_stop_waktu_pb_hari_ke_10():
+def test_6_stop_waktu_tp_hari_ke_10():
     r = baris("ZPFJ", tgl(N - 10), "1000", "950")
     s = satu(evaluasi({"ZPFJ": datar()}, masukan(r)), "ZPFJ")
     assert (s.saran, s.jadwal, s.hari_ke) == (pf.JUAL, "STOP_WAKTU", 10)
     assert "hari ke-10" in s.alasan
 
 
-def test_7_tahan_bo_trailing_hitung_tangan():
+def test_7_tahan_tb_trailing_hitung_tangan():
     # Close datar 1.000 → TR 20, ATR 20, HHV 1.010 → trailing 1.010 − 3 × 20 = 950 berlaku pada t.
     # Pada t close 1.050 (high 1.060,5; low 1.039,5): TR = 1.060,5 − 1.000 = 60,5;
     # ATR_t = (13 × 20 + 60,5)/14 = 22,892857…; trailing = 1.060,5 − 68,678571… = 991,82… → ke atas 992.
     close = [1000.0] * N
     close[N - 1] = 1050.0
-    r = baris("ZPFK", tgl(N - 4), "1000", "900", strategi="BO")
+    r = baris("ZPFK", tgl(N - 4), "1000", "900", strategi="TB")
     s = satu(evaluasi({"ZPFK": bar(close)}, masukan(r)), "ZPFK")
     assert (s.saran, s.nomor) == (pf.TAHAN, 7)
     assert s.stop_hari_ini == D(950) and s.stop_besok == D(992)
@@ -208,7 +208,7 @@ def test_7_tahan_bo_trailing_hitung_tangan():
     assert s.pnl_idr == D(4850) and s.r == D(4850) / risiko
 
 
-def test_7_tahan_pb_target_dan_stop_waktu():
+def test_7_tahan_tp_target_dan_stop_waktu():
     r = baris("ZPFL", tgl(N - 3), "1000", "950")
     s = satu(evaluasi({"ZPFL": datar()}, masukan(r)), "ZPFL")
     assert s.saran == pf.TAHAN
@@ -305,7 +305,7 @@ def test_lonjakan_dengan_data_split_atau_anomali_ok_tidak_blokir():
 def test_pengingat_rekomendasi_kemarin(open_t, dipegang, ada):
     df = ubah(datar(), N - 1, open=open_t, high=max(open_t, 1010.0))
     p = pasar({"ZPRK": df}, None, CFG, T)
-    rek = [pf.RekomendasiLalu("ZPRK", "PB", tgl(N - 2), D(1010), D(950), 1)]
+    rek = [pf.RekomendasiLalu("ZPRK", "TP", tgl(N - 2), D(1010), D(950), 1)]
     hasil = pf.pengingat_rekomendasi(p.tampilan(T), rek, ["ZPRK"] if dipegang else [], CFG)
     assert bool(hasil) == ada
     if ada:

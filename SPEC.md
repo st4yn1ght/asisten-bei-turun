@@ -60,7 +60,7 @@ Setiap sore setelah bursa tutup, program menjawab tiga pertanyaan untuk hari bur
 | Topik | Keputusan |
 |---|---|
 | Modal | Rp 3.000.000 |
-| Gaya / lama menahan | Bebas per strategi. PB: stop waktu dievaluasi pada close hari ke-10, jual di pembukaan hari ke-11. MR: 2–5 hari (keluar SMA5 mulai close hari ke-2, stop waktu close hari ke-5). BO: selama trailing stop belum tersentuh. |
+| Gaya / lama menahan | Bebas per strategi. TP: stop waktu dievaluasi pada close hari ke-10, jual di pembukaan hari ke-11. PJ: 2–5 hari (keluar SMA5 mulai close hari ke-2, stop waktu close hari ke-5). TB: selama trailing stop belum tersentuh. |
 | Risiko per transaksi | 1% ekuitas (Rp 30.000 pada ekuitas Rp 3 juta). Sudah termasuk fee dan asumsi slippage di sisi stop. |
 | Maks posisi | 3 posisi bersamaan, maks 1 per sektor |
 | Alokasi maks per posisi | Ekuitas ÷ maks posisi (≈ Rp 1 juta) |
@@ -69,7 +69,7 @@ Setiap sore setelah bursa tutup, program menjawab tiga pertanyaan untuk hari bur
 | Order beli | Limit di **harga masuk maksimal** (`harga_maks`), dipasang di pra-pembukaan `t+1`. Jika tidak terisi di harga pembukaan, order **ditarik manual**. |
 | Gap naik | Batal jika open `t+1` > `harga_maks` (= close `t` + 0,5 × ATR). Lot dihitung dari `harga_maks` sehingga kerugian di level stop tidak melebihi batas risiko. Hanya gap turun yang melewati stop bisa membuat kerugian melebihi batas. |
 | Aturan keluar | Per strategi. Stop dan target dipasang sebagai order otomatis intraday di broker, segera setelah order beli terisi. Jika stop dan target tersentuh di hari yang sama, stop dianggap lebih dulu. |
-| Strategi | PB (pullback dalam tren naik), BO (breakout dengan lonjakan volume), MR (oversold dalam tren naik) |
+| Strategi | TP (pullback dalam tren naik), TB (breakout dengan lonjakan volume), PJ (oversold dalam tren naik) |
 | Market breadth | Dari `breadth_universe.csv` terpisah yang lebih luas |
 | Saat HATI-HATI | Risiko × 0,5, maks 1 entry baru per hari |
 | Saat JANGAN BELI | Saran exit + daftar pantau. Sinyal dicatat sebagai bayangan. |
@@ -108,9 +108,9 @@ Ringkasan bagian ini juga wajib dimuat di README.
 
 | Strategi | Jarak stop dari harga_maks | Pada a = 2–3% |
 |---|---|---|
-| BO | `2,5a/(1 + 0,5a)` | 4,95–7,39% |
-| MR | `3a/(1 + 0,5a)` | 5,94–8,87% |
-| PB | `(0,7 ATR + close − LLV5)/(close + 0,5 ATR)` | Paling bervariasi; contoh A §14.2: 6,99% |
+| TB | `2,5a/(1 + 0,5a)` | 4,95–7,39% |
+| PJ | `3a/(1 + 0,5a)` | 5,94–8,87% |
+| TP | `(0,7 ATR + close − LLV5)/(close + 0,5 ATR)` | Paling bervariasi; contoh A §14.2: 6,99% |
 
 **Akibatnya:**
 
@@ -141,7 +141,7 @@ Ringkasan bagian ini juga wajib dimuat di README.
 | WIB | Semua waktu memakai zona `Asia/Jakarta`, terlepas dari pengaturan jam Windows. |
 | `harga_ref` | Close `t`, sebagai perkiraan harga masuk. |
 | `harga_maks` | `harga_ref + entry.gap_maks_atr × ATR_t`, dibulatkan menurut §4.1 "Pembulatan harga". |
-| `stop_awal` | Stop loss saat sinyal dibuat. Bisa dinaikkan oleh trailing (BO), tidak pernah diturunkan. |
+| `stop_awal` | Stop loss saat sinyal dibuat. Bisa dinaikkan oleh trailing (TB), tidak pernah diturunkan. |
 | `harga_beli` | Live: harga isi aktual. Simulasi: `min(open × (1 + slip), harga_maks)`. |
 | `R_harga` | `harga_beli − stop_awal` (per lembar, tanpa fee). Dipakai untuk menghitung target. |
 | `risiko_lembar` | `harga_beli × (1 + fb) − stop × (1 − slip) × (1 − fj)`. Saat sizing, `harga_beli` = `harga_maks`. |
@@ -198,15 +198,15 @@ Semua bagian, tabel jurnal, dan berkas CSV **hanya** memakai nilai-nilai berikut
 | `tanda_transaksi` (boleh lebih dari satu) | `ANOMALI`, `TERTUNDA_ARB`, `TERTUNDA_TANPA_TRANSAKSI`, `SUMBER_MANUAL`, `MELEWATI_HOLDOUT` |
 | `status_ambil` | `OK`, `SEBAGIAN`, `GAGAL` |
 | `jenis_error_ambil` | `BATAS_PERMINTAAN`, `TIDAK_ADA_DATA`, `FORMAT`, `JARINGAN` |
-| `strategi` | `PB`, `BO`, `MR`, `ACAK` (khusus backtest), `MANUAL` (khusus `portfolio.csv`). Di nama berkas dan opsi CLI ditulis huruf kecil (`pb`, `bo`, `mr`, `acak`). |
-| `run_backtest` | `pb`, `bo`, `mr`, `acak`, `gabungan_aktif`, `gabungan_lolos` |
+| `strategi` | `TP`, `TB`, `PJ`, `ACAK` (khusus backtest), `MANUAL` (khusus `portfolio.csv`). Di nama berkas dan opsi CLI ditulis huruf kecil (`tp`, `tb`, `pj`, `acak`). |
+| `run_backtest` | `tp`, `tb`, `pj`, `acak`, `gabungan_aktif`, `gabungan_lolos` |
 | `mode` | `edge`, `realistis` |
 | `tanda_bar` | `BAR_HARI_NONBURSA`, `BAR_RUSAK`, `TANPA_TRANSAKSI` |
 | `alasan_dikeluarkan` | `GAGAL_AMBIL`, `DATA_BASI` (tanpa bar `t`), `BAR_HILANG`, `ANOMALI`, `SPLIT_BELUM_DISESUAIKAN`, `RIWAYAT_PENDEK`, `RIWAYAT_CSV_PENDEK`, `KEMUNGKINAN_SUSPENSI`, `TIDAK_LIKUID_RATA2`, `DIKECUALIKAN`, `BUKAN_KONSTITUEN` |
 | `saran_posisi` | `TAHAN`, `JUAL`, `CEK_ORDER`, `TIDAK_DAPAT_DIEVALUASI`, `INFO_MANUAL` |
 | Sektor khusus | `TIDAK_DIKETAHUI:<KODE>` (§6.3) |
 
-Exit BO pada level trailing (termasuk trailing awal = `stop_awal`) berlabel `TRAILING`. PB, MR, dan ACAK memakai `STOP`.
+Exit TB pada level trailing (termasuk trailing awal = `stop_awal`) berlabel `TRAILING`. TP, PJ, dan ACAK memakai `STOP`.
 
 ---
 
@@ -298,9 +298,9 @@ asisten-bei-turun/
 │   ├── universe.py
 │   ├── strategi/
 │   │   ├── dasar.py
-│   │   ├── pullback.py          # PB
-│   │   ├── breakout.py          # BO
-│   │   ├── oversold.py          # MR
+│   │   ├── pullback.py          # TP
+│   │   ├── breakout.py          # TB
+│   │   ├── oversold.py          # PJ
 │   │   └── acak.py              # ACAK (pembanding acak, khusus backtest)
 │   ├── skor.py
 │   ├── sizing.py
@@ -415,7 +415,7 @@ FFFF,Notasi khusus,,
 
 ```csv
 kode,tanggal_beli,harga_beli,lot,strategi,stop_awal,sektor,harga_per_tanggal,lembar,catatan
-ABCD,2026-10-08,2850,2,PB,2720,,,,
+ABCD,2026-10-08,2850,2,TP,2720,,,,
 ```
 
 | Kolom | Wajib | Aturan |
@@ -424,7 +424,7 @@ ABCD,2026-10-08,2850,2,PB,2720,,,,
 | `tanggal_beli` | ya | Hari bursa ≤ `t`. |
 | `harga_beli` | ya | Harga rata-rata per lembar sesuai trade confirmation, tanpa fee. |
 | `lot` | ya | Bilangan bulat ≥ 1. |
-| `strategi` | ya | `PB`, `BO`, `MR`, atau `MANUAL`. |
+| `strategi` | ya | `TP`, `TB`, `PJ`, atau `MANUAL`. |
 | `stop_awal` | ya | Isi dengan stop dari laporan, setelah Anda bulatkan ke fraksi. Biasanya < `harga_beli`. Jika ≥ `harga_beli` (terisi saat harga gap di bawah stop), `cek` memberi peringatan (bukan ERROR) dan saran posisinya JUAL. |
 | `sektor` | jika kode tidak ada di `universe.csv` | `cek` memberi ERROR jika kosong. |
 | `harga_per_tanggal` | tidak | Tanggal acuan nilai harga dan lot di baris ini. Kosong = `tanggal_beli`. Lihat §15.3 tentang aksi korporasi. |
@@ -621,7 +621,7 @@ kondisi_pasar:
   jangan_beli_paksa_jual: false
 
 strategi:
-  pb:
+  tp:
     aktif: true
     sma_cepat: 20
     sma_tren: 50
@@ -634,7 +634,7 @@ strategi:
     maks_jarak_stop_atr: 3.0
     target_r: 2.0
     stop_waktu_hari: 10
-  bo:
+  tb:
     aktif: true
     lookback_tertinggi: 20
     lookback_volume: 20
@@ -646,7 +646,7 @@ strategi:
     stop_atr: 2.0
     trailing_atr: 3.0
     stop_waktu_hari: null              # null = tanpa stop waktu
-  mr:
+  pj:
     aktif: true
     rsi_periode: 2
     rsi_maks: 10
@@ -866,7 +866,7 @@ class HasilAmbil:
   - Posisi yang entry-nya sebelum `s` dikonversi pada hari bursa pertama ≥ `s`, sebelum langkah 0 §15.1: `lembar_adj × r`; harga beli, `harga_maks`, stop awal, stop/trailing, target, dan close valid terakhir ÷ `r`; `faktor_entry × r`, sehingga semua nilai nominal pada tanggal entry tidak berubah. Puncak `HHV_sejak_entry` untuk trailing memakai high sebelum `s` ÷ `r`.
   - Order yang sinyalnya sebelum `s` dan diproses pada/sesudah `s` memakai `faktor_sinyal × r` (sama seperti split yang sudah disesuaikan).
   - `close kemarin` untuk ARA/ARB pada hari pertama ≥ `s` adalah close valid sebelumnya ÷ `r`.
-  - Selama SMA keluar MR masih mencakup bar sebelum `s` (kurang dari `sma_keluar` bar valid sejak `s`), `KELUAR_SMA` tidak dievaluasi. ATR yang melonjak karena lompatan itu hanya menurunkan kandidat trailing; trailing tidak pernah turun, jadi tidak perlu aturan khusus.
+  - Selama SMA keluar PJ masih mencakup bar sebelum `s` (kurang dari `sma_keluar` bar valid sejak `s`), `KELUAR_SMA` tidak dievaluasi. ATR yang melonjak karena lompatan itu hanya menurunkan kandidat trailing; trailing tidak pernah turun, jadi tidak perlu aturan khusus.
   - Transaksi itu selalu diberi tanda `ANOMALI`, termasuk bila tanggal itu tercatat di `anomali_ok.csv`.
 - Tanpa langkah ini, saham yang kemudian di-split akan tampak "murah" di masa lalu. Ini bentuk look-ahead.
 
@@ -961,7 +961,7 @@ Indikator boleh dihitung tervektor atas seluruh seri demi kecepatan, dengan syar
 
 ## 9. Definisi indikator
 
-Semua indikator dihitung atas **bar valid** saham (§4.1). Jika bar valid belum cukup, nilainya `NaN`. Aturan yang bergantung pada nilai `NaN` dianggap **tidak terpenuhi**. Jika `ATR_t ≤ 0` atau `NaN`, setiap aturan yang memakai ATR (membagi atau mengalikan, mis. PB5, BO5, MR3) dianggap tidak terpenuhi.
+Semua indikator dihitung atas **bar valid** saham (§4.1). Jika bar valid belum cukup, nilainya `NaN`. Aturan yang bergantung pada nilai `NaN` dianggap **tidak terpenuhi**. Jika `ATR_t ≤ 0` atau `NaN`, setiap aturan yang memakai ATR (membagi atau mengalikan, mis. TP5, TB5, PJ3) dianggap tidak terpenuhi.
 
 | Nama | Definisi |
 |---|---|
@@ -1046,17 +1046,17 @@ Angka di tabel aturan adalah **nilai default**. Implementasi wajib membaca kunci
 
 **Stop waktu** "pada close hari ke-N" berarti pada close hari ke-N, atau pada close bar valid pertama sesudahnya jika hari ke-N tidak punya bar valid.
 
-### 12.1 PB — Pullback dalam tren naik
+### 12.1 TP — Pullback dalam tren naik
 
 **Syarat sinyal (semua harus benar):**
 
 | # | Aturan |
 |---|---|
-| PB1 | `close_t > SMA50_t` dan `SMA50_t > SMA200_t` |
-| PB2 | `SMA50_t > SMA50_{t−10}` (`lookback_slope_sma_tren`) |
-| PB3 | Ada `k ∈ {0, 1, 2, 3}` (`lookback_sentuh_sma_cepat` = 4 bar) dengan `low_{t−k} ≤ SMA20_{t−k}`: dalam 4 bar terakhir, harga menyentuh atau menembus SMA20 pada hari yang sama |
-| PB4 | `close_t > high_{t−1}` dan `close_t > open_t` (pemicu pantulan) |
-| PB5 | `(close_t − SMA20_t) / ATR_t ≤ 1,0` |
+| TP1 | `close_t > SMA50_t` dan `SMA50_t > SMA200_t` |
+| TP2 | `SMA50_t > SMA50_{t−10}` (`lookback_slope_sma_tren`) |
+| TP3 | Ada `k ∈ {0, 1, 2, 3}` (`lookback_sentuh_sma_cepat` = 4 bar) dengan `low_{t−k} ≤ SMA20_{t−k}`: dalam 4 bar terakhir, harga menyentuh atau menembus SMA20 pada hari yang sama |
+| TP4 | `close_t > high_{t−1}` dan `close_t > open_t` (pemicu pantulan) |
+| TP5 | `(close_t − SMA20_t) / ATR_t ≤ 1,0` |
 
 **Stop awal:** `LLV(low, 5)_t − 0,2 × ATR_t`, dibulatkan ke atas (§4.1).
 
@@ -1070,19 +1070,19 @@ Angka di tabel aturan adalah **nilai default**. Implementasi wajib membaca kunci
 | Target (intraday) | `harga_beli + target_r (2,0) × R_harga`, dibulatkan ke bawah | Order otomatis jual limit |
 | Stop waktu | Masih terbuka pada close hari ke-10 | Jual di pembukaan hari ke-11 |
 
-**Kunci (`strategi.pb`):** SMA20 = `sma_cepat`; SMA50 = `sma_tren`; SMA200 = `sma_panjang`; 10 (PB2) = `lookback_slope_sma_tren`; 4 (PB3) = `lookback_sentuh_sma_cepat`; 1,0 (PB5) = `maks_jarak_atas_sma_cepat_atr`; LLV 5 = `lookback_swing_low`; 0,2 = `penyangga_stop_atr`; 3,0 = `maks_jarak_stop_atr`; 2,0 = `target_r`; 10 hari = `stop_waktu_hari`.
+**Kunci (`strategi.tp`):** SMA20 = `sma_cepat`; SMA50 = `sma_tren`; SMA200 = `sma_panjang`; 10 (TP2) = `lookback_slope_sma_tren`; 4 (TP3) = `lookback_sentuh_sma_cepat`; 1,0 (TP5) = `maks_jarak_atas_sma_cepat_atr`; LLV 5 = `lookback_swing_low`; 0,2 = `penyangga_stop_atr`; 3,0 = `maks_jarak_stop_atr`; 2,0 = `target_r`; 10 hari = `stop_waktu_hari`.
 
-### 12.2 BO — Breakout dengan lonjakan volume
+### 12.2 TB — Breakout dengan lonjakan volume
 
 **Syarat sinyal:**
 
 | # | Aturan |
 |---|---|
-| BO1 | `close_t > HHV(high, 20)_{t−1}` |
-| BO2 | `RasioVol(20)_t ≥ 1,5` |
-| BO3 | `close_t > SMA50_t` dan `SMA50_t > SMA200_t` |
-| BO4 | `CLV_t ≥ 0,6` |
-| BO5 | `(close_t − HHV(high, 20)_{t−1}) / ATR_t ≤ 1,0` |
+| TB1 | `close_t > HHV(high, 20)_{t−1}` |
+| TB2 | `RasioVol(20)_t ≥ 1,5` |
+| TB3 | `close_t > SMA50_t` dan `SMA50_t > SMA200_t` |
+| TB4 | `CLV_t ≥ 0,6` |
+| TB5 | `(close_t − HHV(high, 20)_{t−1}) / ATR_t ≤ 1,0` |
 
 **Stop awal:** `close_t − 2,0 × ATR_t`, dibulatkan ke atas.
 
@@ -1095,17 +1095,17 @@ Angka di tabel aturan adalah **nilai default**. Implementasi wajib membaca kunci
 
 Tidak ada target tetap.
 
-**Kunci (`strategi.bo`):** 20 (BO1) = `lookback_tertinggi`; 20 (BO2) = `lookback_volume`; 1,5 = `min_rasio_volume`; SMA50/SMA200 = `sma_tren`/`sma_panjang`; 0,6 = `min_posisi_close`; 1,0 (BO5) = `maks_lewat_level_atr`; 2,0 = `stop_atr`; 3,0 = `trailing_atr`; stop waktu = `stop_waktu_hari`.
+**Kunci (`strategi.tb`):** 20 (TB1) = `lookback_tertinggi`; 20 (TB2) = `lookback_volume`; 1,5 = `min_rasio_volume`; SMA50/SMA200 = `sma_tren`/`sma_panjang`; 0,6 = `min_posisi_close`; 1,0 (TB5) = `maks_lewat_level_atr`; 2,0 = `stop_atr`; 3,0 = `trailing_atr`; stop waktu = `stop_waktu_hari`.
 
-### 12.3 MR — Oversold dalam tren naik
+### 12.3 PJ — Oversold dalam tren naik
 
 **Syarat sinyal:**
 
 | # | Aturan |
 |---|---|
-| MR1 | `close_t > SMA200_t` |
-| MR2 | `RSI(2)_t < 10` |
-| MR3 | `close_{t−1} − close_t ≤ 3,0 × ATR_t` (bukan jatuh ekstrem dalam sehari, yang sering terkait berita) |
+| PJ1 | `close_t > SMA200_t` |
+| PJ2 | `RSI(2)_t < 10` |
+| PJ3 | `close_{t−1} − close_t ≤ 3,0 × ATR_t` (bukan jatuh ekstrem dalam sehari, yang sering terkait berita) |
 
 **Stop awal:** `close_t − 2,5 × ATR_t`, dibulatkan ke atas.
 
@@ -1117,9 +1117,9 @@ Tidak ada target tetap.
 | Keluar pantulan | `close_d > SMA5_d` pada close hari ke-`min_hari_tahan` (2) atau sesudahnya | Jual di pembukaan berikutnya |
 | Stop waktu | Masih terbuka pada close hari ke-5 | Jual di pembukaan hari ke-6 |
 
-MR menahan posisi sangat singkat, sehingga fee 0,40% pulang-pergi plus slippage menggerus porsi besar keuntungan per transaksi. Gerbang akan menilainya dengan jujur.
+PJ menahan posisi sangat singkat, sehingga fee 0,40% pulang-pergi plus slippage menggerus porsi besar keuntungan per transaksi. Gerbang akan menilainya dengan jujur.
 
-**Kunci (`strategi.mr`):** SMA200 = `sma_tren`; RSI(2) = `rsi_periode`; 10 = `rsi_maks`; 3,0 (MR3) = `maks_turun_harian_atr`; 2,5 = `stop_atr`; SMA5 = `sma_keluar`; hari ke-2 = `min_hari_tahan`; hari ke-5 = `stop_waktu_hari`.
+**Kunci (`strategi.pj`):** SMA200 = `sma_tren`; RSI(2) = `rsi_periode`; 10 = `rsi_maks`; 3,0 (PJ3) = `maks_turun_harian_atr`; 2,5 = `stop_atr`; SMA5 = `sma_keluar`; hari ke-2 = `min_hari_tahan`; hari ke-5 = `stop_waktu_hari`.
 
 ### 12.4 ACAK — pembanding acak (khusus backtest)
 
@@ -1142,9 +1142,9 @@ Setiap komponen `K` dipotong ke [0, 1]. Peringkat, pemecah nilai sama, dan dedup
 
 | Komponen | Definisi |
 |---|---|
-| `K_sinyal` PB | `0,5 × (1 − clip((close − SMA20)/ATR, 0, 1)) + 0,5 × CLV` |
-| `K_sinyal` BO | `0,5 × clip((RasioVol − v_min)/v_min, 0, 1) + 0,5 × CLV`, dengan `v_min = min_rasio_volume` |
-| `K_sinyal` MR | `clip((rsi_maks − RSI2)/rsi_maks, 0, 1)` |
+| `K_sinyal` TP | `0,5 × (1 − clip((close − SMA20)/ATR, 0, 1)) + 0,5 × CLV` |
+| `K_sinyal` TB | `0,5 × clip((RasioVol − v_min)/v_min, 0, 1) + 0,5 × CLV`, dengan `v_min = min_rasio_volume` |
+| `K_sinyal` PJ | `clip((rsi_maks − RSI2)/rsi_maks, 0, 1)` |
 | `K_sinyal` ACAK | 0,5 |
 | `K_rs` | `(peringkat_rata2 − 1)/(n − 1)`. Peringkat 1 = `Ret(skor.rs_lookback)_t` terendah di antara `n` saham eligible (§11 syarat 1–5) pada `t`; nilai sama memakai rata-rata peringkat. Jika `n = 1`: 0,5. Tidak bergantung pada posisi, mode, atau strategi. |
 | `K_likuid` | `clip(log10(RataNilai_t / nilai_transaksi_min_idr), 0, 1)` |
@@ -1157,7 +1157,7 @@ Skor adalah heuristik pemeringkat, **bukan** peluang keberhasilan, dan laporan h
 1. **Sinyal.** Hitung sinyal semua strategi `aktif` atas saham eligible. Backtest per strategi hanya memakai satu strategi.
 2. **Validasi strategi.** Sinyal yang gagal (mis. jarak stop) → `STOP_TERLALU_JAUH`; keluar dari antrean.
 3. **Gerbang.** Sinyal strategi yang tidak lolos gerbang (§16.6) → `BAYANGAN_GERBANG`; keluar dari antrean. Sinyal ini tidak ikut deduplikasi dan tidak pernah menggugurkan sinyal strategi yang lolos. Backtest per strategi tidak menerapkan langkah ini.
-4. **Deduplikasi.** Jika satu saham masih punya lebih dari satu sinyal, sinyal dengan skor tertinggi dipertahankan; jika skor sama, urutan PB, BO, MR. Sinyal lainnya → `DUPLIKAT_STRATEGI`.
+4. **Deduplikasi.** Jika satu saham masih punya lebih dari satu sinyal, sinyal dengan skor tertinggi dipertahankan; jika skor sama, urutan TP, TB, PJ. Sinyal lainnya → `DUPLIKAT_STRATEGI`.
 5. **Urutkan.** Skor menurun; jika sama, `RataNilai` menurun; lalu kode alfabetis.
 6. **Sudah dipegang.** Saham yang sedang dipegang → `SUDAH_DIPEGANG`.
    - **6a. Portofolio tidak dapat dievaluasi (hanya live).** Jika ada baris `portfolio.csv` berstatus TIDAK DAPAT DIEVALUASI karena §15.3 (lonjakan tanpa data split), semua sinyal tersisa → `DIBLOKIR_PORTOFOLIO` dengan alasan yang menyebut kode saham tersebut, dan laporan diberi banner "PORTOFOLIO TIDAK DAPAT DIEVALUASI — tidak ada rekomendasi beli". Proses selesai (P5).
@@ -1233,7 +1233,7 @@ Asumsi:
 - `RataNilai_t` = Rp 20 miliar.
 - Setiap kolom dihitung **terpisah** sebagai satu-satunya kandidat. Ini menguji fungsi sizing, bukan seleksi.
 
-| | A (PB) | B (BO) | C (MR) |
+| | A (TP) | B (TB) | C (PJ) |
 |---|---|---|---|
 | close_t; ATR_t | 2.000; 60 | 9.000; 250 | 450; 16 |
 | harga_maks | 2.000 + 30 = **2.030** | 9.000 + 125 = **9.125** | 450 + 8 = **458** |
@@ -1255,7 +1255,7 @@ Asumsi:
   - `n = 1`: 208.000 − 183.611,20 = **24.388,80** → 1 lot.
 - **Batas pembulatan:** P = 1.060, S = 964, slippage 0. Risiko per lot tepat 10.000,00, sehingga hasilnya **3 lot**. Ini membuktikan bahwa `Decimal` dipakai, bukan float.
 
-**Target A (PB, 2R)** dari harga isi aktual:
+**Target A (TP, 2R)** dari harga isi aktual:
 
 | Harga isi | Target |
 |---|---|
@@ -1278,13 +1278,13 @@ Asumsi:
 | Field | Isi |
 |---|---|
 | Identitas | Kode, nama, sektor, strategi, skor (1 desimal) |
-| Alasan sinyal | Setiap aturan dengan nilai aktual, mis. "PB4: close 2.000 > high kemarin 1.985 ✓" |
+| Alasan sinyal | Setiap aturan dengan nilai aktual, mis. "TP4: close 2.000 > high kemarin 1.985 ✓" |
 | Harga referensi | close `t` |
 | **Instruksi masuk** | "Pasang order BELI limit di **harga_maks**, N lot, sebelum pra-pembukaan `t+1`. **Segera setelah harga pembukaan terbentuk, cek order Anda.** Jika belum terisi (open > harga_maks), **tarik (withdraw) order**; jangan biarkan antre sepanjang hari, karena bisa terisi belakangan di harga yang tidak diuji backtest. Jika hanya terisi sebagian, tarik sisanya dan catat lot yang terisi saja." Untuk setiap himpunan minimal ketergantungan jual terjadwal (§13.2): "Jika jual <kode> [dan <kode> …] di pembukaan tidak terisi, tarik order beli ini." |
 | Stop loss | Level, metode, jarak %. Jika fraksi belum diverifikasi: "bulatkan stop **ke atas** ke fraksi valid". |
-| Target | PB: tabel target untuk harga isi = harga_ref, tengah, dan harga_maks, plus rumus "target = harga isi + 2 × (harga isi − stop)". BO: "trailing, diperbarui setiap sore". MR: "jual di pembukaan setelah close > SMA5 (mulai hari ke-2)". |
+| Target | TP: tabel target untuk harga isi = harga_ref, tengah, dan harga_maks, plus rumus "target = harga isi + 2 × (harga isi − stop)". TB: "trailing, diperbarui setiap sore". PJ: "jual di pembukaan setelah close > SMA5 (mulai hari ke-2)". |
 | Lot, nilai, fee beli, risiko | Rp dan % ekuitas, beserta sisa anggaran risiko per lembar |
-| R:R bersih | Hanya PB |
+| R:R bersih | Hanya TP |
 | **Langkah setelah terisi** | "Pasang order otomatis stop di X (dan target di Y) **hari itu juga**. Jika harga isi sudah ≤ stop, stop telah terlewati: jual segera. Perbarui portfolio.csv dan akun.yaml (§19.6)." Jika `stop_aktif_hari_entry: false`: "pasang mulai besok". |
 | Peringatan | Harga belum dibulatkan ke fraksi ("bulatkan limit beli dan target ke BAWAH, stop ke ATAS"); bar dari CSV manual; risiko di atas anggaran (jika diizinkan); dan sebagainya |
 
@@ -1309,7 +1309,7 @@ Asumsi:
 4. **Gap di atas target:** jika `T` ada dan `open_d ≥ T`, keluar di `open_d` (`TARGET_GAP`; limit, tanpa slippage).
 5. **Stop intraday:** jika `low_d ≤ S`, keluar di `S × (1 − slip)`. Label: `STOP` atau `TRAILING`. Jika target juga tersentuh di hari yang sama, stop dianggap lebih dulu.
 6. **Target intraday:** jika `high_d ≥ T`, keluar di `T` (`TARGET`).
-7. **Pada close `d`:** perbarui trailing (BO), lalu evaluasi aturan berbasis close untuk dijadwalkan jual di open `d+1`. Jika beberapa aturan terpicu bersamaan, prioritas label: `PAKSA_JUAL_PASAR` > `KELUAR_SMA` > `STOP_WAKTU`.
+7. **Pada close `d`:** perbarui trailing (TB), lalu evaluasi aturan berbasis close untuk dijadwalkan jual di open `d+1`. Jika beberapa aturan terpicu bersamaan, prioritas label: `PAKSA_JUAL_PASAR` > `KELUAR_SMA` > `STOP_WAKTU`.
 
 **Hari entry:**
 
@@ -1349,10 +1349,10 @@ State posisi (trailing, hari ke-N, target, exit yang seharusnya terjadi) dihitun
 | 3 | `stop_awal ≥ harga_beli` (terisi saat harga gap di bawah stop) | **JUAL di pembukaan `t+1`** — "posisi sudah berada di bawah stop sejak dibeli" |
 | 4 | Pemutaran ulang menunjukkan exit pada tanggal < `t` (alasan apa pun), **atau** jual terjadwal di pembukaan `t` (`KELUAR_SMA`, `STOP_WAKTU`, `PAKSA_JUAL_PASAR` dari close sebelumnya, termasuk jual yang tertunda karena ARB dengan label aslinya) | **JUAL di pembukaan `t+1`** — "menurut aturan, posisi seharusnya keluar pada <tanggal> (<alasan>). Jika sudah dijual, perbarui portfolio.csv dan akun.yaml." |
 | 5 | Pemutaran ulang menunjukkan exit oleh order otomatis pada `t` (`STOP`, `STOP_GAP`, `TRAILING`, `TRAILING_GAP`, `TARGET`, `TARGET_GAP`, `STOP_GAP_HARI_ENTRY`). Pemutaran ulang menghormati `stop_aktif_hari_entry`. | **CEK_ORDER:** "order otomatis seharusnya terisi hari ini di <level>." Jika masih dipegang → JUAL di pembukaan `t+1`. |
-| 6 | Pemutaran ulang: aturan berbasis close pada `t` menjadwalkan jual di `t+1` | **JUAL di pembukaan `t+1`**, dengan alasannya (mis. "MR: close 1.245 > SMA5 1.238") |
+| 6 | Pemutaran ulang: aturan berbasis close pada `t` menjadwalkan jual di `t+1` | **JUAL di pembukaan `t+1`**, dengan alasannya (mis. "PJ: close 1.245 > SMA5 1.238") |
 | 7 | Selain itu | **TAHAN**. Tampilkan level stop untuk besok (dan perubahannya dari kemarin), target, hari ke-N dari stop waktu, serta P&L belum terealisasi (Rp, %, R). |
 
-P&L belum terealisasi = nilai pada close valid terakhir − biaya beli (termasuk fee beli, **sebelum** fee jual); % terhadap biaya beli; R terhadap risiko rencana §4.1 (harga_beli menggantikan harga_maks). Pemutaran ulang hanya untuk PB/BO/MR dengan risiko rencana > 0 (selain itu #3 berlaku). Target PB = harga_beli + `target_r` × (harga_beli − stop_awal), dibulatkan ke bawah pada `tanggal_beli`.
+P&L belum terealisasi = nilai pada close valid terakhir − biaya beli (termasuk fee beli, **sebelum** fee jual); % terhadap biaya beli; R terhadap risiko rencana §4.1 (harga_beli menggantikan harga_maks). Pemutaran ulang hanya untuk TP/TB/PJ dengan risiko rencana > 0 (selain itu #3 berlaku). Target TP = harga_beli + `target_r` × (harga_beli − stop_awal), dibulatkan ke bawah pada `tanggal_beli`.
 
 Untuk slot (§13.2 langkah 8), saran JUAL (#3, #4, #6) dihitung sebagai "dijadwalkan jual". Saran CEK_ORDER (#5) tetap dihitung terisi. Hasil jual tidak masuk `kas_tersedia` sampai Anda memperbarui berkas.
 
@@ -1367,7 +1367,7 @@ Untuk slot (§13.2 langkah 8), saran JUAL (#3, #4, #6) dihitung sebagai "dijadwa
 
 ### 16.1 Perintah dan keluaran
 
-`scripts\backtest.bat` menjalankan `python -m asisten_bei_turun backtest [--strategi pb,bo,mr,acak] [--mode edge,realistis]` (default: semua).
+`scripts\backtest.bat` menjalankan `python -m asisten_bei_turun backtest [--strategi tp,tb,pj,acak] [--mode edge,realistis]` (default: semua).
 
 Keluaran di `output/backtest/<YYYYMMDD-HHMMSS>_<hash8>/`:
 
@@ -1469,7 +1469,7 @@ PENUTUPAN d
 
 **Run yang dijalankan:**
 
-- **Per strategi** (`pb`, `bo`, `mr`, `acak`): masing-masing sendiri. Tanpa deduplikasi dan tanpa gerbang.
+- **Per strategi** (`tp`, `tb`, `pj`, `acak`): masing-masing sendiri. Tanpa deduplikasi dan tanpa gerbang.
 - **`gabungan_aktif`:** semua strategi `aktif` (tanpa ACAK) berbagi slot, dengan deduplikasi §13.2.
 - **`gabungan_lolos`:** hanya strategi yang lolos gerbang **pada run yang sama**. Karena strategi dipilih berdasarkan holdout, metrik holdout `gabungan_lolos` **bukan out-of-sample**. Ringkasan wajib menandainya "terseleksi dengan holdout — optimis". Ekspektasi live yang jujur hanya diperoleh dari jurnal kertas setelah tanggal gerbang.
 
@@ -1542,7 +1542,7 @@ Strategi **lolos** jika semua syarat berikut terpenuhi pada mode `edge`, untuk r
 | G5 | In-sample: ≥ `min_pct_jendela_pf_di_atas_1` (50%) jendela yang memenuhi syarat memiliki PF_R > 1. Jika tidak ada jendela yang memenuhi syarat, G5 **gagal**. PF_R jendela "n/a (tanpa kerugian)" dengan ≥ 1 transaksi menang dihitung > 1. |
 | G6 | Penuh: max drawdown R ≤ `maks_drawdown_r` (15R) |
 
-**Isi `output/backtest/gate_status.json`**: `{"catatan": <disclaimer>, "strategi": {"PB": {...}, ...}}`. Setiap entri strategi: `lolos`, `syarat` (per G1–G6: `nilai`, `ambang`, `lolos`, `uraian`), `hash_aturan` (= `hash_aturan[X]`), `hash_input`, `rincian_hash` (hash pendek per bagian config dan per berkas input, agar run harian dapat menyebut bagian yang berubah), `tanggal_data_terakhir`, `dibuat_pada`, `holdout_mulai`, `subset_terjangkau_lemah` (§16.7), dan `folder_run` (folder run asal, tempat `sinyal_r_<strategi>.csv` dibaca oleh §17.4). JSON deterministik (kunci terurut, indentasi 2), sehingga dua run identik hanya berbeda pada `dibuat_pada` dan `folder_run` (keduanya memuat waktu run).
+**Isi `output/backtest/gate_status.json`**: `{"catatan": <disclaimer>, "strategi": {"TP": {...}, ...}}`. Setiap entri strategi: `lolos`, `syarat` (per G1–G6: `nilai`, `ambang`, `lolos`, `uraian`), `hash_aturan` (= `hash_aturan[X]`), `hash_input`, `rincian_hash` (hash pendek per bagian config dan per berkas input, agar run harian dapat menyebut bagian yang berubah), `tanggal_data_terakhir`, `dibuat_pada`, `holdout_mulai`, `subset_terjangkau_lemah` (§16.7), dan `folder_run` (folder run asal, tempat `sinyal_r_<strategi>.csv` dibaca oleh §17.4). JSON deterministik (kunci terurut, indentasi 2), sehingga dua run identik hanya berbeda pada `dibuat_pada` dan `folder_run` (keduanya memuat waktu run).
 
 **Penulisan:**
 
@@ -1618,7 +1618,7 @@ SQLite `data/jurnal.sqlite`. Setiap run harian mengekspor setiap tabel ke `outpu
 | `kertas_transaksi` | `periode_id`, kolom transaksi seperti `transaksi_*.csv` (termasuk kolom `*_nominal`), `status_isi` (`TERISI`, atau `MENUNGGU` untuk order yang bar hari berikutnya belum ada) |
 | `kertas_ekuitas` | `periode_id, tanggal, kas, nilai_posisi, ekuitas, perkiraan (0/1, ≈), gerbang_dari_pemroses (0/1, tanda §17.2)` |
 
-**Format kolom:** harga sebagai teks desimal sampai 6 desimal, Rupiah 2 desimal (ROUND_HALF_UP), R 4 desimal — sama dengan berkas backtest — sehingga tidak ada derau float. `run_id`, `sinyal_id`, dan `periode_id` tidak pernah dipakai ulang (juga setelah `--catat-ulang`). `target_harga` = target untuk harga isi = `harga_maks` (PB); kosong untuk BO/MR. `bar_saat_sinyal` = OHLC × F(d) dan volume ÷ F(d) (volume sebelum `pengali_volume`) menurut data saat dicatat, plus `sumber`. Satu run menulis semua barisnya dalam satu transaksi SQLite: gagal di tengah tidak meninggalkan sebagian baris.
+**Format kolom:** harga sebagai teks desimal sampai 6 desimal, Rupiah 2 desimal (ROUND_HALF_UP), R 4 desimal — sama dengan berkas backtest — sehingga tidak ada derau float. `run_id`, `sinyal_id`, dan `periode_id` tidak pernah dipakai ulang (juga setelah `--catat-ulang`). `target_harga` = target untuk harga isi = `harga_maks` (TP); kosong untuk TB/PJ. `bar_saat_sinyal` = OHLC × F(d) dan volume ÷ F(d) (volume sebelum `pengali_volume`) menurut data saat dicatat, plus `sumber`. Satu run menulis semua barisnya dalam satu transaksi SQLite: gagal di tengah tidak meninggalkan sebagian baris.
 
 ### 17.2 Tiga keluaran
 
@@ -1682,7 +1682,7 @@ Filter yang sama diterapkan pada `sinyal_r_<strategi>.csv` dari `folder_run` ger
 ### 18.1 Isi laporan (urutan bagian)
 
 1. **Kepala:** "BUKAN SARAN INVESTASI", tanggal data `t`, untuk hari bursa `t+1`, waktu dibuat (WIB), `hash8`, versi program. Banner bila berlaku: DATA BELUM TERSEDIA, DATA TIDAK LENGKAP, TERLAMBAT / RUN PADA HARI t+1, SPLIT TERDETEKSI, kalender t+1 belum terverifikasi.
-2. **Ringkasan aksi** (maksimal 8 baris), mis. "JUAL ABCD di pembukaan", "BELI AAAA 1 lot, limit 2.030 — tarik jika tidak terisi saat pembukaan", "Perbarui stop BO BBBB ke 1.450".
+2. **Ringkasan aksi** (maksimal 8 baris), mis. "JUAL ABCD di pembukaan", "BELI AAAA 1 lot, limit 2.030 — tarik jika tidak terisi saat pembukaan", "Perbarui stop TB BBBB ke 1.450".
 3. **Status pasar:** status + tabel syarat K0–K4.
 4. **Status strategi:** lolos/tidak per strategi beserta alasan, tanggal backtest, PF_R holdout, dan peringatan subset terjangkau.
 5. **Akun:** kas, nilai posisi, ekuitas, anggaran risiko, alokasi maks, slot kosong.
@@ -1870,14 +1870,14 @@ Kode keluar dan prioritasnya ada di §20.
 |---|---|
 | Malam (setelah laporan ±19:30) | Baca ringkasan aksi. Siapkan order untuk besok. |
 | Pagi `t+1`, sebelum pra-pembukaan | Pasang order BELI limit di `harga_maks` sesuai laporan. Pasang order JUAL untuk saran "JUAL di pembukaan" dengan cara yang membuat order terisi di harga pembukaan (tergantung fitur broker, §24). |
-| Segera setelah pembukaan | Cek setiap order beli. Tidak terisi → **tarik**. Terisi sebagian → tarik sisanya. Terisi → **pasang order otomatis stop (dan target untuk PB) hari itu juga**. Jika harga isi ≤ stop → jual segera. |
+| Segera setelah pembukaan | Cek setiap order beli. Tidak terisi → **tarik**. Terisi sebagian → tarik sisanya. Terisi → **pasang order otomatis stop (dan target untuk TP) hari itu juga**. Jika harga isi ≤ stop → jual segera. |
 | Setelah ada transaksi | Perbarui `portfolio.csv` dan `akun.yaml` (contoh di bawah). |
-| Setiap sore, posisi BO | Perbarui level order otomatis stop sesuai laporan. |
+| Setiap sore, posisi TB | Perbarui level order otomatis stop sesuai laporan. |
 
 **Contoh dengan angka fiktif:**
 
-- **Beli terisi:** 1 lot `AAAA` di 2.010, strategi PB, stop 1.888.
-  - Tambah baris di `portfolio.csv`: `AAAA,2026-10-16,2010,1,PB,1888,,,,`
+- **Beli terisi:** 1 lot `AAAA` di 2.010, strategi TP, stop 1.888.
+  - Tambah baris di `portfolio.csv`: `AAAA,2026-10-16,2010,1,TP,1888,,,,`
   - Kurangi kas di `akun.yaml` sebesar 2.010 × 100 × 1,0015 = **201.301,50**, lalu ubah `diperbarui`.
   - Target = 2.010 + 2 × (2.010 − 1.888) = **2.254**.
 - **Jual 1 lot di 2.254:**
@@ -1978,15 +1978,15 @@ Jika broker membulatkan fee berbeda, pakai angka dari trade confirmation.
 | T-BEI | Aturan BEI | Belum terverifikasi → pembulatan rupiah bulat dengan arah §4.1 + peringatan. Tabel fiktif (berlabel "FIKTIF – KHUSUS UJI", bukan aturan nyata) → pembulatan benar di batas rentang dan hanya untuk tanggal ≥ `berlaku_mulai`. Tabel tumpang tindih/berlubang → error. ARB terkunci hanya dimodelkan bila terverifikasi. |
 | T-KP | Kondisi pasar | Fixture untuk setiap cabang K0–K4, termasuk penyebut cakupan yang mengabaikan saham belum tercatat, `min_saham_breadth`, dan IHSG tanpa volume. |
 | T-UN | Universe | Ambang likuiditas tepat di batas (≥ lolos); exclude dengan tanggal kosong/berbatas di tepi rentang; `universe_history` inklusif kedua ujung dan keluar-masuk ulang; sektor `TIDAK_DIKETAHUI:<KODE>`; backtest mengabaikan exclude kecuali `pakai_exclude`. |
-| T-ST | Strategi | Untuk setiap aturan PB1–PB5, BO1–BO5, dan MR1–MR3: fixture yang lulus semua aturan, lalu satu varian per aturan yang hanya melanggar aturan itu → sinyal hilang dengan alasan yang benar. `STOP_TERLALU_JAUH`. ACAK deterministik dengan rumus §12.4. |
+| T-ST | Strategi | Untuk setiap aturan TP1–TP5, TB1–TB5, dan PJ1–PJ3: fixture yang lulus semua aturan, lalu satu varian per aturan yang hanya melanggar aturan itu → sinyal hilang dengan alasan yang benar. `STOP_TERLALU_JAUH`. ACAK deterministik dengan rumus §12.4. |
 | T-SK | Skor & seleksi | Nilai skor cocok dengan hitung tangan, termasuk `K_rs` dengan n = 1 dan nilai sama. Urutan §13.2 langkah 1–9 lengkap: bayangan gerbang tidak menggugurkan sinyal yang lolos; `SUDAH_DIPEGANG`; slot dibebaskan jual terjadwal; CEK ORDER tetap terisi; sektor posisi `MANUAL` dan di luar universe; `TIDAK_LIKUID`; `izinkan_satu_lot_melebihi_risiko`. |
 | T-SZ | Sizing | Contoh §14.2 persis: A = 1 lot (risiko 15.164,83); B = TIDAK_TERJANGKAU (alasan risiko, tampil "Rp 66.841,63"); C = 5 lot (risiko 25.060,49); HATI-HATI A = TIDAK_TERJANGKAU, C = 2 lot. Fee minimum fiktif → A = 1 lot (risiko 24.388,80). Batas pembulatan → 3 lot. Alokasi maks = 1.000.000 tepat. Kasus fiktif `m` = 5.000 dengan P = 9.950: biaya_beli(1) = 1.000.000 → `lot_alokasi` = 1. |
 | T-BIAYA | Fee | Contoh §14.2: P&L bersih Rp 27.517 (`pembulatan_fee: null`). Dengan `rupiah_terdekat` (ROUND_HALF_UP) atau `rupiah_ke_atas`: fee 305 dan 579, P&L Rp 27.516. |
-| T-EX | Exit | Setiap pembatalan di open: BATAL_DATA (bar tidak ada / volume 0 / rusak), BATAL_GAP, BATAL_ARA (terverifikasi, fixture fiktif), BATAL_SLOT_SAAT_OPEN dan BATAL_SEKTOR_SAAT_OPEN (jual terjadwal tertunda), BATAL_KAS_SAAT_OPEN; open ≤ stop di hari entry → `STOP_GAP_HARI_ENTRY` dengan R terhadap risiko rencana; open = harga_maks → harga isi = harga_maks dan `risiko_awal_idr ≤ anggaran`; low ≤ stop → keluar di stop × (1 − slip); gap di bawah stop posisi lama → open; stop dan target di hari yang sama → stop; open ≥ target → `TARGET_GAP`; trailing BO 5 hari cocok dengan hitung tangan dan tidak pernah turun; MR keluar SMA5 hanya mulai hari ke-2; stop waktu hari ke-10/ke-5; bar hilang/tanpa transaksi menunda jual; ARB terkunci (terverifikasi) menunda jual; stop waktu pada hari ke-N tanpa bar → dievaluasi pada bar valid berikutnya; `DATA_BERAKHIR` diputuskan as-of setelah 60 hari tanpa bar; prioritas label; `stop_aktif_hari_entry: false`. |
+| T-EX | Exit | Setiap pembatalan di open: BATAL_DATA (bar tidak ada / volume 0 / rusak), BATAL_GAP, BATAL_ARA (terverifikasi, fixture fiktif), BATAL_SLOT_SAAT_OPEN dan BATAL_SEKTOR_SAAT_OPEN (jual terjadwal tertunda), BATAL_KAS_SAAT_OPEN; open ≤ stop di hari entry → `STOP_GAP_HARI_ENTRY` dengan R terhadap risiko rencana; open = harga_maks → harga isi = harga_maks dan `risiko_awal_idr ≤ anggaran`; low ≤ stop → keluar di stop × (1 − slip); gap di bawah stop posisi lama → open; stop dan target di hari yang sama → stop; open ≥ target → `TARGET_GAP`; trailing TB 5 hari cocok dengan hitung tangan dan tidak pernah turun; PJ keluar SMA5 hanya mulai hari ke-2; stop waktu hari ke-10/ke-5; bar hilang/tanpa transaksi menunda jual; ARB terkunci (terverifikasi) menunda jual; stop waktu pada hari ke-N tanpa bar → dievaluasi pada bar valid berikutnya; `DATA_BERAKHIR` diputuskan as-of setelah 60 hari tanpa bar; prioritas label; `stop_aktif_hari_entry: false`. |
 | T-PF | Saran posisi | Urutan §15.4 #1–#7, termasuk: exit sebelum `t`; jual terjadwal di pembukaan `t` (KELUAR_SMA dari close `t−1`) → #4, bukan TAHAN; exit order otomatis pada `t` → CEK_ORDER; hari entry dengan `stop_aktif_hari_entry: false` tidak memicu CEK_ORDER; `stop_awal ≥ harga_beli` → JUAL tanpa ERROR; MANUAL di bawah stop (tetap info); `DIBLOKIR_PORTOFOLIO`; split dengan dan tanpa `harga_per_tanggal`; pengingat konsistensi. |
 | T-BT | Mesin backtest | Kas tidak pernah negatif; slot dan sektor tidak pernah terlampaui; harga isi beli ≤ harga_maks; identitas akuntansi §16.9; anomali as-of (tanda `ANOMALI`); `MELEWATI_HOLDOUT`; hasil byte-identik. |
 | T-MT | Metrik | Kurva ekuitas sintetis dengan CAGR dan MaxDD yang diketahui; daftar transaksi dengan win rate, PF, PF_R, dan max drawdown R yang diketahui; PF tanpa kerugian → "n/a"; pembagian periode berdasarkan tanggal entry; titik awal pembanding IHSG. |
-| T-GB | Gerbang | Setiap syarat G1–G6 gagal satu per satu → `lolos: false` dengan alasan tepat. G5 tanpa jendela yang memenuhi syarat → gagal. Penggabungan per strategi. Mengubah `indikator.atr_periode`, `gerbang.min_pf_r_holdout`, isi `universe.csv` atau `holidays.csv`, atau memverifikasi `auto_reject` → `BAYANGAN_GERBANG`. Mengubah `strategi.bo` tidak membatalkan gerbang PB/MR. Mengisi `pasar.jadwal_sesi`, `sumber`/`tanggal_cek`, atau `biaya.terverifikasi` tidak mengubah hash. Umur > kedaluwarsa. Log holdout dan peringatan M > 1. Subset terjangkau. |
+| T-GB | Gerbang | Setiap syarat G1–G6 gagal satu per satu → `lolos: false` dengan alasan tepat. G5 tanpa jendela yang memenuhi syarat → gagal. Penggabungan per strategi. Mengubah `indikator.atr_periode`, `gerbang.min_pf_r_holdout`, isi `universe.csv` atau `holidays.csv`, atau memverifikasi `auto_reject` → `BAYANGAN_GERBANG`. Mengubah `strategi.tb` tidak membatalkan gerbang TP/PJ. Mengisi `pasar.jadwal_sesi`, `sumber`/`tanggal_cek`, atau `biaya.terverifikasi` tidak mengubah hash. Umur > kedaluwarsa. Log holdout dan peringatan M > 1. Subset terjangkau. |
 | T-JR | Jurnal | Run ganda untuk `t` final idempoten. Hari terlewat dikejar dengan `susulan = 1`, `ditampilkan = 0`, dan `status_live` tetap terisi. Run `TIDAK_LENGKAP` lalu `LENGKAP` → sinyal baru ditambahkan, yang lama dipertahankan. Split setelah sinyal tidak memunculkan `data_direvisi` palsu. Perubahan `universe.csv` tidak mengubah transaksi kertas masa lalu (`snapshot_input`). Gerbang yang berlaku untuk hari susulan diambil dari run sebelum hari itu. `BELUM_TERSEDIA` tidak menulis. Hitung ulang turunan setelah revisi data. Periode kertas baru saat `hash_aturan` berubah. `--rekonsiliasi` pada fixture = nol selisih. Bootstrap deterministik. |
 | T-LP | Laporan | Setiap keluaran (terminal semua perintah, md, html, csv, setiap sheet xlsx, setiap keluaran backtest termasuk JSON/YAML/`holdout_log.csv`, berkas kualitas, ekspor jurnal, setiap bagian pesan Telegram dan caption lampiran) memuat "BUKAN SARAN INVESTASI". HTML mandiri. Instruksi pembulatan dan instruksi menarik order muncul. Berkas terkunci → nama alternatif. |
 | T-TG | Telegram | Alasan berisi `<`, `>`, `&` terkirim (mock memvalidasi HTML); pemecahan tag-seimbang ≤ 4.000; 400 → teks polos; 429 → tunggu lalu coba lagi; lampiran terlalu besar; exception mock dengan URL ber-token tidak memunculkan token di log. |
@@ -1996,16 +1996,16 @@ Jika broker membulatkan fee berbeda, pakai angka dari trade confirmation.
 
 ### 22.2 Skenario end-to-end offline
 
-**Fixture.** `tests/fixtures/buat_fixture.py` (berseed tetap, ikut di-commit) membangkitkan `tests/fixtures/e2e/`: `pasar_sintetis/` dalam format cache §8.3, `config_uji.yaml`, `config_uji_ujibo.yaml`, dan `input_uji/`. Fixture uji tahap 1–5 (`tests/fixtures/config_uji.yaml`, `input_uji/`) tetap terpisah. Konstanta tanggal `T1`, `T_BO`, `T_HATI`, `T_TURUN`, `T_KOSONG` didefinisikan di skrip; semua tahun data punya entri `holidays.csv` fiktif sehingga kalender manual berlaku. `config_uji.yaml` memakai `holdout_mulai` dan ambang gerbang yang longgar (mis. `min_transaksi_holdout: 1`), dan PB, BO, dan MR lolos gerbang pada data ini (diuji langkah 1). Uji memastikan isi `pasar_sintetis/` sama dengan keluaran pembangkit.
+**Fixture.** `tests/fixtures/buat_fixture.py` (berseed tetap, ikut di-commit) membangkitkan `tests/fixtures/e2e/`: `pasar_sintetis/` dalam format cache §8.3, `config_uji.yaml`, `config_uji_ujibo.yaml`, dan `input_uji/`. Fixture uji tahap 1–5 (`tests/fixtures/config_uji.yaml`, `input_uji/`) tetap terpisah. Konstanta tanggal `T1`, `T_TB`, `T_HATI`, `T_TURUN`, `T_KOSONG` didefinisikan di skrip; semua tahun data punya entri `holidays.csv` fiktif sehingga kalender manual berlaku. `config_uji.yaml` memakai `holdout_mulai` dan ambang gerbang yang longgar (mis. `min_transaksi_holdout: 1`), dan TP, TB, dan PJ lolos gerbang pada data ini (diuji langkah 1). Uji memastikan isi `pasar_sintetis/` sama dengan keluaran pembangkit.
 
 | Saham | Desain | Hasil yang diharapkan |
 |---|---|---|
 | `IHSG` | Periode naik (memuat `T1`), transisi (memuat `T_HATI`), turun (memuat `T_TURUN`); tanpa volume | Ketiga status pasar muncul pada tanggal yang diketahui |
 | ±40 saham breadth | Sebagian baru "melantai" di tengah periode | Penyebut cakupan diuji |
-| `UJIPB` | Memicu PB pada `T1`, lalu kena target | `REKOMENDASI` → `TERISI` → `TARGET` |
+| `UJIPB` | Memicu TP pada `T1`, lalu kena target | `REKOMENDASI` → `TERISI` → `TARGET` |
 | `UJIBO` | Breakout bervolume, lalu trailing; dipakai di `portfolio_ujibo.csv` | TAHAN + level trailing sesuai hitung tangan |
 | `UJIMR` | RSI2 jatuh (sinyal `T1+1`), lalu keluar SMA5 pada hari ke-3; jatuh lagi pada `T_TURUN` | `KELUAR_SMA`; daftar pantau langkah 7 |
-| `UJIMAHAL` | Harga ± 9.000, sinyal PB pada `T1` dengan jarak stop ≥ 5% | `TIDAK_TERJANGKAU` (alasan risiko) |
+| `UJIMAHAL` | Harga ± 9.000, sinyal TP pada `T1` dengan jarak stop ≥ 5% | `TIDAK_TERJANGKAU` (alasan risiko) |
 | `UJIMAHAL2` | `harga_maks` tepat 10.500, sinyal pada `T1` dengan jarak stop 2% (risiko 1 lot 26.173,93 ≤ 30.000) | `TIDAK_TERJANGKAU` (alasan alokasi; 1 lot = 1.051.575) |
 | `UJISEKTOR` | Sektor sama dengan `UJIPB`, sinyal pada `T1` dengan skor **lebih rendah** | `BATAS_SEKTOR` |
 | `UJIGAP` | Sinyal pada `T1`, open `T1+1` > harga_maks | `BATAL_GAP` |
@@ -2026,7 +2026,7 @@ Jika broker membulatkan fee berbeda, pakai angka dari trade confirmation.
 3. Ulangi langkah 2 → jurnal tidak berubah ("sudah tercatat").
 4. `--tanggal T1+1` → `UJIPB` `TERISI` di open `T1+1`; `UJIGAP` `BATAL_GAP`.
 5. Lompat ke `--tanggal T1+5` (simulasi PC mati 3 hari) → jurnal mengejar: sinyal susulan bertanda `susulan = 1`, `ditampilkan = 0`; `UJIPB` `TARGET` pada tanggal yang diharapkan.
-6. Dengan `--config <tmp>/config_uji_ujibo.yaml` (memakai `portfolio_ujibo.csv`, `tanggal_beli` = `T_BO+1` ≤ `t`), `--tanggal T1+5` tanpa `--catat` → laporan menampilkan TAHAN + level trailing baru yang cocok dengan hitung tangan; jurnal tidak berubah.
+6. Dengan `--config <tmp>/config_uji_ujibo.yaml` (memakai `portfolio_ujibo.csv`, `tanggal_beli` = `T_TB+1` ≤ `t`), `--tanggal T1+5` tanpa `--catat` → laporan menampilkan TAHAN + level trailing baru yang cocok dengan hitung tangan; jurnal tidak berubah.
 7. `--tanggal T_TURUN` → JANGAN BELI, nol `REKOMENDASI`, daftar pantau ada, sinyal `BAYANGAN_PASAR` tercatat.
 8. Hapus `gate_status.json`, lalu `--tanggal T1` lagi → semua `BAYANGAN_GERBANG`, nol rekomendasi, instruksi menjalankan backtest; jurnal "sudah tercatat" dan turunannya tidak terpotong (replay tanggal lampau, §17.3 #8).
 9. `--tanggal T_KOSONG` dengan `config_uji_ujibo.yaml` (cache tanpa bar `T_KOSONG` untuk sebagian besar saham, termasuk IHSG; UJIBO tetap punya) → kode 2, banner DATA BELUM TERSEDIA dengan petunjuk hari libur, saran exit tetap ada untuk posisi yang barnya ada.
@@ -2044,7 +2044,7 @@ Langkah 1 (backtest) dijalankan dengan `--mode edge` pada `T_KOSONG`. Acuan lapo
    - Rasio volume menentukan `pengali_volume` (harus 1 jika yfinance memakai lembar). Jika rasionya tidak sama di ketiga periode, **jangan** memakai satu pengali; laporkan sebagai masalah data dan perbarui SPEC.
    - Setelah itu setel `pengali_volume_terverifikasi: true`.
 4. `backtest.bat` → ringkasan terbuka. ACAK tidak tampak menguntungkan. Jumlah transaksi per tahun masuk akal. Grafik IHSG sesuai pengetahuan umum (mis. penurunan tajam 2020).
-5. **Hitung tangan** satu transaksi dari `transaksi_pb_edge.csv`: sinyal tampak di grafik; harga entry = min(open hari berikutnya × 1,001, harga_maks); exit sesuai aturan; fee benar.
+5. **Hitung tangan** satu transaksi dari `transaksi_tp_edge.csv`: sinyal tampak di grafik; harga entry = min(open hari berikutnya × 1,001, harga_maks); exit sesuai aturan; fee benar.
 6. `harian.bat` → baca laporan dan hitung ulang sizing satu kandidat dengan kalkulator memakai rumus §14.1.
 7. `uji_telegram.bat` → pesan diterima.
 8. Daftarkan jadwal. Pada hari bursa berikutnya ±19:30, laporan dan pesan Telegram harus muncul. Opsional: matikan PC saat 19:30 → saat dinyalakan, tugas berjalan susulan dan laporan memakai `t` yang benar.
@@ -2073,7 +2073,7 @@ Langkah 1 (backtest) dijalankan dengan `--mode edge` pada `T_KOSONG`. Acuan lapo
 | 1 | Kerangka proyek, `config.py`, `inputs.py`, `waktu.py`, `kalender.py`, `operasional.py`, perintah `cek` | T-CFG, T-KL (tanpa bagian run), T-INP, T-OP lulus |
 | 2 | Lapisan data: provider, cache, split, kualitas, `DataView`, perintah `unduh` | T-DQ, T-CA, T-SP (bagian data) lulus; uji cepat §22.3 langkah 2–3 |
 | 3 | `indikator.py`, `kondisi_pasar.py`, `universe.py` | T-IN, T-KP, T-UN, T-LA1a lulus |
-| 4 | Strategi PB/BO/MR/ACAK, `skor.py`, `sizing.py`, `biaya.py`, `seleksi.py`, `aturan_bei.py` | T-ST, T-SK (tanpa bagian portofolio live), T-SZ, T-BIAYA, T-BEI (tanpa bagian ARB terkunci), T-LA1b lulus |
+| 4 | Strategi TP/TB/PJ/ACAK, `skor.py`, `sizing.py`, `biaya.py`, `seleksi.py`, `aturan_bei.py` | T-ST, T-SK (tanpa bagian portofolio live), T-SZ, T-BIAYA, T-BEI (tanpa bagian ARB terkunci), T-LA1b lulus |
 | 5 | `exit.py`, mesin backtest, metrik, jendela, gerbang (penulisan berkas), laporan backtest | T-EX, T-BT, T-MT, T-GB (bagian berkas), T-BEI (bagian ARB terkunci), T-LA2, T-LA3, T-SP (bagian mesin) lulus |
 | 6 | `portofolio.py`, `harian.py`, jurnal, laporan (terminal/md/html/csv/xlsx) | T-PF, T-JR, T-SK (bagian portofolio live), T-SP (bagian live), T-GB (bagian run harian), T-LP (tanpa Telegram), T-KL (bagian run), T-E2E lulus |
 | 7 | Telegram, berkas `.bat`, `daftar_jadwal.ps1`, README | T-TG, T-LP (bagian Telegram) lulus; uji cepat §22.3 langkah 1–8 |
@@ -2128,7 +2128,7 @@ Keputusan berikut diambil saat menyusun spesifikasi. Semuanya bisa diubah lewat 
 12. **Anomali data berlaku ke depan** (as-of) selama `min_bar_riwayat` bar, bukan menghapus saham dari seluruh riwayat.
 13. **Jurnal kertas dimulai ulang** setiap kali aturan (`hash_aturan` global) berubah. Gerbang dinilai ulang **per strategi**, sehingga mengubah satu strategi tidak menonaktifkan strategi lain. Metadata verifikasi (sumber, tanggal cek, flag `terverifikasi` biaya/volume, jadwal sesi) tidak memengaruhi hash.
 14. **Masa paper trading yang dianjurkan:** 3 bulan / 30 transaksi kertas.
-15. **MR `min_hari_tahan: 2`** untuk mewujudkan "ditahan 2–5 hari".
+15. **PJ `min_hari_tahan: 2`** untuk mewujudkan "ditahan 2–5 hari".
 16. **Batas bar final = jam run Anda (19:30)** sampai jadwal sesi diverifikasi.
 17. **Satuan R memakai risiko rencana** (dari `harga_maks` dan stop saat sizing), sehingga tetap bermakna pada gap turun di hari entry.
 18. **Nilai posisi tanpa close valid** = close valid terakhir, dengan ekuitas ditandai "≈", dipakai seragam di live, backtest, dan jurnal.

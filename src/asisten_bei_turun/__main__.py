@@ -53,7 +53,7 @@ def buat_parser() -> argparse.ArgumentParser:
     unduh.add_argument("--simbol", metavar="K1,K2", help="hanya simbol ini (pisahkan dengan koma)")
 
     bt = tambah("backtest", "backtest (§16)")
-    bt.add_argument("--strategi", metavar="pb,bo,mr,acak",
+    bt.add_argument("--strategi", metavar="tp,tb,pj,acak",
                     help="hanya run strategi ini (default: semua, ditambah run gabungan_aktif dan gabungan_lolos)")
     bt.add_argument("--mode", metavar="edge,realistis", help="hanya mode ini (default: semua)")
     h = tambah("harian", "run harian (§18)")

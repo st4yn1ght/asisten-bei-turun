@@ -147,19 +147,19 @@ def test_tanpa_gate_status_semua_bayangan_gerbang(proyek):
     h = proyek.harian("2025-05-20")
     assert h.kode == 0
     teks = md(proyek, "2025-05-20")
-    for s in ("PB", "BO", "MR"):
+    for s in ("TP", "TB", "PJ"):
         assert "BAYANGAN_GERBANG" in baris_status(teks, s) and "Jalankan backtest.bat" in baris_status(teks, s)
     kandidat = pd.read_csv(proyek.folder_laporan / "2025-05-20" / "kandidat.csv", comment="#", dtype=str)
     assert len(kandidat) and set(kandidat["status_sinyal"]) <= {"BAYANGAN_GERBANG", "STOP_TERLALU_JAUH"}
     assert "REKOMENDASI" not in set(kandidat["status_sinyal"])
 
 
-def test_ubah_strategi_bo_hanya_membatalkan_bo(proyek):
-    proyek.ubah_config({"strategi.bo.trailing_atr": 2.5})
+def test_ubah_strategi_tb_hanya_membatalkan_tb(proyek):
+    proyek.ubah_config({"strategi.tb.trailing_atr": 2.5})
     proyek.harian("2025-05-20")
     teks = md(proyek, "2025-05-20")
-    assert "BAYANGAN_GERBANG" in baris_status(teks, "BO") and "strategi.bo" in baris_status(teks, "BO")
-    assert "| LOLOS |" in baris_status(teks, "PB") and "| LOLOS |" in baris_status(teks, "MR")
+    assert "BAYANGAN_GERBANG" in baris_status(teks, "TB") and "strategi.tb" in baris_status(teks, "TB")
+    assert "| LOLOS |" in baris_status(teks, "TP") and "| LOLOS |" in baris_status(teks, "PJ")
 
 
 @pytest.mark.parametrize("ubah, bagian", [({"indikator.atr_periode": 6}, "indikator"),
@@ -168,18 +168,18 @@ def test_ubah_config_terhash_membatalkan_semua(proyek, ubah, bagian):
     proyek.ubah_config(ubah)
     proyek.harian("2025-05-20")
     teks = md(proyek, "2025-05-20")
-    for s in ("PB", "BO", "MR"):
+    for s in ("TP", "TB", "PJ"):
         assert "BAYANGAN_GERBANG" in baris_status(teks, s) and bagian in baris_status(teks, s)
 
 
 def test_ubah_holidays_membatalkan_dan_jadwal_sesi_tidak(proyek):
     proyek.ubah_config(JADWAL_FIKTIF)
     proyek.harian("2025-05-20")
-    assert "| LOLOS |" in baris_status(md(proyek, "2025-05-20"), "PB")
+    assert "| LOLOS |" in baris_status(md(proyek, "2025-05-20"), "TP")
     proyek.tulis_input("holidays.csv", "tanggal,keterangan\n2026-12-25,FIKTIF – KHUSUS UJI\n2027-01-01,FIKTIF\n"
                                        "2027-12-24,FIKTIF\n")
     proyek.harian("2025-05-21")
-    b = baris_status(md(proyek, "2025-05-21"), "PB")
+    b = baris_status(md(proyek, "2025-05-21"), "TP")
     assert "BAYANGAN_GERBANG" in b and "holidays.csv" in b
 
 
@@ -190,7 +190,7 @@ def test_gerbang_kedaluwarsa(proyek):
         e["tanggal_data_terakhir"] = "2025-01-02"
     path.write_text(json.dumps(isi), encoding="utf-8")
     proyek.harian("2025-05-20")
-    b = baris_status(md(proyek, "2025-05-20"), "MR")
+    b = baris_status(md(proyek, "2025-05-20"), "PJ")
     assert "BAYANGAN_GERBANG" in b and "kedaluwarsa" in b
 
 

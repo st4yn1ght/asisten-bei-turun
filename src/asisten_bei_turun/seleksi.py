@@ -10,7 +10,7 @@ backtest/kertas: posisi simulasi), konteks risiko (`config.resolusi_konteks`), d
 Langkah:
 1–2. Sinyal tidak valid → `STOP_TERLALU_JAUH`.
 3.   Strategi tidak lolos gerbang → `BAYANGAN_GERBANG` (tidak ikut deduplikasi, tidak menggugurkan sinyal lain).
-4.   Deduplikasi per saham: skor tertinggi; seri → urutan PB, BO, MR, ACAK. Sisanya `DUPLIKAT_STRATEGI`.
+4.   Deduplikasi per saham: skor tertinggi; seri → urutan TP, TB, PJ, ACAK. Sisanya `DUPLIKAT_STRATEGI`.
 5.   Urutan: skor ↓, RataNilai ↓, kode ↑ (lalu urutan strategi).
 6.   Saham yang dipegang → `SUDAH_DIPEGANG`. 6a (live): portofolio diblokir → `DIBLOKIR_PORTOFOLIO`, selesai.
 7.   JANGAN BELI → `BAYANGAN_PASAR` (daftar pantau mengikuti urutan langkah 5), selesai.

@@ -224,9 +224,9 @@ def periode_sma(cfg: Config) -> list[int]:
     kp = cfg.kondisi_pasar
     return sorted(
         {
-            s.pb.sma_cepat, s.pb.sma_tren, s.pb.sma_panjang,
-            s.bo.sma_tren, s.bo.sma_panjang,
-            s.mr.sma_tren, s.mr.sma_keluar,
+            s.tp.sma_cepat, s.tp.sma_tren, s.tp.sma_panjang,
+            s.tb.sma_tren, s.tb.sma_panjang,
+            s.pj.sma_tren, s.pj.sma_keluar,
             kp.sma_pendek, kp.sma_panjang, kp.breadth_sma,
         }
     )
@@ -256,8 +256,8 @@ def hitung_indikator(valid: pd.DataFrame, cfg: Config) -> pd.DataFrame:
 
     Kolom: open, high, low, close, volume (salinan), tr, atr (`indikator.atr_periode`), clv, nilai_tx,
     rata_nilai (`likuiditas.periode_hari`), sma_n untuk setiap n di `periode_sma(cfg)`,
-    rsi_n (`strategi.mr.rsi_periode`), hhv_high_n (`strategi.bo.lookback_tertinggi`),
-    llv_low_n (`strategi.pb.lookback_swing_low`), rasio_vol_n (`strategi.bo.lookback_volume`),
+    rsi_n (`strategi.pj.rsi_periode`), hhv_high_n (`strategi.tb.lookback_tertinggi`),
+    llv_low_n (`strategi.tp.lookback_swing_low`), rasio_vol_n (`strategi.tb.lookback_volume`),
     ret_n (`skor.rs_lookback`). Index = `valid.index`.
 
     `valid` wajib berisi bar valid saja (volume > 0, OHLC tidak NaN); selain itu ValueError —
@@ -280,10 +280,10 @@ def hitung_indikator(valid: pd.DataFrame, cfg: Config) -> pd.DataFrame:
     kolom["rata_nilai"] = sma(kolom["nilai_tx"], cfg.likuiditas.periode_hari)
     for n in periode_sma(cfg):
         kolom[k_sma(n)] = sma(c, n)
-    kolom[k_rsi(s.mr.rsi_periode)] = rsi_wilder(c, s.mr.rsi_periode)
-    kolom[k_hhv_high(s.bo.lookback_tertinggi)] = hhv_sebelum(h, s.bo.lookback_tertinggi)
-    kolom[k_llv_low(s.pb.lookback_swing_low)] = llv(l, s.pb.lookback_swing_low)
-    kolom[k_rasio_vol(s.bo.lookback_volume)] = rasio_vol(v, s.bo.lookback_volume)
+    kolom[k_rsi(s.pj.rsi_periode)] = rsi_wilder(c, s.pj.rsi_periode)
+    kolom[k_hhv_high(s.tb.lookback_tertinggi)] = hhv_sebelum(h, s.tb.lookback_tertinggi)
+    kolom[k_llv_low(s.tp.lookback_swing_low)] = llv(l, s.tp.lookback_swing_low)
+    kolom[k_rasio_vol(s.tb.lookback_volume)] = rasio_vol(v, s.tb.lookback_volume)
     kolom[k_ret(cfg.skor.rs_lookback)] = ret(c, cfg.skor.rs_lookback)
 
     hasil = pd.DataFrame({k: x.to_numpy(dtype="float64") for k, x in kolom.items()}, index=valid.index)

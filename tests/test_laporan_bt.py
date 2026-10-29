@@ -134,7 +134,7 @@ def test_header_csv_per_run_mode_persis(run_a, awalan, kolom):
 
 def test_header_sinyal_r_persis(run_a):
     proyek, _ = run_a
-    for s in ("pb", "bo", "mr", "acak"):
+    for s in ("tp", "tb", "pj", "acak"):
         baris = (_folder(proyek) / f"sinyal_r_{s}.csv").read_text(encoding="utf-8").splitlines()
         assert baris[1].split(",") == list(lb.KOLOM_SINYAL_R)
 
@@ -230,21 +230,21 @@ def test_tanda_melewati_holdout_ditulis_di_transaksi_dan_terbuka_in_sample(tmp_p
 
 def test_dua_run_sama_byte_identik(run_a, run_b):
     pa, ha = run_a
-    pb_, hb = run_b
+    tp_, hb = run_b
     assert ha.kode == hb.kode == 0
-    fa, fb = _folder(pa), _folder(pb_)
+    fa, fb = _folder(pa), _folder(tp_)
     assert fa.name == fb.name  # waktu virtual dan hash sama
     for nama in sorted(berkas_diharapkan()):
         if nama.startswith(("transaksi_", "ekuitas_", "sinyal_")) or nama.endswith((".md", ".json")):
             assert (fa / nama).read_bytes() == (fb / nama).read_bytes(), nama
     ga = (pa.folder_bt / "gate_status.json").read_bytes()
-    gb_ = (pb_.folder_bt / "gate_status.json").read_bytes()
+    gb_ = (tp_.folder_bt / "gate_status.json").read_bytes()
     assert ga == gb_
     html_a = (fa / "ringkasan.html").read_text(encoding="utf-8")
     html_b = (fb / "ringkasan.html").read_text(encoding="utf-8")
     assert POLA_BASE64.sub("", html_a) == POLA_BASE64.sub("", html_b)
     assert len(POLA_BASE64.findall(html_a)) == len(POLA_BASE64.findall(html_b))
-    assert (pa.folder_bt / "holdout_log.csv").read_bytes() == (pb_.folder_bt / "holdout_log.csv").read_bytes()
+    assert (pa.folder_bt / "holdout_log.csv").read_bytes() == (tp_.folder_bt / "holdout_log.csv").read_bytes()
 
 
 def _tanpa(entri: dict, *kunci: str) -> dict:
@@ -258,28 +258,28 @@ def test_gate_status_digabung_per_strategi_lewat_cli(tmp_path, atur_waktu):
     awal = json.loads(path.read_text(encoding="utf-8"))
     folder_awal = proyek.folder_run()[0]
 
-    # Run kedua hanya PB: entri BO/MR lama dipertahankan apa adanya; PB diperbarui.
+    # Run kedua hanya TP: entri TB/PJ lama dipertahankan apa adanya; TP diperbarui.
     atur_waktu("2025-07-02T20:00:00+07:00")
-    h = jalankan(proyek, "--strategi", "pb", "--mode", "edge")
+    h = jalankan(proyek, "--strategi", "tp", "--mode", "edge")
     assert h.kode == 0, h.teks
     kedua = json.loads(path.read_text(encoding="utf-8"))
-    assert kedua["strategi"]["BO"] == awal["strategi"]["BO"]
-    assert kedua["strategi"]["MR"] == awal["strategi"]["MR"]
-    pb_lama, pb_baru = awal["strategi"]["PB"], kedua["strategi"]["PB"]
-    assert pb_baru["dibuat_pada"] == "2025-07-02T20:00:00+07:00"
+    assert kedua["strategi"]["TB"] == awal["strategi"]["TB"]
+    assert kedua["strategi"]["PJ"] == awal["strategi"]["PJ"]
+    tp_lama, tp_baru = awal["strategi"]["TP"], kedua["strategi"]["TP"]
+    assert tp_baru["dibuat_pada"] == "2025-07-02T20:00:00+07:00"
     folder_baru = proyek.folder_run()[-1]
     assert folder_baru != folder_awal and folder_baru.name.startswith("20250702-200000_")
-    assert pb_baru["folder_run"] == "output/backtest/" + folder_baru.name
+    assert tp_baru["folder_run"] == "output/backtest/" + folder_baru.name
     # Hasil simulasi yang sama → isi gerbang identik selain dibuat_pada & folder_run (§22.1).
-    assert _tanpa(pb_baru, "dibuat_pada", "folder_run") == _tanpa(pb_lama, "dibuat_pada", "folder_run")
-    for nama in ("transaksi_pb_edge.csv", "ekuitas_pb_edge.csv", "sinyal_dilewati_pb_edge.csv", "sinyal_r_pb.csv"):
+    assert _tanpa(tp_baru, "dibuat_pada", "folder_run") == _tanpa(tp_lama, "dibuat_pada", "folder_run")
+    for nama in ("transaksi_tp_edge.csv", "ekuitas_tp_edge.csv", "sinyal_dilewati_tp_edge.csv", "sinyal_r_tp.csv"):
         assert (folder_baru / nama).read_bytes() == (folder_awal / nama).read_bytes(), nama
-    assert json.loads((folder_baru / "gerbang_run.json").read_text(encoding="utf-8"))["strategi"].keys() == {"PB"}
+    assert json.loads((folder_baru / "gerbang_run.json").read_text(encoding="utf-8"))["strategi"].keys() == {"TP"}
 
     # Run tanpa mode edge tidak menulis gate_status.json sama sekali.
     sebelum = path.read_bytes()
     atur_waktu("2025-07-03T20:00:00+07:00")
-    assert jalankan(proyek, "--strategi", "pb,bo,mr", "--mode", "realistis").kode == 0
+    assert jalankan(proyek, "--strategi", "tp,tb,pj", "--mode", "realistis").kode == 0
     assert path.read_bytes() == sebelum
     md = (proyek.folder_run()[-1] / "ringkasan.md").read_text(encoding="utf-8")
     assert "Gerbang tidak dinilai pada run ini (mode edge tidak dijalankan)" in md
@@ -292,7 +292,7 @@ def test_gate_status_lolos_dipakai_alasan_tidak_lolos_ctx(run_a):
 
     proyek, _ = run_a
     ctx = muat_config(proyek.config, proyek.akar)
-    for s in ("PB", "BO", "MR"):
+    for s in ("TP", "TB", "PJ"):
         assert gb.alasan_tidak_lolos_ctx(ctx, s, date(2025, 7, 1)) is None
 
 
@@ -360,7 +360,7 @@ def test_ringkasan_memuat_semua_bagian_wajib(run_a):
     for frasa in wajib:
         assert frasa in md, frasa
         assert frasa in html, frasa
-    for s in ("PB", "BO", "MR"):
+    for s in ("TP", "TB", "PJ"):
         assert re.search(rf"### {s} — (LOLOS|TIDAK LOLOS)", md)
     for g in ("G1", "G2", "G3", "G4", "G5", "G6"):
         assert f"| {g} |" in md
@@ -425,7 +425,7 @@ def test_universe_history_tanpa_banner_dan_menghitung_konstituen_tanpa_data(tmp_
         "kode,tanggal_masuk,tanggal_keluar\nAAAA,2015-01-01,\nBBBB,2015-01-01,\nZZZZ,2015-01-01,2024-06-30\n",
         encoding="utf-8",
     )
-    h = jalankan(proyek, "--strategi", "mr", "--mode", "edge")
+    h = jalankan(proyek, "--strategi", "pj", "--mode", "edge")
     assert h.kode == 0, h.teks
     md = (_folder(proyek) / "ringkasan.md").read_text(encoding="utf-8")
     assert "PERINGATAN SURVIVORSHIP BIAS" not in md
@@ -433,7 +433,7 @@ def test_universe_history_tanpa_banner_dan_menghitung_konstituen_tanpa_data(tmp_
     assert "universe_history.csv dipakai, tetapi 1 konstituen historis tidak punya data" in md
     assert "Konstituen historis tanpa data: 1" in h.teks
     # CCCC bukan konstituen historis → tidak pernah ditransaksikan.
-    tx = baca_csv(_folder(proyek) / "transaksi_mr_edge.csv")
+    tx = baca_csv(_folder(proyek) / "transaksi_pj_edge.csv")
     assert "CCCC" not in set(tx["kode"])
 
 
@@ -467,7 +467,7 @@ def _posisi_split(keluar: bool = True) -> ex.Posisi:
     """Posisi FIKTIF pada saham yang kemudian split 1:5 (F(entry) = 5): 100 lembar nominal = 500 lembar_adj,
     harga beli nominal 2.030 = 406 adj, stop nominal 1.888, target nominal 2.314."""
     pos = ex.Posisi(
-        kode="UJISPLIT", strategi="PB", sektor="Fiktif", tanggal_sinyal=date(2025, 1, 6), tanggal_entry=date(2025, 1, 7),
+        kode="UJISPLIT", strategi="TP", sektor="Fiktif", tanggal_sinyal=date(2025, 1, 6), tanggal_entry=date(2025, 1, 7),
         lembar=D(500), harga_beli=D("406"), biaya_beli_idr=D("203304.50"), fee_beli_idr=D("304.50"),
         stop_awal=D("377.6"), stop=D("377.6"), target=D("462.8"), risiko_awal_idr=D("15164.828"),
         harga_maks=D("406"), faktor_entry=D(5), slippage_beli_idr=D(0), tanda={"MELEWATI_HOLDOUT", "ANOMALI"},
@@ -489,7 +489,7 @@ def _lap(cfg, faktor=lambda k, d: D(1), close=None, close_hari=None) -> lb.Lapor
     return lb.LaporanBacktest(
         cfg=cfg, kalender=KAL5, dibuat_pada=pd.Timestamp(WAKTU_BT).to_pydatetime(), versi_program="0", t=date(2025, 1, 10),
         akhir=date(2025, 1, 10), tanggal_awal=date(2025, 1, 3), hash_aturan="a" * 64, hash_input="b" * 64, hash8="c" * 8,
-        folder_run="output/backtest/x", strategi_diminta=("PB",), mode_diminta=("edge",), runs=[], konteks={},
+        folder_run="output/backtest/x", strategi_diminta=("TP",), mode_diminta=("edge",), runs=[], konteks={},
         close_ihsg=close or {}, close_ihsg_hari_itu=close_hari or {}, faktor=faktor, teks_config="a: 1\n",
         nama_config="config.yaml",
     )
@@ -497,7 +497,7 @@ def _lap(cfg, faktor=lambda k, d: D(1), close=None, close_hari=None) -> lb.Lapor
 
 def _rm(transaksi, ekuitas=(), akhir=date(2025, 1, 10)) -> lb.RunMode:
     hasil = SimpleNamespace(transaksi=list(transaksi), ekuitas=list(ekuitas), dilewati=[])
-    return lb.RunMode("pb", "edge", ("PB",), hasil, SimpleNamespace(akhir_data=akhir), [])
+    return lb.RunMode("tp", "edge", ("TP",), hasil, SimpleNamespace(akhir_data=akhir), [])
 
 
 def test_baris_transaksi_harga_nominal_pada_tanggal_entry_dan_exit():
@@ -550,34 +550,34 @@ def test_baris_ekuitas_titik_awal_dan_ihsg_tanpa_isian():
 
 
 def test_baris_sinyal_r_dan_dilewati():
-    j = mesin.JalurSinyal(date(2025, 1, 6), "AAAA", "MR", 41.5, "JANGAN_BELI", ex.TERISI, date(2025, 1, 7),
+    j = mesin.JalurSinyal(date(2025, 1, 6), "AAAA", "PJ", 41.5, "JANGAN_BELI", ex.TERISI, date(2025, 1, 7),
                           date(2025, 1, 9), ex.KELUAR_SMA, D("0.25"), 3, (ex.ANOMALI,))
-    m = mesin.JalurSinyal(date(2025, 1, 10), "BBBB", "MR", 30.0, "BOLEH_BELI", mesin.MENUNGGU)
+    m = mesin.JalurSinyal(date(2025, 1, 10), "BBBB", "PJ", 30.0, "BOLEH_BELI", mesin.MENUNGGU)
     df = lb.baris_sinyal_r([j, m])
-    assert df.iloc[0].tolist() == ["2025-01-06", "AAAA", "MR", "41.5", "JANGAN_BELI", "TERISI", "2025-01-07",
+    assert df.iloc[0].tolist() == ["2025-01-06", "AAAA", "PJ", "41.5", "JANGAN_BELI", "TERISI", "2025-01-07",
                                    "2025-01-09", "KELUAR_SMA", "0.2500", "3", "ANOMALI"]
-    assert df.iloc[1].tolist() == ["2025-01-10", "BBBB", "MR", "30", "BOLEH_BELI", "MENUNGGU", "", "", "", "", "", ""]
-    s = mesin.SinyalDilewati(date(2025, 1, 6), "AAAA", "PB", 55.0, "REKOMENDASI", "BATAL_GAP", "", date(2025, 1, 7))
-    t = mesin.SinyalDilewati(date(2025, 1, 6), "CCCC", "PB", 50.0, "TIDAK_TERJANGKAU", None,
+    assert df.iloc[1].tolist() == ["2025-01-10", "BBBB", "PJ", "30", "BOLEH_BELI", "MENUNGGU", "", "", "", "", "", ""]
+    s = mesin.SinyalDilewati(date(2025, 1, 6), "AAAA", "TP", 55.0, "REKOMENDASI", "BATAL_GAP", "", date(2025, 1, 7))
+    t = mesin.SinyalDilewati(date(2025, 1, 6), "CCCC", "TP", 50.0, "TIDAK_TERJANGKAU", None,
                              "risiko 1 lot = Rp 66.841,63 (2,23% ekuitas) > anggaran Rp 30.000 (1%, BOLEH BELI)")
     rm = _rm([])
     rm.hasil.dilewati = [s, t]
     df = lb.baris_dilewati(rm)
-    assert df.iloc[0].tolist() == ["2025-01-06", "AAAA", "PB", "55", "REKOMENDASI", "BATAL_GAP", "2025-01-07", ""]
+    assert df.iloc[0].tolist() == ["2025-01-06", "AAAA", "TP", "55", "REKOMENDASI", "BATAL_GAP", "2025-01-07", ""]
     assert df.iloc[1]["status_isi"] == "" and df.iloc[1]["alasan"].startswith("risiko 1 lot = Rp 66.841,63")
     assert teks_csv(df).startswith(DISCLAIMER_CSV + "\n" + ",".join(lb.KOLOM_SINYAL_DILEWATI) + "\n")
 
 
 def test_stat_sinyal_tanpa_hari_jangan_beli():
     js = [
-        mesin.JalurSinyal(date(2025, 1, 6), "A", "MR", 1.0, "JANGAN_BELI", ex.TERISI, alasan_exit=ex.STOP, r=D(-1)),
-        mesin.JalurSinyal(date(2025, 1, 6), "B", "MR", 1.0, "BOLEH_BELI", ex.TERISI, alasan_exit=ex.TARGET, r=D(2)),
-        mesin.JalurSinyal(date(2025, 1, 6), "C", "MR", 1.0, "HATI_HATI", ex.TERISI, alasan_exit=ex.STOP, r=D(-1)),
-        mesin.JalurSinyal(date(2025, 1, 6), "D", "MR", 1.0, "BOLEH_BELI", ex.TERISI, alasan_exit=ex.TERBUKA, r=D(5)),
-        mesin.JalurSinyal(date(2025, 1, 6), "E", "MR", 1.0, "BOLEH_BELI", "BATAL_GAP"),
-        mesin.JalurSinyal(date(2025, 1, 6), "F", "MR", 1.0, "BOLEH_BELI", mesin.MENUNGGU),
+        mesin.JalurSinyal(date(2025, 1, 6), "A", "PJ", 1.0, "JANGAN_BELI", ex.TERISI, alasan_exit=ex.STOP, r=D(-1)),
+        mesin.JalurSinyal(date(2025, 1, 6), "B", "PJ", 1.0, "BOLEH_BELI", ex.TERISI, alasan_exit=ex.TARGET, r=D(2)),
+        mesin.JalurSinyal(date(2025, 1, 6), "C", "PJ", 1.0, "HATI_HATI", ex.TERISI, alasan_exit=ex.STOP, r=D(-1)),
+        mesin.JalurSinyal(date(2025, 1, 6), "D", "PJ", 1.0, "BOLEH_BELI", ex.TERISI, alasan_exit=ex.TERBUKA, r=D(5)),
+        mesin.JalurSinyal(date(2025, 1, 6), "E", "PJ", 1.0, "BOLEH_BELI", "BATAL_GAP"),
+        mesin.JalurSinyal(date(2025, 1, 6), "F", "PJ", 1.0, "BOLEH_BELI", mesin.MENUNGGU),
     ]
-    s = lb.stat_sinyal("MR", js)
+    s = lb.stat_sinyal("PJ", js)
     assert (s.n_sinyal, s.n_jangan_beli, s.n_terisi, s.n_tertutup, s.n_terbuka, s.n_batal, s.n_menunggu) == (
         5, 1, 3, 2, 1, 1, 1)
     assert s.pf_r.nilai == D(2) and s.ekspektansi_r == D("0.5") and s.win_rate_pct == 50.0

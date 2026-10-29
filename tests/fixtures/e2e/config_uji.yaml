@@ -110,7 +110,7 @@ kondisi_pasar:
   file_breadth_universe: input_uji/breadth_universe.csv
   jangan_beli_paksa_jual: false
 strategi:
-  pb:
+  tp:
     aktif: true
     sma_cepat: 20
     sma_tren: 50
@@ -123,7 +123,7 @@ strategi:
     maks_jarak_stop_atr: 3.0
     target_r: 2.0
     stop_waktu_hari: 10
-  bo:
+  tb:
     aktif: true
     lookback_tertinggi: 20
     lookback_volume: 20
@@ -135,7 +135,7 @@ strategi:
     stop_atr: 2.0
     trailing_atr: 3.0
     stop_waktu_hari: null
-  mr:
+  pj:
     aktif: true
     rsi_periode: 2
     rsi_maks: 10

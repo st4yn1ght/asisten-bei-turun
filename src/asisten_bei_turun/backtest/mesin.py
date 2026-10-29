@@ -100,7 +100,7 @@ def siapkan_keputusan(
 class SpesifikasiRun:
     """Satu run §16.3. `strategi`: sinyal yang ikut; `strategi_lolos`: None = langkah gerbang dilewati."""
 
-    nama: str  # enum run_backtest: pb, bo, mr, acak, gabungan_aktif, gabungan_lolos
+    nama: str  # enum run_backtest: tp, tb, pj, acak, gabungan_aktif, gabungan_lolos
     strategi: frozenset[str]
     deduplikasi: bool
     strategi_lolos: frozenset[str] | None = None

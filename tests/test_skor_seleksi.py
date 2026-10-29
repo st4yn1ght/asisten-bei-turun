@@ -45,9 +45,9 @@ T_SINYAL = date(2026, 10, 15)
 EKUITAS = Decimal("3000000")
 
 # Harga nominal (harga_maks, stop) yang sudah bulat — §14.2.
-A = ("2030", "1888")  # PB: risiko 1 lot 15.164,828; biaya 1 lot 203.304,50 → 1 lot (HATI-HATI: tak terjangkau)
-B = ("9125", "8500")  # BO: risiko 1 lot 66.841,625 > 30.000 → TIDAK_TERJANGKAU
-C = ("458", "410")  # MR: risiko 1 lot 5.012,0975; biaya 1 lot 45.868,70 → 5 lot (HATI-HATI: 2 lot)
+A = ("2030", "1888")  # TP: risiko 1 lot 15.164,828; biaya 1 lot 203.304,50 → 1 lot (HATI-HATI: tak terjangkau)
+B = ("9125", "8500")  # TB: risiko 1 lot 66.841,625 > 30.000 → TIDAK_TERJANGKAU
+C = ("458", "410")  # PJ: risiko 1 lot 5.012,0975; biaya 1 lot 45.868,70 → 5 lot (HATI-HATI: 2 lot)
 # Fiktif: risiko/lembar = 12.000 × 1,0015 − 11.900 × 0,999 × 0,9975 = 12.018 − 11.858,37975 = 159,62025
 # → risiko 1 lot 15.962,025 ≤ 30.000, tetapi biaya 1 lot = 1.200.000 × 1,0015 = 1.201.800 > 1.000.000.
 MAHAL = ("12000", "11900")
@@ -65,7 +65,7 @@ RN = 20e9  # RataNilai Rp 20 miliar (§14.2)
 
 def sinyal(
     kode: str,
-    strategi: str = "PB",
+    strategi: str = "TP",
     harga: tuple[str, str] = A,
     *,
     rata_nilai: float = RN,
@@ -85,7 +85,7 @@ def sinyal(
         atr=Decimal(60),
         faktor_split=1.0,
         k_sinyal=k_sinyal,
-        target_r=2.0 if strategi == "PB" else None,
+        target_r=2.0 if strategi == "TP" else None,
         rata_nilai=rata_nilai,
         fraksi_dipakai=False,
         valid=valid,
@@ -93,7 +93,7 @@ def sinyal(
     )
 
 
-def berskor(kode: str, skor: float, strategi: str = "PB", harga: tuple[str, str] = A, **kw) -> SinyalBerskor:
+def berskor(kode: str, skor: float, strategi: str = "TP", harga: tuple[str, str] = A, **kw) -> SinyalBerskor:
     """SinyalBerskor dengan skor yang ditetapkan langsung (komponen tidak relevan untuk seleksi)."""
     return SinyalBerskor(sinyal(kode, strategi, harga, **kw), KomponenSkor(0.0, 0.0, 0.0, 0.0, skor))
 
@@ -124,7 +124,7 @@ def jalankan(
     status: str = "BOLEH_BELI",
     portofolio: KeadaanPortofolio | None = None,
     cfg=CFG,
-    lolos=("PB", "BO", "MR"),
+    lolos=("TP", "TB", "PJ"),
     dedup: bool = True,
     sektor: dict[str, str] | None = None,
     mode: str = "live",
@@ -155,7 +155,7 @@ def ringkas(hasil) -> list[tuple[str, str, str]]:
     return [(k.kode, k.strategi, k.status) for k in hasil.kandidat]
 
 
-def satu(hasil, kode: str, strategi: str = "PB"):
+def satu(hasil, kode: str, strategi: str = "TP"):
     cocok = [k for k in hasil.kandidat if k.kode == kode and k.strategi == strategi]
     assert len(cocok) == 1, (kode, strategi, ringkas(hasil))
     return cocok[0]
@@ -167,7 +167,7 @@ def satu(hasil, kode: str, strategi: str = "PB"):
 
 
 def test_skor_contoh_a_cocok_hitung_tangan():
-    s = sinyal("AAAA", "PB", A, rata_nilai=20e9, k_sinyal=0.5)
+    s = sinyal("AAAA", "TP", A, rata_nilai=20e9, k_sinyal=0.5)
     k = hitung_skor(s, 0.5, CFG)
     # jarak = (2.030 − 1.888)/2.030 × 100 = 6,995073...%
     assert s.jarak_stop_pct == pytest.approx(142 / 2030 * 100, abs=1e-12)
@@ -342,7 +342,7 @@ def test_k_rs_tidak_bergantung_pada_sinyal_strategi_atau_posisi():
     assert hitung_k_rs(dv, ["DDDD", "BBBB", "DDDD", "CCCC", "AAAA"]) == acuan
     # Sinyal hanya untuk BBBB (tiga strategi): K_rs tetap diperingkat atas SEMUA eligible (n = 4),
     # termasuk DDDD yang sedang dipegang, dan sama untuk setiap strategi.
-    sb = beri_skor(dv, [sinyal("BBBB", "PB"), sinyal("BBBB", "BO"), sinyal("BBBB", "MR")], semua)
+    sb = beri_skor(dv, [sinyal("BBBB", "TP"), sinyal("BBBB", "TB"), sinyal("BBBB", "PJ")], semua)
     assert [x.komponen.k_rs for x in sb] == pytest.approx([1 / 3] * 3, abs=1e-12)
     assert sb[0].skor == pytest.approx(hitung_skor(sb[0].sinyal, 1 / 3, CFG_RS).skor, abs=1e-12)
     # Seleksi dengan DDDD dipegang tidak menghitung ulang skor/K_rs.
@@ -365,24 +365,24 @@ def test_peringkat_memakai_presisi_penuh_walau_tampilan_sama():
     assert zzzz.komponen.tampilan == aaaa.komponen.tampilan == "50,0"
     pf = porto(pos("P1", "S1"), pos("P2", "S2"))  # slot = 3 − 2 = 1
     h = jalankan([aaaa, zzzz], portofolio=pf)
-    assert ringkas(h) == [("ZZZZ", "PB", REKOMENDASI), ("AAAA", "PB", SLOT_PENUH)]
+    assert ringkas(h) == [("ZZZZ", "TP", REKOMENDASI), ("AAAA", "TP", SLOT_PENUH)]
     assert kunci_urutan(zzzz) < kunci_urutan(aaaa)
 
 
 @pytest.mark.parametrize("terbalik", [False, True])
 def test_deduplikasi_memakai_presisi_penuh(terbalik):
-    # Skor tampil sama; PB akan menang bila seri, tetapi BO lebih tinggi pada presisi penuh.
+    # Skor tampil sama; TP akan menang bila seri, tetapi TB lebih tinggi pada presisi penuh.
     # Hasil tidak boleh bergantung pada urutan masukan.
-    daftar = [berskor("AAAA", 50.01, "PB", C), berskor("AAAA", 50.04, "BO", C)]
+    daftar = [berskor("AAAA", 50.01, "TP", C), berskor("AAAA", 50.04, "TB", C)]
     h = jalankan(daftar[::-1] if terbalik else daftar)
-    assert satu(h, "AAAA", "BO").status == REKOMENDASI
-    dup = satu(h, "AAAA", "PB")
+    assert satu(h, "AAAA", "TB").status == REKOMENDASI
+    dup = satu(h, "AAAA", "TP")
     assert dup.status == DUPLIKAT_STRATEGI
-    assert dup.alasan == "kalah dari sinyal BO untuk saham yang sama (skor 50,0)"
-    # Seri tepat → PB dipertahankan.
-    daftar = [berskor("AAAA", 50.04, "BO", C), berskor("AAAA", 50.04, "PB", C)]
+    assert dup.alasan == "kalah dari sinyal TB untuk saham yang sama (skor 50,0)"
+    # Seri tepat → TP dipertahankan.
+    daftar = [berskor("AAAA", 50.04, "TB", C), berskor("AAAA", 50.04, "TP", C)]
     h = jalankan(daftar[::-1] if terbalik else daftar)
-    assert (satu(h, "AAAA", "PB").status, satu(h, "AAAA", "BO").status) == (REKOMENDASI, DUPLIKAT_STRATEGI)
+    assert (satu(h, "AAAA", "TP").status, satu(h, "AAAA", "TB").status) == (REKOMENDASI, DUPLIKAT_STRATEGI)
 
 
 # ---------------------------------------------------------------------------
@@ -397,42 +397,42 @@ def test_alur_lengkap_langkah_1_sampai_9():
         "ALOK": "S3", "LIKU": "S4", "KASK": "S5", "MRCC": "S6", "SLOT": "S7",
     }
     daftar = [  # sengaja tidak urut
-        berskor("SLOT", 88, "MR", C),
-        berskor("KASK", 90, "PB", A),
-        berskor("DUPL", 96, "MR", C),
-        berskor("INVL", 99, "PB", A, valid=False, alasan="jarak stop 3,50 ATR > 3,00 ATR"),
-        berskor("LIKU", 91, "PB", A, rata_nilai=20_299_999.0),
-        berskor("GATE", 98, "BO", A),
-        berskor("MHAL", 93, "PB", B),
-        berskor("HOLD", 95, "PB", A),
-        berskor("ALOK", 92, "PB", MAHAL),
-        berskor("DUPL", 97, "PB", A),
-        berskor("MRCC", 89, "MR", C),
-        berskor("SEKT", 94, "PB", A),
+        berskor("SLOT", 88, "PJ", C),
+        berskor("KASK", 90, "TP", A),
+        berskor("DUPL", 96, "PJ", C),
+        berskor("INVL", 99, "TP", A, valid=False, alasan="jarak stop 3,50 ATR > 3,00 ATR"),
+        berskor("LIKU", 91, "TP", A, rata_nilai=20_299_999.0),
+        berskor("GATE", 98, "TB", A),
+        berskor("MHAL", 93, "TP", B),
+        berskor("HOLD", 95, "TP", A),
+        berskor("ALOK", 92, "TP", MAHAL),
+        berskor("DUPL", 97, "TP", A),
+        berskor("MRCC", 89, "PJ", C),
+        berskor("SEKT", 94, "TP", A),
     ]
-    h = jalankan(daftar, portofolio=pf, lolos={"PB", "MR"}, sektor=sektor)
+    h = jalankan(daftar, portofolio=pf, lolos={"TP", "PJ"}, sektor=sektor)
     # Semua sinyal tercatat dalam urutan langkah 5 (skor ↓).
     assert ringkas(h) == [
-        ("INVL", "PB", STOP_TERLALU_JAUH),  # 2
-        ("GATE", "BO", BAYANGAN_GERBANG),  # 3
-        ("DUPL", "PB", REKOMENDASI),  # 9h: kas 300.000 − 203.304,50 = 96.695,50
-        ("DUPL", "MR", DUPLIKAT_STRATEGI),  # 4
-        ("HOLD", "PB", SUDAH_DIPEGANG),  # 6
-        ("SEKT", "PB", BATAS_SEKTOR),  # 9c: S1 sudah terisi DUPL
-        ("MHAL", "PB", TIDAK_TERJANGKAU),  # 9d
-        ("ALOK", "PB", TIDAK_TERJANGKAU),  # 9e
-        ("LIKU", "PB", TIDAK_LIKUID),  # 9f
-        ("KASK", "PB", KAS_KURANG),  # 9g: 203.304,50 > 96.695,50
-        ("MRCC", "MR", REKOMENDASI),  # 9h: 2 lot (kas), 2 × 45.868,70 = 91.737,40
-        ("SLOT", "MR", SLOT_PENUH),  # 9a: 2 slot terpakai
+        ("INVL", "TP", STOP_TERLALU_JAUH),  # 2
+        ("GATE", "TB", BAYANGAN_GERBANG),  # 3
+        ("DUPL", "TP", REKOMENDASI),  # 9h: kas 300.000 − 203.304,50 = 96.695,50
+        ("DUPL", "PJ", DUPLIKAT_STRATEGI),  # 4
+        ("HOLD", "TP", SUDAH_DIPEGANG),  # 6
+        ("SEKT", "TP", BATAS_SEKTOR),  # 9c: S1 sudah terisi DUPL
+        ("MHAL", "TP", TIDAK_TERJANGKAU),  # 9d
+        ("ALOK", "TP", TIDAK_TERJANGKAU),  # 9e
+        ("LIKU", "TP", TIDAK_LIKUID),  # 9f
+        ("KASK", "TP", KAS_KURANG),  # 9g: 203.304,50 > 96.695,50
+        ("MRCC", "PJ", REKOMENDASI),  # 9h: 2 lot (kas), 2 × 45.868,70 = 91.737,40
+        ("SLOT", "PJ", SLOT_PENUH),  # 9a: 2 slot terpakai
     ]
     assert [(k.kode, k.sizing.lot) for k in h.rekomendasi] == [("DUPL", 1), ("MRCC", 2)]
     assert satu(h, "INVL").alasan == "jarak stop 3,50 ATR > 3,00 ATR"
-    assert satu(h, "DUPL", "MR").alasan == "kalah dari sinyal PB untuk saham yang sama (skor 97,0)"
+    assert satu(h, "DUPL", "PJ").alasan == "kalah dari sinyal TP untuk saham yang sama (skor 97,0)"
     assert satu(h, "MHAL").alasan.startswith("risiko 1 lot = Rp 66.841,63")
     assert satu(h, "ALOK").alasan.startswith("nilai 1 lot")
     assert satu(h, "KASK").alasan == "biaya 1 lot Rp 203.304,50 > kas tersedia Rp 96.695,50"
-    assert satu(h, "MRCC", "MR").sizing.pembatas == "kas"
+    assert satu(h, "MRCC", "PJ").sizing.pembatas == "kas"
     # Status sebelum langkah 9 dan cek a–c tidak menghitung sizing; d–h menghitung.
     tanpa_sizing = {"INVL", "GATE", "HOLD", "SEKT", "SLOT"}
     for k in h.kandidat:
@@ -444,7 +444,7 @@ def test_alur_lengkap_langkah_1_sampai_9():
         2, Decimal(300000), Decimal(30000), Decimal(1000000)
     )
     assert h.tanggal == T_SINYAL and h.status_pasar == "BOLEH_BELI"
-    assert h.status("SLOT", "MR") == SLOT_PENUH and h.status("SLOT", "PB") is None
+    assert h.status("SLOT", "PJ") == SLOT_PENUH and h.status("SLOT", "TP") is None
 
 
 # ---------------------------------------------------------------------------
@@ -456,43 +456,43 @@ def test_stop_terlalu_jauh_keluar_dari_antrean():
     pf = porto(pos("P1", "S1"), pos("P2", "S2"))  # slot 1
     h = jalankan(
         [
-            berskor("XXXX", 99, "PB", valid=False, alasan="jarak stop terlalu jauh"),
-            berskor("XXXX", 60, "BO", C),  # sinyal valid saham yang sama tidak menjadi duplikat
-            berskor("YYYY", 98, "BO", valid=False),  # BO belum lolos gerbang, tetapi langkah 2 lebih dulu
-            berskor("ZZZZ", 50, "MR", C),
+            berskor("XXXX", 99, "TP", valid=False, alasan="jarak stop terlalu jauh"),
+            berskor("XXXX", 60, "TB", C),  # sinyal valid saham yang sama tidak menjadi duplikat
+            berskor("YYYY", 98, "TB", valid=False),  # TB belum lolos gerbang, tetapi langkah 2 lebih dulu
+            berskor("ZZZZ", 50, "PJ", C),
         ],
         portofolio=pf,
-        lolos={"PB", "MR"},
+        lolos={"TP", "PJ"},
     )
     assert ringkas(h) == [
-        ("XXXX", "PB", STOP_TERLALU_JAUH),
-        ("YYYY", "BO", STOP_TERLALU_JAUH),
-        ("XXXX", "BO", BAYANGAN_GERBANG),
-        ("ZZZZ", "MR", REKOMENDASI),  # sinyal tidak valid tidak memakan slot
+        ("XXXX", "TP", STOP_TERLALU_JAUH),
+        ("YYYY", "TB", STOP_TERLALU_JAUH),
+        ("XXXX", "TB", BAYANGAN_GERBANG),
+        ("ZZZZ", "PJ", REKOMENDASI),  # sinyal tidak valid tidak memakan slot
     ]
     assert satu(h, "XXXX").alasan == "jarak stop terlalu jauh"
-    assert satu(h, "YYYY", "BO").alasan == ""
+    assert satu(h, "YYYY", "TB").alasan == ""
 
 
 def test_bayangan_gerbang_tidak_menggugurkan_sinyal_strategi_lolos():
-    # BO (belum lolos) berskor lebih tinggi pada saham yang sama dengan PB (lolos).
-    h = jalankan([berskor("AAAA", 90, "BO", C), berskor("AAAA", 40, "PB", C)], lolos={"PB", "MR"})
-    assert satu(h, "AAAA", "PB").status == REKOMENDASI
-    bayang = satu(h, "AAAA", "BO")
-    assert (bayang.status, bayang.alasan) == (BAYANGAN_GERBANG, "strategi BO belum lolos gerbang backtest")
+    # TB (belum lolos) berskor lebih tinggi pada saham yang sama dengan TP (lolos).
+    h = jalankan([berskor("AAAA", 90, "TB", C), berskor("AAAA", 40, "TP", C)], lolos={"TP", "PJ"})
+    assert satu(h, "AAAA", "TP").status == REKOMENDASI
+    bayang = satu(h, "AAAA", "TB")
+    assert (bayang.status, bayang.alasan) == (BAYANGAN_GERBANG, "strategi TB belum lolos gerbang backtest")
     assert bayang.sizing is None
-    # Tanpa gerbang (semua lolos), BO yang menang deduplikasi.
-    h = jalankan([berskor("AAAA", 90, "BO", C), berskor("AAAA", 40, "PB", C)], lolos={"PB", "BO", "MR"})
-    assert (satu(h, "AAAA", "BO").status, satu(h, "AAAA", "PB").status) == (REKOMENDASI, DUPLIKAT_STRATEGI)
+    # Tanpa gerbang (semua lolos), TB yang menang deduplikasi.
+    h = jalankan([berskor("AAAA", 90, "TB", C), berskor("AAAA", 40, "TP", C)], lolos={"TP", "TB", "PJ"})
+    assert (satu(h, "AAAA", "TB").status, satu(h, "AAAA", "TP").status) == (REKOMENDASI, DUPLIKAT_STRATEGI)
 
 
 def test_bayangan_gerbang_tidak_memakan_slot_dan_tetap_di_jangan_beli():
     pf = porto(pos("P1", "S1"), pos("P2", "S2"))  # slot 1
-    daftar = [berskor("GGGG", 90, "BO", C), berskor("LLLL", 40, "MR", C)]
-    h = jalankan(daftar, portofolio=pf, lolos=["pb", "mr"])  # huruf kecil diterima
-    assert ringkas(h) == [("GGGG", "BO", BAYANGAN_GERBANG), ("LLLL", "MR", REKOMENDASI)]
-    h = jalankan(daftar, status="JANGAN_BELI", lolos={"PB", "MR"})
-    assert ringkas(h) == [("GGGG", "BO", BAYANGAN_GERBANG), ("LLLL", "MR", BAYANGAN_PASAR)]
+    daftar = [berskor("GGGG", 90, "TB", C), berskor("LLLL", 40, "PJ", C)]
+    h = jalankan(daftar, portofolio=pf, lolos=["tp", "pj"])  # huruf kecil diterima
+    assert ringkas(h) == [("GGGG", "TB", BAYANGAN_GERBANG), ("LLLL", "PJ", REKOMENDASI)]
+    h = jalankan(daftar, status="JANGAN_BELI", lolos={"TP", "PJ"})
+    assert ringkas(h) == [("GGGG", "TB", BAYANGAN_GERBANG), ("LLLL", "PJ", BAYANGAN_PASAR)]
     h = jalankan(daftar, lolos=set())  # belum ada strategi lolos
     assert {k.status for k in h.kandidat} == {BAYANGAN_GERBANG} and h.rekomendasi == []
 
@@ -500,15 +500,15 @@ def test_bayangan_gerbang_tidak_memakan_slot_dan_tetap_di_jangan_beli():
 @pytest.mark.parametrize(
     ("skor", "pemenang"),
     [
-        ({"PB": 60, "BO": 70, "MR": 65}, "BO"),
-        ({"PB": 60, "BO": 65, "MR": 70}, "MR"),
-        ({"PB": 50, "BO": 50, "MR": 50}, "PB"),  # seri → PB, BO, MR
-        ({"BO": 50, "MR": 50}, "BO"),
-        ({"PB": 40, "BO": 50, "MR": 50}, "BO"),  # seri di puncak antara BO dan MR
+        ({"TP": 60, "TB": 70, "PJ": 65}, "TB"),
+        ({"TP": 60, "TB": 65, "PJ": 70}, "PJ"),
+        ({"TP": 50, "TB": 50, "PJ": 50}, "TP"),  # seri → TP, TB, PJ
+        ({"TB": 50, "PJ": 50}, "TB"),
+        ({"TP": 40, "TB": 50, "PJ": 50}, "TB"),  # seri di puncak antara TB dan PJ
     ],
 )
 @pytest.mark.parametrize("terbalik", [False, True])
-def test_deduplikasi_skor_tertinggi_seri_pb_bo_mr(skor, pemenang, terbalik):
+def test_deduplikasi_skor_tertinggi_seri_tp_tb_pj(skor, pemenang, terbalik):
     daftar = [berskor("AAAA", s, st, C) for st, s in skor.items()]
     h = jalankan(daftar[::-1] if terbalik else daftar)
     for st in skor:
@@ -535,7 +535,7 @@ def test_urutan_skor_lalu_rata_nilai_lalu_kode():
     h = jalankan(daftar[:3], portofolio=pf)  # skor sama: CCCC menang lewat RataNilai
     assert [k.kode for k in h.rekomendasi] == ["CCCC"]
     h = jalankan(daftar[:2], portofolio=pf)  # skor & RataNilai sama: AAAA menang lewat kode
-    assert ringkas(h) == [("AAAA", "PB", REKOMENDASI), ("BBBB", "PB", SLOT_PENUH)]
+    assert ringkas(h) == [("AAAA", "TP", REKOMENDASI), ("BBBB", "TP", SLOT_PENUH)]
 
 
 # ---------------------------------------------------------------------------
@@ -545,12 +545,12 @@ def test_urutan_skor_lalu_rata_nilai_lalu_kode():
 
 def test_sudah_dipegang_tidak_memakan_slot():
     pf = porto(pos("HOLD", "S_HOLD"), pos("P2", "S2"))  # slot 1
-    h = jalankan([berskor("HOLD", 99, "PB", C), berskor("HOLD", 90, "MR", C), berskor("NEW", 50, "PB", C)],
+    h = jalankan([berskor("HOLD", 99, "TP", C), berskor("HOLD", 90, "PJ", C), berskor("NEW", 50, "TP", C)],
                  portofolio=pf)
     assert ringkas(h) == [
-        ("HOLD", "PB", SUDAH_DIPEGANG),  # deduplikasi lebih dulu
-        ("HOLD", "MR", DUPLIKAT_STRATEGI),
-        ("NEW", "PB", REKOMENDASI),
+        ("HOLD", "TP", SUDAH_DIPEGANG),  # deduplikasi lebih dulu
+        ("HOLD", "PJ", DUPLIKAT_STRATEGI),
+        ("NEW", "TP", REKOMENDASI),
     ]
     assert satu(h, "HOLD").alasan == "saham sedang dipegang; tidak ada penambahan posisi"
 
@@ -559,26 +559,26 @@ def test_sudah_dipegang_berlaku_juga_untuk_jual_terjadwal_jangan_beli_dan_blokir
     pf = porto(pos("HOLD", "S_HOLD", jual=True))
     assert satu(jalankan([berskor("HOLD", 50)], portofolio=pf), "HOLD").status == SUDAH_DIPEGANG
     h = jalankan([berskor("HOLD", 50), berskor("NEW", 40)], portofolio=pf, status="JANGAN_BELI")
-    assert ringkas(h) == [("HOLD", "PB", SUDAH_DIPEGANG), ("NEW", "PB", BAYANGAN_PASAR)]
+    assert ringkas(h) == [("HOLD", "TP", SUDAH_DIPEGANG), ("NEW", "TP", BAYANGAN_PASAR)]
     pf = porto(pos("HOLD", "S_HOLD"), blokir="ABCD")
     h = jalankan([berskor("HOLD", 50), berskor("NEW", 40)], portofolio=pf)
-    assert ringkas(h) == [("HOLD", "PB", SUDAH_DIPEGANG), ("NEW", "PB", DIBLOKIR_PORTOFOLIO)]
+    assert ringkas(h) == [("HOLD", "TP", SUDAH_DIPEGANG), ("NEW", "TP", DIBLOKIR_PORTOFOLIO)]
 
 
 @pytest.mark.parametrize("status_pasar", ["BOLEH_BELI", "HATI_HATI", "JANGAN_BELI"])
 def test_diblokir_portofolio_menghentikan_seleksi(status_pasar):
     pf = porto(blokir="ABCD: lonjakan harga tanpa data split")
     h = jalankan(
-        [berskor("AAAA", 90, "PB", C), berskor("AAAA", 80, "MR", C), berskor("BBBB", 70, "BO", C),
-         berskor("CCCC", 60, "MR", C, valid=False)],
-        portofolio=pf, status=status_pasar, lolos={"PB", "MR"},
+        [berskor("AAAA", 90, "TP", C), berskor("AAAA", 80, "PJ", C), berskor("BBBB", 70, "TB", C),
+         berskor("CCCC", 60, "PJ", C, valid=False)],
+        portofolio=pf, status=status_pasar, lolos={"TP", "PJ"},
     )
     # 6a sebelum 7: JANGAN BELI pun → DIBLOKIR_PORTOFOLIO; status langkah 2–4 tetap.
     assert ringkas(h) == [
-        ("AAAA", "PB", DIBLOKIR_PORTOFOLIO),
-        ("AAAA", "MR", DUPLIKAT_STRATEGI),
-        ("BBBB", "BO", BAYANGAN_GERBANG),
-        ("CCCC", "MR", STOP_TERLALU_JAUH),
+        ("AAAA", "TP", DIBLOKIR_PORTOFOLIO),
+        ("AAAA", "PJ", DUPLIKAT_STRATEGI),
+        ("BBBB", "TB", BAYANGAN_GERBANG),
+        ("CCCC", "PJ", STOP_TERLALU_JAUH),
     ]
     alasan = satu(h, "AAAA").alasan
     assert alasan == "PORTOFOLIO TIDAK DAPAT DIEVALUASI: ABCD: lonjakan harga tanpa data split"
@@ -588,8 +588,8 @@ def test_diblokir_portofolio_menghentikan_seleksi(status_pasar):
 
 
 def test_jangan_beli_menjadi_bayangan_pasar_tanpa_sizing():
-    h = jalankan([berskor("AAAA", 60, "PB", A), berskor("BBBB", 70, "MR", C)], status="JANGAN_BELI")
-    assert ringkas(h) == [("BBBB", "MR", BAYANGAN_PASAR), ("AAAA", "PB", BAYANGAN_PASAR)]
+    h = jalankan([berskor("AAAA", 60, "TP", A), berskor("BBBB", 70, "PJ", C)], status="JANGAN_BELI")
+    assert ringkas(h) == [("BBBB", "PJ", BAYANGAN_PASAR), ("AAAA", "TP", BAYANGAN_PASAR)]
     assert [k.kode for k in h.daftar_pantau] == ["BBBB", "AAAA"]
     assert h.rekomendasi == []
     assert all(k.sizing is None and k.alasan == "status pasar JANGAN BELI (daftar pantau)" for k in h.kandidat)
@@ -601,11 +601,11 @@ def test_jangan_beli_menjadi_bayangan_pasar_tanpa_sizing():
 
 
 def test_slot_penuh_batas_dua_sisi():
-    daftar = [berskor(f"K{i}", 90 - i, "MR", C) for i in range(4)]
+    daftar = [berskor(f"K{i}", 90 - i, "PJ", C) for i in range(4)]
     # Tanpa posisi: 3 slot → 3 REKOMENDASI, yang ke-4 SLOT_PENUH.
     h = jalankan(daftar)
     assert [k.status for k in h.kandidat] == [REKOMENDASI] * 3 + [SLOT_PENUH]
-    assert satu(h, "K3", "MR").alasan == "slot posisi penuh (3 posisi)"
+    assert satu(h, "K3", "PJ").alasan == "slot posisi penuh (3 posisi)"
     assert h.slot_awal == 3
     # 2 posisi → slot 1.
     h = jalankan(daftar, portofolio=porto(pos("P1", "S1"), pos("P2", "S2")))
@@ -622,8 +622,8 @@ def test_slot_penuh_batas_dua_sisi():
 def test_slot_dibebaskan_jual_terjadwal_hanya_bila_flag(bebas):
     cfg = cfg_uji({"risiko.slot_bebas_dari_jual_terjadwal": bebas})
     pf = porto(pos("P1", "S1"), pos("P2", "S2"), pos("JUAL", "S_JUAL", jual=True))
-    h = jalankan([berskor("NEW", 50, "MR", C)], portofolio=pf, cfg=cfg)
-    k = satu(h, "NEW", "MR")
+    h = jalankan([berskor("NEW", 50, "PJ", C)], portofolio=pf, cfg=cfg)
+    k = satu(h, "NEW", "PJ")
     if bebas:  # slot = 3 − (3 − 1) = 1, dan slot itu bergantung pada jual JUAL
         assert (h.slot_awal, k.status, k.bergantung_jual) == (1, REKOMENDASI, (("JUAL",),))
     else:  # slot = 3 − 3 = 0
@@ -633,10 +633,10 @@ def test_slot_dibebaskan_jual_terjadwal_hanya_bila_flag(bebas):
 def test_bergantung_jual_hanya_untuk_kandidat_yang_memakai_slot_jual():
     # 2 posisi, 1 dijadwalkan jual: slot = 3 − (2 − 1) = 2; tanpa jual hanya 1 slot.
     pf = porto(pos("P1", "S1"), pos("JUAL", "S_JUAL", jual=True))
-    h = jalankan([berskor("K1", 60, "MR", C), berskor("K2", 50, "MR", C)], portofolio=pf)
+    h = jalankan([berskor("K1", 60, "PJ", C), berskor("K2", 50, "PJ", C)], portofolio=pf)
     assert [k.status for k in h.kandidat] == [REKOMENDASI, REKOMENDASI]
-    assert satu(h, "K1", "MR").bergantung_jual == ()
-    assert satu(h, "K2", "MR").bergantung_jual == (("JUAL",),)
+    assert satu(h, "K1", "PJ").bergantung_jual == ()
+    assert satu(h, "K2", "PJ").bergantung_jual == (("JUAL",),)
 
 
 # ---------------------------------------------------------------------------
@@ -646,25 +646,25 @@ def test_bergantung_jual_hanya_untuk_kandidat_yang_memakai_slot_jual():
 
 def test_batas_entry_harian_hati_hati_satu_per_hari():
     # HATI-HATI: anggaran 15.000. A (risiko 1 lot 15.164,83) tak terjangkau dan tidak memakai kuota.
-    h = jalankan([berskor("AAAA", 90, "PB", A), berskor("C1", 80, "MR", C), berskor("C2", 70, "MR", C)],
+    h = jalankan([berskor("AAAA", 90, "TP", A), berskor("C1", 80, "PJ", C), berskor("C2", 70, "PJ", C)],
                  status="HATI_HATI")
     assert ringkas(h) == [
-        ("AAAA", "PB", TIDAK_TERJANGKAU),
-        ("C1", "MR", REKOMENDASI),
-        ("C2", "MR", BATAS_ENTRY_HARIAN),
+        ("AAAA", "TP", TIDAK_TERJANGKAU),
+        ("C1", "PJ", REKOMENDASI),
+        ("C2", "PJ", BATAS_ENTRY_HARIAN),
     ]
-    assert satu(h, "C2", "MR").alasan == "batas entry baru per hari tercapai (1, status HATI-HATI)"
-    assert satu(h, "C2", "MR").sizing is None
+    assert satu(h, "C2", "PJ").alasan == "batas entry baru per hari tercapai (1, status HATI-HATI)"
+    assert satu(h, "C2", "PJ").sizing is None
     # BOLEH BELI dengan maks_entry_baru_per_hari null: hanya dibatasi slot.
-    h = jalankan([berskor("C1", 80, "MR", C), berskor("C2", 70, "MR", C)])
+    h = jalankan([berskor("C1", 80, "PJ", C), berskor("C2", 70, "PJ", C)])
     assert [k.status for k in h.kandidat] == [REKOMENDASI, REKOMENDASI]
 
 
 def test_batas_entry_harian_dari_config():
-    daftar = [berskor(f"C{i}", 80 - i, "MR", C) for i in range(3)]
+    daftar = [berskor(f"C{i}", 80 - i, "PJ", C) for i in range(3)]
     h = jalankan(daftar, cfg=cfg_uji({"risiko.maks_entry_baru_per_hari": 1}))
     assert [k.status for k in h.kandidat] == [REKOMENDASI, BATAS_ENTRY_HARIAN, BATAS_ENTRY_HARIAN]
-    assert satu(h, "C1", "MR").alasan == "batas entry baru per hari tercapai (1, status BOLEH BELI)"
+    assert satu(h, "C1", "PJ").alasan == "batas entry baru per hari tercapai (1, status BOLEH BELI)"
     h = jalankan(daftar, status="HATI_HATI", cfg=cfg_uji({"risiko.hati_hati.maks_entry_baru_per_hari": 2}))
     assert [k.status for k in h.kandidat] == [REKOMENDASI, REKOMENDASI, BATAS_ENTRY_HARIAN]
 
@@ -676,10 +676,10 @@ def test_batas_entry_harian_dari_config():
 
 def test_batas_sektor_menghitung_kandidat_yang_diterima():
     sektor = {"K1": "Energi", "K2": "Energi", "K3": "Bank"}
-    h = jalankan([berskor("K1", 60, "MR", C), berskor("K2", 50, "MR", C), berskor("K3", 40, "MR", C)],
+    h = jalankan([berskor("K1", 60, "PJ", C), berskor("K2", 50, "PJ", C), berskor("K3", 40, "PJ", C)],
                  sektor=sektor)
     assert [k.status for k in h.kandidat] == [REKOMENDASI, BATAS_SEKTOR, REKOMENDASI]
-    assert satu(h, "K2", "MR").alasan == "sektor Energi sudah mencapai 1 posisi"
+    assert satu(h, "K2", "PJ").alasan == "sektor Energi sudah mencapai 1 posisi"
 
 
 def test_batas_sektor_menghitung_posisi_manual_dan_di_luar_universe():
@@ -687,7 +687,7 @@ def test_batas_sektor_menghitung_posisi_manual_dan_di_luar_universe():
     # PosisiTerbuka; `sektor_dari` ketat dan tidak mengenal keduanya → sektornya dari posisi itu sendiri.
     pf = porto(pos("LUAR", "Energi"), pos("MANL", "Bank"))
     sektor = {"K1": "Energi", "K2": "Bank", "K3": "Properti"}
-    h = jalankan([berskor("K1", 60, "MR", C), berskor("K2", 50, "MR", C), berskor("K3", 40, "MR", C)],
+    h = jalankan([berskor("K1", 60, "PJ", C), berskor("K2", 50, "PJ", C), berskor("K3", 40, "PJ", C)],
                  portofolio=pf, sektor=sektor)
     assert [k.status for k in h.kandidat] == [BATAS_SEKTOR, BATAS_SEKTOR, REKOMENDASI]
     assert h.slot_awal == 1  # keduanya juga menempati slot
@@ -698,8 +698,8 @@ def test_batas_sektor_dikurangi_jual_terjadwal_hanya_bila_flag(bebas):
     cfg = cfg_uji({"risiko.slot_bebas_dari_jual_terjadwal": bebas})
     pf = porto(pos("JUAL", "Energi", jual=True))
     sektor = {"K1": "Energi", "K2": "Bank"}
-    h = jalankan([berskor("K1", 60, "MR", C), berskor("K2", 50, "MR", C)], portofolio=pf, cfg=cfg, sektor=sektor)
-    k1, k2 = satu(h, "K1", "MR"), satu(h, "K2", "MR")
+    h = jalankan([berskor("K1", 60, "PJ", C), berskor("K2", 50, "PJ", C)], portofolio=pf, cfg=cfg, sektor=sektor)
+    k1, k2 = satu(h, "K1", "PJ"), satu(h, "K2", "PJ")
     if bebas:  # Energi: 1 − 1 = 0 < 1 → diterima, bergantung pada jual JUAL (slot tidak: 3 − 1 = 2 ≥ 1)
         assert (k1.status, k1.bergantung_jual) == (REKOMENDASI, (("JUAL",),))
     else:
@@ -711,14 +711,14 @@ def test_batas_sektor_dari_config_dua_sisi_dan_null():
     cfg2 = cfg_uji({"risiko.maks_per_sektor": 2})
     pf = porto(pos("LAMA", "Energi"))
     sektor = {"K1": "Energi", "K2": "Energi"}
-    h = jalankan([berskor("K1", 60, "MR", C), berskor("K2", 50, "MR", C)], portofolio=pf, cfg=cfg2, sektor=sektor)
+    h = jalankan([berskor("K1", 60, "PJ", C), berskor("K2", 50, "PJ", C)], portofolio=pf, cfg=cfg2, sektor=sektor)
     # Energi: 1 posisi + 0 diterima = 1 < 2 → K1 diterima; 1 + 1 = 2 ≥ 2 → K2 ditolak.
     assert [k.status for k in h.kandidat] == [REKOMENDASI, BATAS_SEKTOR]
-    assert satu(h, "K2", "MR").alasan == "sektor Energi sudah mencapai 2 posisi"
+    assert satu(h, "K2", "PJ").alasan == "sektor Energi sudah mencapai 2 posisi"
     # null = tanpa batas sektor.
     cfg_n = cfg_uji({"risiko.maks_per_sektor": None})
     sektor = {"K1": "Energi", "K2": "Energi", "K3": "Energi"}
-    h = jalankan([berskor(k, 60 - i, "MR", C) for i, k in enumerate(sektor)], cfg=cfg_n, sektor=sektor)
+    h = jalankan([berskor(k, 60 - i, "PJ", C) for i, k in enumerate(sektor)], cfg=cfg_n, sektor=sektor)
     assert [k.status for k in h.kandidat] == [REKOMENDASI] * 3
 
 
@@ -728,45 +728,45 @@ def test_batas_sektor_dari_config_dua_sisi_dan_null():
 
 
 def test_tidak_terjangkau_risiko_alasan_boleh_beli_dan_hati_hati():
-    h = jalankan([berskor("AAAA", 90, "PB", A), berskor("BBBB", 80, "BO", B), berskor("CCCC", 70, "MR", C)])
+    h = jalankan([berskor("AAAA", 90, "TP", A), berskor("BBBB", 80, "TB", B), berskor("CCCC", 70, "PJ", C)])
     assert h.anggaran_risiko == Decimal(30000)
-    assert ringkas(h) == [("AAAA", "PB", REKOMENDASI), ("BBBB", "BO", TIDAK_TERJANGKAU), ("CCCC", "MR", REKOMENDASI)]
+    assert ringkas(h) == [("AAAA", "TP", REKOMENDASI), ("BBBB", "TB", TIDAK_TERJANGKAU), ("CCCC", "PJ", REKOMENDASI)]
     # risiko 1 lot B = 66.841,625 → "Rp 66.841,63"; 66.841,625/3.000.000 = 2,228% → "2,23%"
-    assert satu(h, "BBBB", "BO").alasan == (
+    assert satu(h, "BBBB", "TB").alasan == (
         "risiko 1 lot = Rp 66.841,63 (2,23% ekuitas) > anggaran Rp 30.000 (1%, status BOLEH BELI)"
     )
-    assert satu(h, "BBBB", "BO").sizing.lot_risiko == 0
+    assert satu(h, "BBBB", "TB").sizing.lot_risiko == 0
     assert satu(h, "AAAA").sizing.lot == 1 and satu(h, "AAAA").sizing.risiko_idr == Decimal("15164.828")
-    assert satu(h, "CCCC", "MR").sizing.lot == 5
-    assert satu(h, "CCCC", "MR").sizing.risiko_idr == Decimal("25060.4875")
+    assert satu(h, "CCCC", "PJ").sizing.lot == 5
+    assert satu(h, "CCCC", "PJ").sizing.risiko_idr == Decimal("25060.4875")
     # HATI-HATI: anggaran 30.000 × 0,5 = 15.000 → A tak terjangkau (15.164,83 > 15.000), C 2 lot.
-    h = jalankan([berskor("AAAA", 90, "PB", A), berskor("CCCC", 70, "MR", C)], status="HATI_HATI")
+    h = jalankan([berskor("AAAA", 90, "TP", A), berskor("CCCC", 70, "PJ", C)], status="HATI_HATI")
     assert h.anggaran_risiko == Decimal(15000)
     assert satu(h, "AAAA").status == TIDAK_TERJANGKAU
     assert satu(h, "AAAA").alasan == (
         "risiko 1 lot = Rp 15.164,83 (0,51% ekuitas) > anggaran Rp 15.000 (0,50%, status HATI-HATI)"
     )
-    c = satu(h, "CCCC", "MR")
+    c = satu(h, "CCCC", "PJ")
     assert (c.status, c.sizing.lot, c.sizing.risiko_idr) == (REKOMENDASI, 2, Decimal("10024.195"))
 
 
 def test_tidak_terjangkau_alokasi_dan_alokasi_dari_config():
-    h = jalankan([berskor("MHAL", 50, "PB", MAHAL)])
+    h = jalankan([berskor("MHAL", 50, "TP", MAHAL)])
     k = satu(h, "MHAL")
     assert h.alokasi_maks == Decimal(1000000)  # 3.000.000 ÷ 3 tepat
     assert k.status == TIDAK_TERJANGKAU
     assert k.alasan == "nilai 1 lot Rp 1.201.800 > alokasi maks Rp 1.000.000"
     assert (k.sizing.lot_risiko, k.sizing.lot_alokasi) == (1, 0)
     # alokasi 50% = 1.500.000 ≥ 1.201.800 → terjangkau.
-    h = jalankan([berskor("MHAL", 50, "PB", MAHAL)], cfg=cfg_uji({"risiko.alokasi_maks_pct": 50}))
+    h = jalankan([berskor("MHAL", 50, "TP", MAHAL)], cfg=cfg_uji({"risiko.alokasi_maks_pct": 50}))
     assert h.alokasi_maks == Decimal(1500000)
     assert satu(h, "MHAL").status == REKOMENDASI
 
 
 def test_tidak_likuid_batas_dua_sisi():
     # lot_likuid = floor(1% × RataNilai / (2.030 × 100)); batas 1 lot tepat pada RataNilai 20.300.000.
-    h = jalankan([berskor("PAS", 60, "PB", A, rata_nilai=20_300_000.0),
-                  berskor("KRG", 50, "PB", A, rata_nilai=20_299_999.0)])
+    h = jalankan([berskor("PAS", 60, "TP", A, rata_nilai=20_300_000.0),
+                  berskor("KRG", 50, "TP", A, rata_nilai=20_299_999.0)])
     pas, krg = satu(h, "PAS"), satu(h, "KRG")
     assert (pas.status, pas.sizing.lot_likuid, pas.sizing.lot) == (REKOMENDASI, 1, 1)
     assert (krg.status, krg.sizing.lot_likuid) == (TIDAK_LIKUID, 0)
@@ -776,24 +776,24 @@ def test_tidak_likuid_batas_dua_sisi():
 def test_prioritas_cek_a_sampai_g():
     # a sebelum b: HATI-HATI, slot 1, kandidat kedua melanggar keduanya → SLOT_PENUH.
     pf1 = porto(pos("P1", "S1"), pos("P2", "S2"))
-    h = jalankan([berskor("C1", 60, "MR", C), berskor("C2", 50, "MR", C)], status="HATI_HATI", portofolio=pf1)
-    assert satu(h, "C2", "MR").status == SLOT_PENUH
+    h = jalankan([berskor("C1", 60, "PJ", C), berskor("C2", 50, "PJ", C)], status="HATI_HATI", portofolio=pf1)
+    assert satu(h, "C2", "PJ").status == SLOT_PENUH
     # b sebelum c: HATI-HATI, sektor sama → BATAS_ENTRY_HARIAN.
     sektor = {"C1": "Energi", "C2": "Energi"}
-    h = jalankan([berskor("C1", 60, "MR", C), berskor("C2", 50, "MR", C)], status="HATI_HATI", sektor=sektor)
-    assert satu(h, "C2", "MR").status == BATAS_ENTRY_HARIAN
+    h = jalankan([berskor("C1", 60, "PJ", C), berskor("C2", 50, "PJ", C)], status="HATI_HATI", sektor=sektor)
+    assert satu(h, "C2", "PJ").status == BATAS_ENTRY_HARIAN
     # c sebelum d: B (tak terjangkau) di sektor penuh → BATAS_SEKTOR tanpa sizing.
-    h = jalankan([berskor("BBBB", 50, "BO", B)], portofolio=porto(pos("LAMA", "Energi")), sektor={"BBBB": "Energi"})
-    assert (satu(h, "BBBB", "BO").status, satu(h, "BBBB", "BO").sizing) == (BATAS_SEKTOR, None)
+    h = jalankan([berskor("BBBB", 50, "TB", B)], portofolio=porto(pos("LAMA", "Energi")), sektor={"BBBB": "Energi"})
+    assert (satu(h, "BBBB", "TB").status, satu(h, "BBBB", "TB").sizing) == (BATAS_SEKTOR, None)
     # d sebelum e: gagal risiko dan alokasi → alasan risiko.
-    k = satu(jalankan([berskor("LEBR", 50, "PB", MAHAL_LEBAR)]), "LEBR")
+    k = satu(jalankan([berskor("LEBR", 50, "TP", MAHAL_LEBAR)]), "LEBR")
     assert k.status == TIDAK_TERJANGKAU and k.alasan.startswith("risiko 1 lot = Rp 105.647,25")
     # e sebelum f: gagal alokasi dan likuiditas → alasan alokasi.
-    k = satu(jalankan([berskor("MHAL", 50, "PB", MAHAL, rata_nilai=1e6)]), "MHAL")
+    k = satu(jalankan([berskor("MHAL", 50, "TP", MAHAL, rata_nilai=1e6)]), "MHAL")
     assert k.status == TIDAK_TERJANGKAU and k.alasan.startswith("nilai 1 lot")
     assert k.sizing.lot_likuid == 0
     # f sebelum g: gagal likuiditas dan kas → TIDAK_LIKUID.
-    k = satu(jalankan([berskor("AAAA", 50, "PB", A, rata_nilai=1e6)], portofolio=porto(kas="1000")), "AAAA")
+    k = satu(jalankan([berskor("AAAA", 50, "TP", A, rata_nilai=1e6)], portofolio=porto(kas="1000")), "AAAA")
     assert k.status == TIDAK_LIKUID and k.sizing.lot_kas == 0
 
 
@@ -807,21 +807,21 @@ def test_kas_kurang_batas_dua_sisi():
 
 
 def test_kas_berkurang_setelah_setiap_rekomendasi():
-    daftar = [berskor("A1", 90, "PB", A), berskor("A2", 80, "PB", A), berskor("C1", 70, "MR", C),
-              berskor("C2", 60, "MR", C)]
+    daftar = [berskor("A1", 90, "TP", A), berskor("A2", 80, "TP", A), berskor("C1", 70, "PJ", C),
+              berskor("C2", 60, "PJ", C)]
     h = jalankan(daftar, portofolio=porto(kas="300000"))
     assert ringkas(h) == [
-        ("A1", "PB", REKOMENDASI),  # kas 300.000 → 300.000 − 203.304,50 = 96.695,50
-        ("A2", "PB", KAS_KURANG),  # 203.304,50 > 96.695,50 (tidak memakan slot)
-        ("C1", "MR", REKOMENDASI),  # lot_kas = 2 (2 × 45.868,70 = 91.737,40) → kas 4.958,10
-        ("C2", "MR", KAS_KURANG),  # 45.868,70 > 4.958,10
+        ("A1", "TP", REKOMENDASI),  # kas 300.000 → 300.000 − 203.304,50 = 96.695,50
+        ("A2", "TP", KAS_KURANG),  # 203.304,50 > 96.695,50 (tidak memakan slot)
+        ("C1", "PJ", REKOMENDASI),  # lot_kas = 2 (2 × 45.868,70 = 91.737,40) → kas 4.958,10
+        ("C2", "PJ", KAS_KURANG),  # 45.868,70 > 4.958,10
     ]
     assert h.kas_awal == Decimal(300000)
-    c1 = satu(h, "C1", "MR")
+    c1 = satu(h, "C1", "PJ")
     assert c1.sizing.kas_tersedia == Decimal("96695.50")
     assert (c1.sizing.lot, c1.sizing.pembatas, c1.sizing.biaya_beli_idr) == (2, "kas", Decimal("91737.40"))
     assert satu(h, "A2").alasan == "biaya 1 lot Rp 203.304,50 > kas tersedia Rp 96.695,50"
-    assert satu(h, "C2", "MR").alasan == "biaya 1 lot Rp 45.868,70 > kas tersedia Rp 4.958,10"
+    assert satu(h, "C2", "PJ").alasan == "biaya 1 lot Rp 45.868,70 > kas tersedia Rp 4.958,10"
 
 
 @pytest.mark.parametrize("pakai", [True, False])
@@ -836,22 +836,22 @@ def test_dana_jual_langsung_dipakai_menambah_estimasi_hasil_jual(pakai):
 
 
 def test_izinkan_satu_lot_melebihi_risiko():
-    h = jalankan([berskor("BBBB", 50, "BO", B)])
-    assert satu(h, "BBBB", "BO").status == TIDAK_TERJANGKAU
+    h = jalankan([berskor("BBBB", 50, "TB", B)])
+    assert satu(h, "BBBB", "TB").status == TIDAK_TERJANGKAU
     cfg = cfg_uji({"risiko.izinkan_satu_lot_melebihi_risiko": True})
-    h = jalankan([berskor("BBBB", 50, "BO", B), berskor("AAAA", 40, "PB", A)], cfg=cfg)
-    b = satu(h, "BBBB", "BO")
+    h = jalankan([berskor("BBBB", 50, "TB", B), berskor("AAAA", 40, "TP", A)], cfg=cfg)
+    b = satu(h, "BBBB", "TB")
     assert (b.status, b.sizing.lot, b.sizing.risiko_di_atas_anggaran) == (REKOMENDASI, 1, True)
     assert b.alasan == "risiko 1 lot di atas anggaran (diizinkan config)"
     assert b.sizing.risiko_idr == Decimal("66841.625")
     a = satu(h, "AAAA")  # lot_risiko ≥ 1 tanpa bantuan flag → tanpa tanda
     assert (a.status, a.alasan, a.sizing.risiko_di_atas_anggaran) == (REKOMENDASI, "", False)
     # Batas e–g tetap berlaku.
-    k = satu(jalankan([berskor("LEBR", 50, "PB", MAHAL_LEBAR)], cfg=cfg), "LEBR")
+    k = satu(jalankan([berskor("LEBR", 50, "TP", MAHAL_LEBAR)], cfg=cfg), "LEBR")
     assert k.status == TIDAK_TERJANGKAU and k.alasan == "nilai 1 lot Rp 1.201.800 > alokasi maks Rp 1.000.000"
-    k = satu(jalankan([berskor("BBBB", 50, "BO", B, rata_nilai=1e6)], cfg=cfg), "BBBB", "BO")
+    k = satu(jalankan([berskor("BBBB", 50, "TB", B, rata_nilai=1e6)], cfg=cfg), "BBBB", "TB")
     assert k.status == TIDAK_LIKUID
-    k = satu(jalankan([berskor("BBBB", 50, "BO", B)], cfg=cfg, portofolio=porto(kas="900000")), "BBBB", "BO")
+    k = satu(jalankan([berskor("BBBB", 50, "TB", B)], cfg=cfg, portofolio=porto(kas="900000")), "BBBB", "TB")
     assert k.status == KAS_KURANG  # biaya 1 lot 913.868,75 > 900.000
 
 
@@ -868,13 +868,13 @@ def test_anggaran_dari_ekuitas_bukan_kas():
 
 def test_backtest_per_strategi_tanpa_gerbang_dan_tanpa_deduplikasi():
     cfg = cfg_uji({"risiko.maks_per_sektor": None})
-    daftar = [berskor("AAAA", 60, "PB", C), berskor("AAAA", 50, "BO", C), berskor("BBBB", 40, "BO", C)]
+    daftar = [berskor("AAAA", 60, "TP", C), berskor("AAAA", 50, "TB", C), berskor("BBBB", 40, "TB", C)]
     h = jalankan(daftar, cfg=cfg, lolos=None, dedup=False)
-    # Tidak ada BAYANGAN_GERBANG walau BO "belum lolos", dan duplikat tetap diproses.
-    assert ringkas(h) == [("AAAA", "PB", REKOMENDASI), ("AAAA", "BO", REKOMENDASI), ("BBBB", "BO", REKOMENDASI)]
-    # Pembanding: dengan deduplikasi, sinyal BO AAAA menjadi duplikat.
+    # Tidak ada BAYANGAN_GERBANG walau TB "belum lolos", dan duplikat tetap diproses.
+    assert ringkas(h) == [("AAAA", "TP", REKOMENDASI), ("AAAA", "TB", REKOMENDASI), ("BBBB", "TB", REKOMENDASI)]
+    # Pembanding: dengan deduplikasi, sinyal TB AAAA menjadi duplikat.
     h = jalankan(daftar, cfg=cfg, lolos=None, dedup=True)
-    assert satu(h, "AAAA", "BO").status == DUPLIKAT_STRATEGI
+    assert satu(h, "AAAA", "TB").status == DUPLIKAT_STRATEGI
 
 
 def test_seleksi_tanpa_sinyal():
@@ -891,42 +891,42 @@ def test_bergantung_jual_cukup_salah_satu_dari_dua_jual():
     # P (Bank) + J1 (Energi, jual) + J2 (Tambang, jual): slot = 3 − (3 − 2) = 2. K1 hanya butuh SATU slot:
     # batal di open hanya bila J1 DAN J2 sama-sama tidak terisi (terbuka 3 ≥ 3).
     pf = porto(pos("P", "Bank"), pos("J1", "Energi", jual=True), pos("J2", "Tambang", jual=True))
-    h = jalankan([berskor("K1", 80, "MR", C)], portofolio=pf, sektor={"K1": "Properti"})
-    assert satu(h, "K1", "MR").bergantung_jual == (("J1", "J2"),)
+    h = jalankan([berskor("K1", 80, "PJ", C)], portofolio=pf, sektor={"K1": "Properti"})
+    assert satu(h, "K1", "PJ").bergantung_jual == (("J1", "J2"),)
     # Dua kandidat: K1 (skor tertinggi) batal hanya bila keduanya gagal; K2 batal bila salah satu gagal.
-    h = jalankan([berskor("K1", 80, "MR", C), berskor("K2", 70, "MR", C)], portofolio=pf,
+    h = jalankan([berskor("K1", 80, "PJ", C), berskor("K2", 70, "PJ", C)], portofolio=pf,
                  sektor={"K1": "Properti", "K2": "Telko"})
-    assert satu(h, "K1", "MR").bergantung_jual == (("J1", "J2"),)
-    assert satu(h, "K2", "MR").bergantung_jual == (("J1",), ("J2",))
+    assert satu(h, "K1", "PJ").bergantung_jual == (("J1", "J2"),)
+    assert satu(h, "K2", "PJ").bergantung_jual == (("J1",), ("J2",))
 
 
 def test_bergantung_jual_sektor_tidak_menular_ke_kandidat_sektor_lain():
     # J (Energi, jual) + P (Bank): slot = 3 − (2 − 1) = 2. K2 Energi (90) butuh sektor dari J; K1 Properti (80)
     # tidak: bila J gagal, K2 batal sektor (BATAL_SEKTOR_SAAT_OPEN) dan slotnya dipakai K1 (§16.2).
     pf = porto(pos("J", "Energi", jual=True), pos("P", "Bank"))
-    h = jalankan([berskor("K2", 90, "MR", C), berskor("K1", 80, "MR", C)], portofolio=pf,
+    h = jalankan([berskor("K2", 90, "PJ", C), berskor("K1", 80, "PJ", C)], portofolio=pf,
                  sektor={"K2": "Energi", "K1": "Properti"})
     assert [k.status for k in h.kandidat] == [REKOMENDASI, REKOMENDASI]
-    assert satu(h, "K2", "MR").bergantung_jual == (("J",),)
-    assert satu(h, "K1", "MR").bergantung_jual == ()
+    assert satu(h, "K2", "PJ").bergantung_jual == (("J",),)
+    assert satu(h, "K1", "PJ").bergantung_jual == ()
 
 
 def test_bergantung_jual_sektor_dengan_maks_per_sektor_dua():
     cfg = cfg_uji({"risiko.maks_per_sektor": 2})
     # Energi: JUAL (jual) saja → terpakai 0; kandidat Energi tetap muat walau JUAL gagal (1 < 2).
-    h = jalankan([berskor("AAAA", 80, "MR", C)], portofolio=porto(pos("JUAL", "Energi", jual=True)), cfg=cfg,
+    h = jalankan([berskor("AAAA", 80, "PJ", C)], portofolio=porto(pos("JUAL", "Energi", jual=True)), cfg=cfg,
                  sektor={"AAAA": "Energi"})
-    assert (satu(h, "AAAA", "MR").status, satu(h, "AAAA", "MR").bergantung_jual) == (REKOMENDASI, ())
+    assert (satu(h, "AAAA", "PJ").status, satu(h, "AAAA", "PJ").bergantung_jual) == (REKOMENDASI, ())
     # Ditambah LAMA (Energi, tidak dijual): bila JUAL gagal, Energi 2 ≥ 2 → batal.
-    h = jalankan([berskor("AAAA", 80, "MR", C)], cfg=cfg, sektor={"AAAA": "Energi"},
+    h = jalankan([berskor("AAAA", 80, "PJ", C)], cfg=cfg, sektor={"AAAA": "Energi"},
                  portofolio=porto(pos("JUAL", "Energi", jual=True), pos("LAMA", "Energi")))
-    assert (satu(h, "AAAA", "MR").status, satu(h, "AAAA", "MR").bergantung_jual) == (REKOMENDASI, (("JUAL",),))
+    assert (satu(h, "AAAA", "PJ").status, satu(h, "AAAA", "PJ").bergantung_jual) == (REKOMENDASI, (("JUAL",),))
 
 
 def test_bergantung_jual_dilewati_bila_diminta_atau_flag_mati():
     pf = porto(pos("P1", "S1"), pos("P2", "S2"), pos("JUAL", "S_JUAL", jual=True))
-    h = jalankan([berskor("NEW", 50, "MR", C)], portofolio=pf, hitung_ketergantungan=False)
-    assert (satu(h, "NEW", "MR").status, satu(h, "NEW", "MR").bergantung_jual) == (REKOMENDASI, ())
+    h = jalankan([berskor("NEW", 50, "PJ", C)], portofolio=pf, hitung_ketergantungan=False)
+    assert (satu(h, "NEW", "PJ").status, satu(h, "NEW", "PJ").bergantung_jual) == (REKOMENDASI, ())
 
 
 def _simulasi_open(rek, posisi, gagal, maks_posisi, maks_sektor):
@@ -961,7 +961,7 @@ def test_bergantung_jual_sama_dengan_simulasi_open_semua_skenario(benih):
     sektor_list = ["Bank", "Energi", "Tambang"]
     posisi = [pos(f"P{i}", rnd.choice(sektor_list), jual=rnd.random() < 0.6) for i in range(rnd.randint(1, maks_posisi))]
     kandidat = {f"K{i}": rnd.choice(sektor_list) for i in range(rnd.randint(1, 5))}
-    daftar = [berskor(k, 90 - i, "MR", C) for i, k in enumerate(kandidat)]
+    daftar = [berskor(k, 90 - i, "PJ", C) for i, k in enumerate(kandidat)]
     h = jalankan(daftar, portofolio=porto(*posisi), cfg=cfg, sektor=kandidat)
     rek = [(k.kode, kandidat[k.kode]) for k in h.kandidat if k.status == REKOMENDASI]
     jual = [p.kode for p in posisi if p.dijadwalkan_jual]
@@ -970,7 +970,7 @@ def test_bergantung_jual_sama_dengan_simulasi_open_semua_skenario(benih):
         for gagal in itertools.combinations(jual, r):
             batal = _simulasi_open(rek, posisi, set(gagal), maks_posisi, maks_sektor)
             for kode, _ in rek:
-                minimal = satu(h, kode, "MR").bergantung_jual
+                minimal = satu(h, kode, "PJ").bergantung_jual
                 assert (kode in batal) == any(set(m) <= set(gagal) for m in minimal), (gagal, kode, minimal)
 
 
@@ -981,21 +981,21 @@ def test_bergantung_jual_sama_dengan_simulasi_open_semua_skenario(benih):
 
 def test_anggaran_risiko_dari_config():
     cfg = cfg_uji({"risiko.risiko_per_transaksi_pct": 0.5})
-    h = jalankan([berskor("AAAA", 90, "PB", A), berskor("CCCC", 70, "MR", C)], cfg=cfg)
+    h = jalankan([berskor("AAAA", 90, "TP", A), berskor("CCCC", 70, "PJ", C)], cfg=cfg)
     # 3.000.000 × 0,5% = 15.000 → A tak terjangkau (15.164,83), C 2 lot (risiko 10.024,195)
     assert h.anggaran_risiko == Decimal(15000)
     assert satu(h, "AAAA").alasan == (
         "risiko 1 lot = Rp 15.164,83 (0,51% ekuitas) > anggaran Rp 15.000 (0,50%, status BOLEH BELI)"
     )
-    assert satu(h, "CCCC", "MR").sizing.lot == 2
+    assert satu(h, "CCCC", "PJ").sizing.lot == 2
 
 
 def test_pengali_risiko_hati_hati_dari_config():
     cfg = cfg_uji({"risiko.hati_hati.pengali_risiko": 0.25})
-    h = jalankan([berskor("CCCC", 70, "MR", C)], status="HATI_HATI", cfg=cfg)
+    h = jalankan([berskor("CCCC", 70, "PJ", C)], status="HATI_HATI", cfg=cfg)
     # 30.000 × 0,25 = 7.500 → C: 7.500 / 5.012,0975 → 1 lot
     assert h.anggaran_risiko == Decimal(7500)
-    assert satu(h, "CCCC", "MR").sizing.lot == 1
+    assert satu(h, "CCCC", "PJ").sizing.lot == 1
 
 
 def test_konteks_mode_backtest_menentukan_slot_sektor_dan_alokasi():
@@ -1004,7 +1004,7 @@ def test_konteks_mode_backtest_menentukan_slot_sektor_dan_alokasi():
         "backtest.mode.edge.maks_per_sektor": 2,
     })
     sektor = {f"K{i}": ("Energi" if i < 3 else f"S{i}") for i in range(6)}
-    daftar = [berskor(f"K{i}", 90 - i, "MR", C) for i in range(6)]
+    daftar = [berskor(f"K{i}", 90 - i, "PJ", C) for i in range(6)]
     ekuitas = Decimal(1_000_000_000)
     h = jalankan(daftar, cfg=cfg, sektor=sektor, mode="edge", portofolio=porto(kas=ekuitas, ekuitas=ekuitas))
     # Energi maks 2 (K2 BATAS_SEKTOR), slot 5 → K0, K1, K3, K4, K5 diterima.

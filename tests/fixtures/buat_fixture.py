@@ -38,10 +38,10 @@ FOLDER = Path(__file__).resolve().parent / "e2e"
 LABEL = "FIKTIF – KHUSUS UJI"
 
 MULAI = date(2023, 1, 2)
-T1 = date(2025, 9, 10)  # sinyal PB UJIPB dkk., status BOLEH BELI
-T_BO = date(2025, 9, 3)  # breakout UJIBO (portfolio_ujibo: beli T_BO+1)
+T1 = date(2025, 9, 10)  # sinyal TP UJIPB dkk., status BOLEH BELI
+T_TB = date(2025, 9, 3)  # breakout UJIBO (portfolio_ujibo: beli T_TB+1)
 T_HATI = date(2025, 10, 21)  # status HATI-HATI
-T_TURUN = date(2025, 11, 19)  # status JANGAN BELI; sinyal MR UJIMR (daftar pantau)
+T_TURUN = date(2025, 11, 19)  # status JANGAN BELI; sinyal PJ UJIMR (daftar pantau)
 T_KOSONG = date(2025, 12, 1)  # sebagian besar saham tanpa bar → BELUM_TERSEDIA
 LIBUR = {
     date(2023, 12, 25): f"Libur {LABEL}",
@@ -190,7 +190,7 @@ def breadth() -> dict[str, pd.DataFrame]:
 # ---------------------------------------------------------------------------
 
 
-def pola_pb(s: Seri, t: date, turun: float = 0.011, hari_turun: int = 4, pantul: float = 0.024) -> Seri:
+def pola_tp(s: Seri, t: date, turun: float = 0.011, hari_turun: int = 4, pantul: float = 0.024) -> Seri:
     """Pullback `hari_turun` hari (low menyentuh SMA20), lalu pantulan pada t: close > high kemarin, close > open."""
     for j in range(hari_turun, 0, -1):
         s.hari(geser(t, -j), -turun)
@@ -198,7 +198,7 @@ def pola_pb(s: Seri, t: date, turun: float = 0.011, hari_turun: int = 4, pantul:
     return s
 
 
-def pola_bo(s: Seri, t: date, datar: int = 25, naik: float = 0.018, rasio_vol: float = 2.2) -> Seri:
+def pola_tb(s: Seri, t: date, datar: int = 25, naik: float = 0.018, rasio_vol: float = 2.2) -> Seri:
     """Konsolidasi datar `datar` hari, lalu breakout bervolume pada t (close dekat high)."""
     for j in range(datar, 0, -1):
         s.hari(geser(t, -j), 0.002 if j % 2 else -0.002)
@@ -206,7 +206,7 @@ def pola_bo(s: Seri, t: date, datar: int = 25, naik: float = 0.018, rasio_vol: f
     return s
 
 
-def pola_mr(s: Seri, t: date, turun1: float = -0.012, turun2: float = -0.03) -> Seri:
+def pola_pj(s: Seri, t: date, turun1: float = -0.012, turun2: float = -0.03) -> Seri:
     """Dua hari turun (t−1, t): RSI(2) < 10 pada t, close tetap di atas SMA200."""
     s.hari(geser(t, -1), turun1)
     s.hari(t, turun2)
@@ -225,51 +225,51 @@ def saham_uji() -> dict[str, tuple[Seri, float, float]]:
     def naik(awal: float, laju: float = 0.0025, rentang: float = 0.006, volume: float = 3e6) -> Seri:
         return Seri(awal, rentang=rentang, volume=volume).tren(MULAI, T_KOSONG, laju)
 
-    # UJIPB: PB in-sample & holdout awal, PB pada T1 lalu naik ke target.
+    # UJIPB: TP in-sample & holdout awal, TP pada T1 lalu naik ke target.
     s = naik(800.0, laju=0.0012, volume=4e7)
-    pola_pb(s, date(2024, 5, 15))
-    pola_pb(s, date(2025, 3, 12))
-    pola_pb(s, T1)
+    pola_tp(s, date(2024, 5, 15))
+    pola_tp(s, date(2025, 3, 12))
+    pola_tp(s, T1)
     s.hari(geser(T1, 1), 0.002, gap=-0.002)
     s.hari(geser(T1, 2), 0.004)
     s.hari(geser(T1, 3), 0.05, atas=0.01)
     hasil["UJIPB"] = (s, 1.0, 0.0)
 
     s = naik(1500.0, laju=0.0012, volume=6e6)
-    pola_pb(s, T1, pantul=0.02)
+    pola_tp(s, T1, pantul=0.02)
     hasil["UJISEKTOR"] = (s, 1.0, 0.0)
 
     s = naik(600.0, laju=0.0012, volume=3e7)
-    pola_pb(s, T1)
+    pola_tp(s, T1)
     s.hari(geser(T1, 1), 0.04, gap=0.04)
     hasil["UJIGAP"] = (s, 1.0, 0.0)
 
     s = naik(4000.0, laju=0.0012, rentang=0.012, volume=8e6)
-    pola_pb(s, T1, turun=0.012, pantul=0.035)
+    pola_tp(s, T1, turun=0.012, pantul=0.035)
     hasil["UJIMAHAL"] = (s, 1.0, 0.0)
 
     s = naik(1000.0, laju=0.0012, volume=5e6)
-    pola_pb(s, T1)
+    pola_tp(s, T1)
     hasil["UJIMAHAL2"] = (s, *atur_mahal2(s))
 
     s = naik(900.0, laju=0.0012, volume=1e7)
-    pola_bo(s, date(2024, 6, 12))
+    pola_tb(s, date(2024, 6, 12))
     s.hari(date(2024, 7, 15), -0.08)
-    pola_bo(s, T_BO)
+    pola_tb(s, T_TB)
     for j in range(1, 6):
-        s.hari(geser(T_BO, j), 0.006)
+        s.hari(geser(T_TB, j), 0.006)
     hasil["UJIBO"] = (s, 1.0, 0.0)
 
     s = naik(1200.0, laju=0.0015, volume=1e7)
-    pola_mr(s, date(2024, 7, 10))
+    pola_pj(s, date(2024, 7, 10))
     s.hari(date(2024, 7, 11), 0.004)
     s.hari(date(2024, 7, 12), 0.003)
     s.hari(date(2024, 7, 15), 0.02)
-    pola_mr(s, geser(T1, 1))
+    pola_pj(s, geser(T1, 1))
     s.hari(geser(T1, 2), 0.004)
     s.hari(geser(T1, 3), -0.002)
     s.hari(geser(T1, 4), 0.025)
-    pola_mr(s, T_TURUN)
+    pola_pj(s, T_TURUN)
     hasil["UJIMR"] = (s, 1.0, 0.0)
 
     s = naik(700.0, laju=0.0012, volume=2e7)
@@ -277,16 +277,16 @@ def saham_uji() -> dict[str, tuple[Seri, float, float]]:
     hasil["UJIBOLONG"] = (s, 1.0, 0.0)
 
     s = naik(1100.0, laju=0.0012, volume=2e7)
-    pola_bo(s, date(2024, 9, 18))
+    pola_tb(s, date(2024, 9, 18))
     s.hari(date(2024, 10, 21), -0.09)
-    pola_bo(s, date(2025, 4, 16))
+    pola_tb(s, date(2025, 4, 16))
     s.hari(date(2025, 5, 20), -0.09)
     s.hari(geser(T1, 3), 0.6)  # lonjakan tanpa split sesudah T1
     hasil["UJIANOMALI"] = (s, 1.0, 0.0)
 
     s = naik(1000.0, laju=0.0012, volume=2e7)
-    pola_pb(s, date(2024, 4, 17))
-    pola_pb(s, date(2024, 8, 14))
+    pola_tp(s, date(2024, 4, 17))
+    pola_tp(s, date(2024, 8, 14))
     s.split = {date(2024, 10, 1): 5.0}
     hasil["UJISPLIT"] = (s, 1.0, 0.0)
     return hasil
@@ -304,7 +304,7 @@ def _cfg():
 
 
 def atur_mahal2(s: Seri) -> tuple[float, float]:
-    """(k, b) agar sinyal PB UJIMAHAL2 pada T1 tepat: close + 0,5 ATR = 10.500,5 (→ harga_maks 10.500) dan
+    """(k, b) agar sinyal TP UJIMAHAL2 pada T1 tepat: close + 0,5 ATR = 10.500,5 (→ harga_maks 10.500) dan
     LLV5 − 0,2 ATR = 10.289,5 (→ stop 10.290). Transformasi afin: SMA/LLV → k·x + b, ATR → k·ATR."""
     from asisten_bei_turun.indikator import hitung_indikator, k_llv_low
 
@@ -312,9 +312,9 @@ def atur_mahal2(s: Seri) -> tuple[float, float]:
     df = s.bingkai()
     ind = hitung_indikator(df.loc[:, ["open", "high", "low", "close", "volume"]], cfg)
     r = ind.loc[pd.Timestamp(T1)]
-    pb = cfg.strategi.pb
+    tp = cfg.strategi.tp
     atas = r["close"] + float(cfg.entry.gap_maks_atr) * r["atr"]
-    bawah = r[k_llv_low(pb.lookback_swing_low)] - float(pb.penyangga_stop_atr) * r["atr"]
+    bawah = r[k_llv_low(tp.lookback_swing_low)] - float(tp.penyangga_stop_atr) * r["atr"]
     k = (HARGA_MAKS_MAHAL2 - STOP_MAHAL2 + 1.0) / (atas - bawah)
     b = HARGA_MAKS_MAHAL2 + 0.5 - k * atas
     return float(k), float(b)
@@ -385,7 +385,7 @@ def tulis_input(folder: Path, pasar: dict[str, pd.DataFrame], ujibo: dict) -> No
     kolom = "kode,tanggal_beli,harga_beli,lot,strategi,stop_awal,sektor,harga_per_tanggal,lembar,catatan\n"
     (inp / "portfolio.csv").write_text(kolom, encoding="utf-8")
     (inp / "portfolio_ujibo.csv").write_text(
-        kolom + f"UJIBO,{ujibo['tanggal_beli']},{ujibo['harga_beli']},{ujibo['lot']},BO,{ujibo['stop_awal']},,,,{LABEL}\n",
+        kolom + f"UJIBO,{ujibo['tanggal_beli']},{ujibo['harga_beli']},{ujibo['lot']},TB,{ujibo['stop_awal']},,,,{LABEL}\n",
         encoding="utf-8")
     (inp / "akun.yaml").write_text(
         f"# BUKAN SARAN INVESTASI. {LABEL}\nkas_idr: {KAS}\ndiperbarui: {T1.isoformat()}\n", encoding="utf-8")
@@ -420,16 +420,16 @@ def bangun_pasar() -> dict[str, pd.DataFrame]:
 
 
 def baris_ujibo(df: pd.DataFrame) -> dict:
-    """Posisi UJIBO di portfolio_ujibo.csv: dibeli di pembukaan T_BO+1 (harga isi = open × (1 + slippage),
-    dibulatkan ke rupiah), stop_awal = stop sinyal BO pada T_BO (close − stop_atr × ATR, ke atas)."""
+    """Posisi UJIBO di portfolio_ujibo.csv: dibeli di pembukaan T_TB+1 (harga isi = open × (1 + slippage),
+    dibulatkan ke rupiah), stop_awal = stop sinyal TB pada T_TB (close − stop_atr × ATR, ke atas)."""
     from asisten_bei_turun.indikator import hitung_indikator
 
     cfg = _cfg()
     ind = hitung_indikator(df.loc[:, ["open", "high", "low", "close", "volume"]], cfg)
-    r = ind.loc[pd.Timestamp(T_BO)]
-    stop = math.ceil(round(r["close"] - float(cfg.strategi.bo.stop_atr) * r["atr"], 6))
-    isi = round(float(df.loc[pd.Timestamp(geser(T_BO, 1)), "open"]) * (1 + float(cfg.biaya.slippage_pct) / 100))
-    return {"tanggal_beli": geser(T_BO, 1).isoformat(), "harga_beli": str(isi), "lot": 2, "stop_awal": str(stop)}
+    r = ind.loc[pd.Timestamp(T_TB)]
+    stop = math.ceil(round(r["close"] - float(cfg.strategi.tb.stop_atr) * r["atr"], 6))
+    isi = round(float(df.loc[pd.Timestamp(geser(T_TB, 1)), "open"]) * (1 + float(cfg.biaya.slippage_pct) / 100))
+    return {"tanggal_beli": geser(T_TB, 1).isoformat(), "harga_beli": str(isi), "lot": 2, "stop_awal": str(stop)}
 
 
 def bangun(folder: Path = FOLDER) -> dict:

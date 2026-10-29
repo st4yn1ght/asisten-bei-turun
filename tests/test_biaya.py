@@ -256,7 +256,7 @@ def test_pnl_dengan_slippage_kedua_sisi():
 
 
 # ---------------------------------------------------------------------------
-# Target A (PB, 2R) dan R:R bersih (§14.2, §12.1)
+# Target A (TP, 2R) dan R:R bersih (§14.2, §12.1)
 # ---------------------------------------------------------------------------
 
 
@@ -271,8 +271,8 @@ def test_pnl_dengan_slippage_kedua_sisi():
 def test_tabel_target_a(harga_isi, target):
     bei = AturanBEI(CFG)
     assert not bei.fraksi_berlaku(T)  # rilis: fraksi belum diverifikasi → rupiah bulat
-    assert CFG.strategi.pb.target_r == 2.0
-    hasil = hitung_target(D(harga_isi), D(1888), CFG.strategi.pb.target_r, bei, T)
+    assert CFG.strategi.tp.target_r == 2.0
+    hasil = hitung_target(D(harga_isi), D(1888), CFG.strategi.tp.target_r, bei, T)
     assert isinstance(hasil, Decimal)
     assert hasil == D(target)
 

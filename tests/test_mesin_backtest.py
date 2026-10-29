@@ -5,14 +5,14 @@ SPEC: §4.1, §4.3, §8.4, §8.5, §8.8, §13.2, §14.1, §15.1, §16.2, §16.3,
 Pasar sintetis (semua kode saham, sektor, dan harga FIKTIF; deterministik, berseed):
 
 - enam saham fiktif dalam tiga sektor fiktif (dua per sektor, sehingga `maks_per_sektor` = 1 bekerja),
-  random walk dengan faktor pasar dan gelombang, lonjakan volume pada hari naik (BO), periode turun
+  random walk dengan faktor pasar dan gelombang, lonjakan volume pada hari naik (TB), periode turun
   (JANGAN BELI / HATI-HATI), cacat data (bar hilang, volume 0, bar rusak);
 - FKSP dengan split 1:5 yang sudah disesuaikan sumber pada `HARI[I_SPLIT]` (F = 5 sebelum split);
 - IHSG fiktif tanpa volume.
 
 Ambang config diperkecil lewat `cfg_uji` (periode indikator pendek, `min_saham_breadth` 2, likuiditas
-kecil, ACAK berpeluang 25 %) agar PB, BO, MR, dan ACAK benar-benar bersinyal. Mesin dijalankan
-(`siapkan_keputusan` + `simulasikan`) untuk setiap run §16.3 (pb, bo, mr, acak, gabungan_aktif,
+kecil, ACAK berpeluang 25 %) agar TP, TB, PJ, dan ACAK benar-benar bersinyal. Mesin dijalankan
+(`siapkan_keputusan` + `simulasikan`) untuk setiap run §16.3 (tp, tb, pj, acak, gabungan_aktif,
 gabungan_lolos) × mode (edge, realistis; `config.resolusi_konteks`).
 
 Pemeriksaan:
@@ -112,22 +112,22 @@ UBAH = {
     "kondisi_pasar.sma_panjang": 30,
     "kondisi_pasar.breadth_sma": 10,
     "kondisi_pasar.min_saham_breadth": 2,
-    "strategi.pb.sma_cepat": 5,
-    "strategi.pb.sma_tren": 10,
-    "strategi.pb.sma_panjang": 30,
-    "strategi.pb.lookback_slope_sma_tren": 3,
-    "strategi.pb.lookback_sentuh_sma_cepat": 3,
-    "strategi.pb.lookback_swing_low": 3,
-    "strategi.pb.maks_jarak_stop_atr": 2.0,  # sebagian sinyal PB → STOP_TERLALU_JAUH
-    "strategi.pb.stop_waktu_hari": 6,
-    "strategi.bo.lookback_tertinggi": 10,
-    "strategi.bo.lookback_volume": 10,
-    "strategi.bo.sma_tren": 10,
-    "strategi.bo.sma_panjang": 30,
-    "strategi.bo.min_rasio_volume": 1.3,
-    "strategi.mr.sma_tren": 30,
-    "strategi.mr.rsi_maks": 20,
-    "strategi.mr.sma_keluar": 3,
+    "strategi.tp.sma_cepat": 5,
+    "strategi.tp.sma_tren": 10,
+    "strategi.tp.sma_panjang": 30,
+    "strategi.tp.lookback_slope_sma_tren": 3,
+    "strategi.tp.lookback_sentuh_sma_cepat": 3,
+    "strategi.tp.lookback_swing_low": 3,
+    "strategi.tp.maks_jarak_stop_atr": 2.0,  # sebagian sinyal TP → STOP_TERLALU_JAUH
+    "strategi.tp.stop_waktu_hari": 6,
+    "strategi.tb.lookback_tertinggi": 10,
+    "strategi.tb.lookback_volume": 10,
+    "strategi.tb.sma_tren": 10,
+    "strategi.tb.sma_panjang": 30,
+    "strategi.tb.min_rasio_volume": 1.3,
+    "strategi.pj.sma_tren": 30,
+    "strategi.pj.rsi_maks": 20,
+    "strategi.pj.sma_keluar": 3,
     "strategi.acak.peluang_sinyal_pct": 25.0,
     "strategi.acak.stop_waktu_hari": 6,
     "skor.rs_lookback": 10,
@@ -149,12 +149,12 @@ SAHAM = {
     KODE_SPLIT: ("SEKTOR_FIKTIF_C", 1200.0, 0.0011),  # tersesuaikan; nominal sebelum split ×5
 }
 KODE = list(SAHAM)
-STRATEGI_AKTIF = ("PB", "BO", "MR")
-STRATEGI_LOLOS = ("PB", "MR")  # himpunan lolos fiktif untuk run gabungan_lolos
+STRATEGI_AKTIF = ("TP", "TB", "PJ")
+STRATEGI_LOLOS = ("TP", "PJ")  # himpunan lolos fiktif untuk run gabungan_lolos
 RUN = {
-    "pb": mesin.SpesifikasiRun.per_strategi("PB"),
-    "bo": mesin.SpesifikasiRun.per_strategi("BO"),
-    "mr": mesin.SpesifikasiRun.per_strategi("MR"),
+    "tp": mesin.SpesifikasiRun.per_strategi("TP"),
+    "tb": mesin.SpesifikasiRun.per_strategi("TB"),
+    "pj": mesin.SpesifikasiRun.per_strategi("PJ"),
     "acak": mesin.SpesifikasiRun.per_strategi("ACAK"),
     "gabungan_aktif": mesin.SpesifikasiRun.gabungan_aktif(STRATEGI_AKTIF),
     "gabungan_lolos": mesin.SpesifikasiRun.gabungan_lolos(STRATEGI_AKTIF, STRATEGI_LOLOS),
@@ -304,7 +304,7 @@ def selisih_daftar(nama: str, a: Sequence, b: Sequence, maks: int = 3) -> list[s
 
 
 def test_bentuk_pembanding_peka():
-    p = ex.Posisi("FKAA", "PB", "S", date(2024, 1, 2), date(2024, 1, 3), D(100), D("1000"), D("100150"),
+    p = ex.Posisi("FKAA", "TP", "S", date(2024, 1, 2), date(2024, 1, 3), D(100), D("1000"), D("100150"),
                   D("150"), D(950), D(950), None, D(1), D(1010), D(1), tanda={"ANOMALI"}, meta={"x": math.nan})
     assert bentuk(p) == bentuk(copy.deepcopy(p))
     for ubah in ({"lembar": D(101)}, {"stop": D("950.0")}, {"tanda": set()}, {"meta": {"x": 1.0}},
@@ -627,7 +627,7 @@ def periksa_harga(rek: Rekaman) -> list[str]:
             salah.append(f"{kunci}: biaya beli salah")
         if not p.tanda <= ENUM_TANDA:
             salah.append(f"{kunci}: tanda di luar enum {p.tanda}")
-        if p.strategi in ("PB", "ACAK") and p.harga_beli > p.stop_awal:
+        if p.strategi in ("TP", "ACAK") and p.harga_beli > p.stop_awal:
             # Target = harga isi + target_r × (harga isi − stop), nominal pada hari entry, ke bawah (rupiah bulat:
             # fraksi belum terverifikasi), lalu kembali ke ruang tersesuaikan (§4.1, §8.4, §12.1).
             f = p.faktor_entry
@@ -645,16 +645,16 @@ def periksa_harga(rek: Rekaman) -> list[str]:
         if a not in ENUM_ALASAN_EXIT - {ex.TERBUKA}:
             salah.append(f"{kunci}: alasan exit {a}")
             continue
-        label_bo = a in (ex.TRAILING, ex.TRAILING_GAP)
-        if (label_bo or a in (ex.STOP, ex.STOP_GAP)) and label_bo != (p.strategi == "BO"):
+        label_tb = a in (ex.TRAILING, ex.TRAILING_GAP)
+        if (label_tb or a in (ex.STOP, ex.STOP_GAP)) and label_tb != (p.strategi == "TB"):
             salah.append(f"{kunci}: label stop {a} tidak sesuai strategi {p.strategi} (§4.3)")
         if a in (ex.TARGET, ex.TARGET_GAP) and p.target is None:
             salah.append(f"{kunci}: {a} tanpa target")
         if a == ex.PAKSA_JUAL_PASAR and not cfg.kondisi_pasar.jangan_beli_paksa_jual:
             salah.append(f"{kunci}: PAKSA_JUAL_PASAR padahal jangan_beli_paksa_jual false")
-        if a == ex.KELUAR_SMA and (p.strategi != "MR" or KAL.nomor_hari(p.tanggal_entry, p.tanggal_jadwal)
-                                   < int(cfg.strategi.mr.min_hari_tahan)):
-            salah.append(f"{kunci}: KELUAR_SMA sebelum min_hari_tahan / bukan MR")
+        if a == ex.KELUAR_SMA and (p.strategi != "PJ" or KAL.nomor_hari(p.tanggal_entry, p.tanggal_jadwal)
+                                   < int(cfg.strategi.pj.min_hari_tahan)):
+            salah.append(f"{kunci}: KELUAR_SMA sebelum min_hari_tahan / bukan PJ")
         if a == ex.STOP_WAKTU:
             n = ex._param_strategi(cfg, p.strategi).stop_waktu_hari
             if n is None or KAL.nomor_hari(p.tanggal_entry, p.tanggal_jadwal) < int(n) or k.tanggal <= p.tanggal_jadwal:
@@ -693,9 +693,9 @@ def test_prasyarat_pasar_sintetis_tidak_hampa():
     kep = keputusan_dasar()
     assert len(kep) == len(HARI_SIM) and kep[0].tanggal == CFG.backtest.mulai
     sinyal = Counter((s.strategi, s.sinyal.valid) for k in kep for s in k.sinyal)
-    for st in ("PB", "BO", "MR", "ACAK"):
+    for st in ("TP", "TB", "PJ", "ACAK"):
         assert sinyal[(st, True)] >= 30, sinyal
-    assert sinyal[("PB", False)] >= 10  # STOP_TERLALU_JAUH ada
+    assert sinyal[("TP", False)] >= 10  # STOP_TERLALU_JAUH ada
     status = Counter(k.status_pasar for k in kep)
     assert all(status[s] >= 20 for s in ENUM_STATUS_PASAR), status
     # Sinyal FKSP sebelum split memakai F = 5 (harga nominal), sesudahnya F = 1.
@@ -745,7 +745,7 @@ def test_t_bt_posisi_hanya_dari_rekomendasi_hari_sebelumnya(run, mode):
     if run == "gabungan_lolos":
         assert {p.strategi for p in rek.hasil.transaksi} <= set(STRATEGI_LOLOS)
         bayangan = {s.strategi for s in rek.hasil.dilewati if s.status_sinyal == "BAYANGAN_GERBANG"}
-        assert bayangan == {"BO"}
+        assert bayangan == {"TB"}
     if run.startswith("gabungan"):
         assert "ACAK" not in strategi
     else:
@@ -890,12 +890,12 @@ def test_t_bt_dua_run_identik():
     p2 = bangun_pasar()
     kep2 = keputusan(p2)
     assert selisih_daftar("keputusan", keputusan_dasar(), kep2) == []
-    for r, m in (("gabungan_aktif", "edge"), ("acak", "realistis"), ("bo", "edge")):
+    for r, m in (("gabungan_aktif", "edge"), ("acak", "realistis"), ("tb", "edge")):
         a, b = semua_run()[(r, m)], simulasi(kep2, p2, RUN[r], m)
         assert bentuk(a.hasil) == bentuk(b.hasil), (r, m)
         assert repr(bentuk(a.hasil)) == repr(bentuk(b.hasil))
         assert bentuk(a.order) == bentuk(b.order)
-    for st in ("PB", "BO"):
+    for st in ("TP", "TB"):
         assert bentuk(jalur_dasar(st)) == bentuk(mesin.jalur_per_sinyal(kep2, p2, st, ATURAN.sektor))
 
 
@@ -1156,15 +1156,15 @@ def test_t_sp_dunia_setara_tanpa_split_identik_dalam_rupiah():
 STATUS_ISI_UNIT = {ex.TERISI, ex.BATAL_DATA, ex.BATAL_GAP, ex.BATAL_ARA}
 
 
-@pytest.mark.parametrize("strategi", ["PB", "BO", "MR", "ACAK"])
+@pytest.mark.parametrize("strategi", ["TP", "TB", "PJ", "ACAK"])
 def test_jalur_satu_unit_per_sinyal_tanpa_stop_terlalu_jauh(strategi):
     kep = keputusan_dasar()
     j = jalur_dasar(strategi)
     harap = [(k.tanggal, s.kode, s.strategi, s.skor, k.status_pasar)
              for k in kep for s in k.sinyal if s.strategi == strategi and s.sinyal.valid]
     assert [(u.tanggal_sinyal, u.kode, u.strategi, u.skor, u.status_pasar) for u in j] == harap
-    if strategi == "PB":
-        assert any(not s.sinyal.valid for k in kep for s in k.sinyal if s.strategi == "PB")  # dikecualikan
+    if strategi == "TP":
+        assert any(not s.sinyal.valid for k in kep for s in k.sinyal if s.strategi == "TP")  # dikecualikan
     akhir = kep[-1].tanggal
     for u in j:
         if u.tanggal_sinyal == akhir:
@@ -1184,7 +1184,7 @@ def test_jalur_satu_unit_per_sinyal_tanpa_stop_terlalu_jauh(strategi):
 
 
 def test_jalur_tanpa_batas_slot_modal_status_pasar_dan_terbuka():
-    semua = {st: jalur_dasar(st) for st in ("PB", "BO", "MR", "ACAK")}
+    semua = {st: jalur_dasar(st) for st in ("TP", "TB", "PJ", "ACAK")}
     # Tanpa batas slot: unit ACAK yang terisi jauh lebih banyak daripada posisi run acak, dan beberapa unit
     # saham yang sama terbuka bersamaan.
     terisi = [u for u in semua["ACAK"] if u.status_isi == ex.TERISI]
@@ -1204,7 +1204,7 @@ def test_jalur_tanpa_batas_slot_modal_status_pasar_dan_terbuka():
     assert sum(u.status_isi == ex.BATAL_GAP for u in semua_unit) >= 1
 
 
-@pytest.mark.parametrize("strategi", ["PB", "BO", "MR", "ACAK"])
+@pytest.mark.parametrize("strategi", ["TP", "TB", "PJ", "ACAK"])
 def test_jalur_r_unit_sama_dengan_r_posisi_portofolio(strategi):
     """Fee persentase tanpa minimum → R per lembar tidak bergantung ukuran: setiap posisi run per strategi
     (edge) punya unit dengan entry, exit, alasan, tanda, dan R yang sama persis."""
@@ -1226,12 +1226,12 @@ def test_jalur_fee_minimum_dan_pembulatan_fee_diabaikan():
     cfg_fee = cfg_uji({**UBAH, "biaya.fee_minimum_idr": 5000, "biaya.pembulatan_fee": "rupiah_ke_atas"})
     p_fee = bangun_pasar(cfg=cfg_fee)
     kep = keputusan_dasar()
-    for st in ("PB", "ACAK"):
+    for st in ("TP", "ACAK"):
         assert bentuk(mesin.jalur_per_sinyal(kep, p_fee, st, ATURAN.sektor)) == bentuk(jalur_dasar(st)), st
     # Pembanding: di simulasi portofolio fee minimum FIKTIF memang berpengaruh.
-    h = simulasi(kep, p_fee, RUN["pb"], "realistis").hasil
+    h = simulasi(kep, p_fee, RUN["tp"], "realistis").hasil
     assert any(p.fee_beli_idr == 5000 for p in h.transaksi)
-    assert bentuk(h.transaksi) != bentuk(semua_run()[("pb", "realistis")].hasil.transaksi)
+    assert bentuk(h.transaksi) != bentuk(semua_run()[("tp", "realistis")].hasil.transaksi)
     cfg_unit = mesin.cfg_per_unit(cfg_fee)
     assert cfg_unit.biaya.fee_minimum_idr == 0 and cfg_unit.biaya.pembulatan_fee is None
     assert cfg_unit.biaya.fee_beli_pct == cfg_fee.biaya.fee_beli_pct
@@ -1254,7 +1254,7 @@ def test_jalur_unit_yang_terbuka_saat_anomali_bertanda_anomali():
 # =====================================================================================================
 
 POS_T = [100, 185, I_SPLIT - 1, I_HOLDOUT + 2]  # t: tren, periode turun, sehari sebelum split, holdout
-RUN_LA = [("gabungan_aktif", "edge"), ("acak", "realistis"), ("bo", "edge"), ("mr", "realistis")]
+RUN_LA = [("gabungan_aktif", "edge"), ("acak", "realistis"), ("tb", "edge"), ("pj", "realistis")]
 LONJAKAN = float(CFG.data.validasi.lonjakan_mencurigakan_pct) / 100
 
 
@@ -1348,7 +1348,7 @@ def bandingkan_sampai_t(
         salah["seleksi"] += selisih_daftar(f"{r}/{m} seleksi", a.seleksi, b.seleksi)
         if bentuk(a.hasil) != bentuk(b.hasil):
             salah["hasil"].append(f"{r}/{m}: HasilSimulasi beda")
-    for st in ("PB", "BO", "MR", "ACAK"):
+    for st in ("TP", "TB", "PJ", "ACAK"):
         salah["jalur"] += selisih_daftar(f"jalur {st}", mesin.jalur_per_sinyal(ka, pasar_a, st, ATURAN.sektor),
                                          mesin.jalur_per_sinyal(kb, pasar_b, st, ATURAN.sektor))
     return {k: v for k, v in salah.items() if v}
@@ -1373,9 +1373,9 @@ def bandingkan_run_penuh_sampai_t(t: date, a: Rekaman, b: Rekaman) -> list[str]:
         return p.keluar if p.keluar is not None and p.keluar.tanggal <= t else None
 
     pa = [p for p in a.hasil.transaksi if p.tanggal_entry <= t]
-    pb = [p for p in b.hasil.transaksi if p.tanggal_entry <= t]
-    salah += selisih_daftar(f"{nama} entry ≤ t", [bagian_entry(p) for p in pa], [bagian_entry(p) for p in pb])
-    salah += selisih_daftar(f"{nama} exit ≤ t", [exit_sampai_t(p) for p in pa], [exit_sampai_t(p) for p in pb])
+    tp = [p for p in b.hasil.transaksi if p.tanggal_entry <= t]
+    salah += selisih_daftar(f"{nama} entry ≤ t", [bagian_entry(p) for p in pa], [bagian_entry(p) for p in tp])
+    salah += selisih_daftar(f"{nama} exit ≤ t", [exit_sampai_t(p) for p in pa], [exit_sampai_t(p) for p in tp])
 
     def peristiwa(s: mesin.SinyalDilewati) -> date:
         return s.tanggal_isi if s.status_isi is not None and s.tanggal_isi is not None else (

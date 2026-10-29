@@ -18,7 +18,7 @@ from asisten_bei_turun.laporan.tabel import SHEET
 
 SEMUA_FORMAT = {"laporan.format": ["terminal", "markdown", "html", "csv", "xlsx"]}
 DISCLAIMER = "BUKAN SARAN INVESTASI"
-T = "2025-06-30"  # ada REKOMENDASI (AAAA BO) pada data sintetis
+T = "2025-06-30"  # ada REKOMENDASI (AAAA TB) pada data sintetis
 
 
 @pytest.fixture
@@ -107,14 +107,14 @@ def test_posisi_dipegang_tampil_dengan_level_order(proyek):
     proyek.tulis_input(
         "portfolio.csv",
         "kode,tanggal_beli,harga_beli,lot,strategi,stop_awal,sektor,harga_per_tanggal,lembar,catatan\n"
-        "BBBB,2025-06-24,2400,1,BO,2200,,,,FIKTIF\n",
+        "BBBB,2025-06-24,2400,1,TB,2200,,,,FIKTIF\n",
     )
     proyek.ubah_config(SEMUA_FORMAT)
     h = proyek.harian(T)
     assert h.kode == 0, h.teks
     md = (proyek.folder_laporan / T / "laporan.md").read_text(encoding="utf-8")
     bagian = md.split("## Posisi dipegang")[1].split("## ")[0]
-    assert "| BBBB | BO |" in bagian and "Stop t+1 (order otomatis)" in bagian
+    assert "| BBBB | TB |" in bagian and "Stop t+1 (order otomatis)" in bagian
     html = (proyek.folder_laporan / T / "laporan.html").read_text(encoding="utf-8")
     assert len(re.findall(r'<img [^>]*src="data:image/png;base64,', html)) == 4
     wb = load_workbook(proyek.folder_laporan / T / "rencana.xlsx")

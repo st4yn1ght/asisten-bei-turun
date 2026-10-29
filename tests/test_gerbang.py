@@ -87,7 +87,7 @@ def _skenario(
     }
 
 
-def _gerbang(sk: dict, cfg=None, strategi: str = "PB") -> gb.HasilGerbang:
+def _gerbang(sk: dict, cfg=None, strategi: str = "TP") -> gb.HasilGerbang:
     return gb.nilai_gerbang(strategi, cfg=cfg or cfg_uji(), **sk)
 
 
@@ -212,7 +212,7 @@ def test_nilai_gerbang_dari_metrik_periode():
             for i, m in enumerate(sk["jendela"])
         ],
     ]
-    assert gb.nilai_gerbang_dari_metrik("pb", daftar, cfg_uji()) == _gerbang(sk)
+    assert gb.nilai_gerbang_dari_metrik("tp", daftar, cfg_uji()) == _gerbang(sk)
 
 
 # ---------------------------------------------------------------------------
@@ -255,35 +255,35 @@ def test_isi_entri_gate_status():
 
 def test_gate_status_hanya_ditulis_bila_ada_mode_edge(tmp_path):
     e = _entri(_gerbang(_skenario()))
-    assert gb.gabung_gate_status(tmp_path, {"PB": e}, ["realistis"]) is None
+    assert gb.gabung_gate_status(tmp_path, {"TP": e}, ["realistis"]) is None
     assert not (tmp_path / "gate_status.json").exists()
-    path = gb.gabung_gate_status(tmp_path, {"PB": e}, ["edge", "realistis"])
+    path = gb.gabung_gate_status(tmp_path, {"TP": e}, ["edge", "realistis"])
     assert path == tmp_path / "gate_status.json" and path.exists()
 
 
 def test_penggabungan_per_strategi_mempertahankan_entri_lama(tmp_path):
-    pb_lama = _entri(_gerbang(_skenario()), hash_aturan="1" * 64, tanggal_data_terakhir=date(2026, 9, 1))
-    bo_lama = _entri(_gerbang(_skenario(holdout=[1.0] * 10)), hash_aturan="2" * 64, tanggal_data_terakhir=date(2026, 8, 3),
+    tp_lama = _entri(_gerbang(_skenario()), hash_aturan="1" * 64, tanggal_data_terakhir=date(2026, 9, 1))
+    tb_lama = _entri(_gerbang(_skenario(holdout=[1.0] * 10)), hash_aturan="2" * 64, tanggal_data_terakhir=date(2026, 8, 3),
                      dibuat_pada=datetime(2026, 8, 3, 20, 0, tzinfo=ZONA))
-    gb.gabung_gate_status(tmp_path, {"PB": pb_lama, "BO": bo_lama}, ["edge"])
-    pb_baru = _entri(_gerbang(_skenario(holdout=_selang(19, 10))), hash_aturan="3" * 64)
-    gb.gabung_gate_status(tmp_path, {"pb": pb_baru}, ["edge"])
+    gb.gabung_gate_status(tmp_path, {"TP": tp_lama, "TB": tb_lama}, ["edge"])
+    tp_baru = _entri(_gerbang(_skenario(holdout=_selang(19, 10))), hash_aturan="3" * 64)
+    gb.gabung_gate_status(tmp_path, {"tp": tp_baru}, ["edge"])
     isi = json.loads((tmp_path / "gate_status.json").read_text(encoding="utf-8"))
     assert isi["catatan"] == DISCLAIMER and "BUKAN SARAN INVESTASI" in isi["catatan"]
-    assert set(isi["strategi"]) == {"PB", "BO"}
-    assert isi["strategi"]["BO"] == bo_lama  # hash, tanggal, dan dibuat_pada BO tidak tersentuh
-    assert isi["strategi"]["PB"] == pb_baru and isi["strategi"]["PB"]["lolos"] is False
-    assert gb.baca_gate_status(tmp_path / "gate_status.json") == {"PB": pb_baru, "BO": bo_lama}
+    assert set(isi["strategi"]) == {"TP", "TB"}
+    assert isi["strategi"]["TB"] == tb_lama  # hash, tanggal, dan dibuat_pada TB tidak tersentuh
+    assert isi["strategi"]["TP"] == tp_baru and isi["strategi"]["TP"]["lolos"] is False
+    assert gb.baca_gate_status(tmp_path / "gate_status.json") == {"TP": tp_baru, "TB": tb_lama}
     with pytest.raises(ValueError, match="tidak dinilai gerbang"):
-        gb.gabung_gate_status(tmp_path, {"ACAK": pb_baru}, ["edge"])
+        gb.gabung_gate_status(tmp_path, {"ACAK": tp_baru}, ["edge"])
 
 
 def test_gate_status_deterministik_hanya_beda_dibuat_pada(tmp_path):
     h = _gerbang(_skenario())
     a, b = tmp_path / "a", tmp_path / "b"
-    gb.gabung_gate_status(a, {"PB": _entri(h), "MR": _entri(h)}, ["edge"])
-    gb.gabung_gate_status(b, {"MR": _entri(h, dibuat_pada=SAAT + timedelta(hours=1)),
-                              "PB": _entri(h, dibuat_pada=SAAT + timedelta(hours=1))}, ["edge"])
+    gb.gabung_gate_status(a, {"TP": _entri(h), "PJ": _entri(h)}, ["edge"])
+    gb.gabung_gate_status(b, {"PJ": _entri(h, dibuat_pada=SAAT + timedelta(hours=1)),
+                              "TP": _entri(h, dibuat_pada=SAAT + timedelta(hours=1))}, ["edge"])
     ta, tb = ((p / "gate_status.json").read_text(encoding="utf-8") for p in (a, b))
     assert ta != tb and ta.endswith("}\n")
     beda = [(x, y) for x, y in zip(ta.splitlines(), tb.splitlines()) if x != y]
@@ -296,17 +296,17 @@ def test_gate_status_rusak_ditulis_ulang_dan_dilaporkan(tmp_path):
     (tmp_path / "gate_status.json").write_text("{rusak", encoding="utf-8")
     with pytest.raises(gb.GateStatusRusak):
         gb.baca_gate_status(tmp_path / "gate_status.json")
-    gb.gabung_gate_status(tmp_path, {"PB": _entri(_gerbang(_skenario()))}, ["edge"])
-    assert set(gb.baca_gate_status(tmp_path / "gate_status.json")) == {"PB"}
+    gb.gabung_gate_status(tmp_path, {"TP": _entri(_gerbang(_skenario()))}, ["edge"])
+    assert set(gb.baca_gate_status(tmp_path / "gate_status.json")) == {"TP"}
     assert gb.baca_gate_status(tmp_path / "tidak_ada.json") is None
 
 
 def test_gerbang_run_json(tmp_path):
     e = _entri(_gerbang(_skenario()))
-    path = gb.tulis_gerbang_run(tmp_path / "run", {"PB": e})
+    path = gb.tulis_gerbang_run(tmp_path / "run", {"TP": e})
     assert path == tmp_path / "run" / "gerbang_run.json"
     isi = json.loads(path.read_text(encoding="utf-8"))
-    assert isi == {"catatan": DISCLAIMER, "strategi": {"PB": e}}
+    assert isi == {"catatan": DISCLAIMER, "strategi": {"TP": e}}
 
 
 # ---------------------------------------------------------------------------
@@ -345,15 +345,15 @@ def test_perubahan_aturan_mengubah_semua_hash_strategi(ubah):
     assert all(h[k] != DASAR[k] for k in DASAR), ubah
 
 
-def test_strategi_bo_tidak_mengubah_hash_pb_mr():
-    h = _hash(cfg_uji({"strategi.bo.trailing_atr": 3.5}))
-    assert h["PB"] == DASAR["PB"] and h["MR"] == DASAR["MR"] and h["ACAK"] == DASAR["ACAK"]
-    assert h["BO"] != DASAR["BO"] and h["global"] != DASAR["global"]
+def test_strategi_tb_tidak_mengubah_hash_tp_pj():
+    h = _hash(cfg_uji({"strategi.tb.trailing_atr": 3.5}))
+    assert h["TP"] == DASAR["TP"] and h["PJ"] == DASAR["PJ"] and h["ACAK"] == DASAR["ACAK"]
+    assert h["TB"] != DASAR["TB"] and h["global"] != DASAR["global"]
 
 
 def test_strategi_acak_tidak_mengubah_hash_global():
     h = _hash(cfg_uji({"strategi.acak.seed": 999}))
-    assert h["global"] == DASAR["global"] and h["PB"] == DASAR["PB"]
+    assert h["global"] == DASAR["global"] and h["TP"] == DASAR["TP"]
     assert h["ACAK"] != DASAR["ACAK"]
 
 
@@ -450,7 +450,7 @@ def test_isi_berkas_input_mengubah_hash_input(akar_uji, berkas):
     assert gb.hash_input(ctx) != lama
     baru = gb.rincian_input(ctx)
     assert [k for k in baru if baru[k] != rinci[k]] == [berkas]
-    assert gb.hash_aturan_strategi(ctx.cfg, "PB") == gb.hash_aturan_strategi(_ctx(akar_uji).cfg, "PB")
+    assert gb.hash_aturan_strategi(ctx.cfg, "TP") == gb.hash_aturan_strategi(_ctx(akar_uji).cfg, "TP")
 
 
 def test_berkas_opsional_dan_exclude(akar_uji):
@@ -505,14 +505,14 @@ def _tulis_status(ctx: KonteksApp, strategi: list[str], *, lolos: bool = True, t
 
 def test_alasan_berkas_atau_entri_tidak_ada(akar_uji):
     ctx = _ctx(akar_uji)
-    assert gb.alasan_tidak_lolos_ctx(ctx, "PB", T) == "gate_status.json tidak ada — Jalankan backtest.bat terlebih dahulu"
-    _tulis_status(ctx, ["PB"])
-    assert gb.alasan_tidak_lolos_ctx(ctx, "PB", T) is None
-    assert gb.alasan_tidak_lolos_ctx(ctx, "BO", T) == (
-        "strategi BO belum ada di gate_status.json — Jalankan backtest.bat terlebih dahulu"
+    assert gb.alasan_tidak_lolos_ctx(ctx, "TP", T) == "gate_status.json tidak ada — Jalankan backtest.bat terlebih dahulu"
+    _tulis_status(ctx, ["TP"])
+    assert gb.alasan_tidak_lolos_ctx(ctx, "TP", T) is None
+    assert gb.alasan_tidak_lolos_ctx(ctx, "TB", T) == (
+        "strategi TB belum ada di gate_status.json — Jalankan backtest.bat terlebih dahulu"
     )
     gb.path_gate_status(ctx).write_text("[]", encoding="utf-8")
-    assert "tidak sah" in gb.alasan_tidak_lolos_ctx(ctx, "PB", T)
+    assert "tidak sah" in gb.alasan_tidak_lolos_ctx(ctx, "TP", T)
 
 
 @pytest.mark.parametrize(
@@ -523,78 +523,78 @@ def test_alasan_berkas_atau_entri_tidak_ada(akar_uji):
         ({"pasar.auto_reject.terverifikasi": True, "pasar.auto_reject.berlaku_mulai": "2020-01-01",
           "pasar.auto_reject.harga_acuan": "close_kemarin", "pasar.auto_reject.ara": ARA_FIKTIF,
           "pasar.auto_reject.arb": ARB_FIKTIF}, "pasar"),
-        ({"strategi.pb.target_r": 2.5}, "strategi.pb"),
+        ({"strategi.tp.target_r": 2.5}, "strategi.tp"),
     ],
 )
 def test_config_berubah_menjadi_bayangan_gerbang_dengan_bagian_yang_berubah(akar_uji, ubah, bagian):
-    _tulis_status(_ctx(akar_uji), ["PB", "MR"])
-    alasan = gb.alasan_tidak_lolos_ctx(_ctx(akar_uji, ubah), "PB", T)
-    assert alasan == f"strategi PB: bagian config berubah sejak backtest: {bagian} — jalankan ulang backtest.bat"
+    _tulis_status(_ctx(akar_uji), ["TP", "PJ"])
+    alasan = gb.alasan_tidak_lolos_ctx(_ctx(akar_uji, ubah), "TP", T)
+    assert alasan == f"strategi TP: bagian config berubah sejak backtest: {bagian} — jalankan ulang backtest.bat"
 
 
 def test_versi_program_berubah_disebut_versi_bukan_bagian_config(akar_uji, monkeypatch):
     import asisten_bei_turun
 
-    _tulis_status(_ctx(akar_uji), ["PB"])
+    _tulis_status(_ctx(akar_uji), ["TP"])
     monkeypatch.setattr(asisten_bei_turun, "__version__", "99.0.0-fiktif")
-    assert gb.alasan_tidak_lolos_ctx(_ctx(akar_uji), "PB", T) == (
-        "strategi PB: versi program berubah sejak backtest — jalankan ulang backtest.bat"
+    assert gb.alasan_tidak_lolos_ctx(_ctx(akar_uji), "TP", T) == (
+        "strategi TP: versi program berubah sejak backtest — jalankan ulang backtest.bat"
     )
-    alasan = gb.alasan_tidak_lolos_ctx(_ctx(akar_uji, {"indikator.atr_periode": 15}), "PB", T)
-    assert alasan == ("strategi PB: versi program berubah sejak backtest; bagian config berubah sejak backtest: "
+    alasan = gb.alasan_tidak_lolos_ctx(_ctx(akar_uji, {"indikator.atr_periode": 15}), "TP", T)
+    assert alasan == ("strategi TP: versi program berubah sejak backtest; bagian config berubah sejak backtest: "
                       "indikator — jalankan ulang backtest.bat")
 
 
-def test_strategi_bo_berubah_tidak_membatalkan_pb_mr(akar_uji):
-    _tulis_status(_ctx(akar_uji), ["PB", "BO", "MR"])
-    ctx = _ctx(akar_uji, {"strategi.bo.stop_atr": 2.5})
-    assert gb.alasan_tidak_lolos_ctx(ctx, "PB", T) is None and gb.alasan_tidak_lolos_ctx(ctx, "MR", T) is None
-    assert "strategi.bo" in gb.alasan_tidak_lolos_ctx(ctx, "BO", T)
+def test_strategi_tb_berubah_tidak_membatalkan_tp_pj(akar_uji):
+    _tulis_status(_ctx(akar_uji), ["TP", "TB", "PJ"])
+    ctx = _ctx(akar_uji, {"strategi.tb.stop_atr": 2.5})
+    assert gb.alasan_tidak_lolos_ctx(ctx, "TP", T) is None and gb.alasan_tidak_lolos_ctx(ctx, "PJ", T) is None
+    assert "strategi.tb" in gb.alasan_tidak_lolos_ctx(ctx, "TB", T)
 
 
 def test_metadata_verifikasi_tidak_membatalkan_gerbang(akar_uji):
-    _tulis_status(_ctx(akar_uji), ["PB"])
+    _tulis_status(_ctx(akar_uji), ["TP"])
     ctx = _ctx(akar_uji, {
         "pasar.jadwal_sesi.terverifikasi": True, "pasar.jadwal_sesi.sumber": "Halaman fiktif",
         "pasar.jadwal_sesi.tanggal_cek": "2026-10-01", **{f"pasar.jadwal_sesi.{k}": v for k, v in JAM_FIKTIF.items()},
         "pasar.fraksi_harga.sumber": "fiktif", "pasar.auto_reject.tanggal_cek": "2026-10-01",
         "biaya.terverifikasi": True,
     })
-    assert gb.alasan_tidak_lolos_ctx(ctx, "PB", T) is None
+    assert gb.alasan_tidak_lolos_ctx(ctx, "TP", T) is None
 
 
 @pytest.mark.parametrize(("berkas", "baris"), [("universe.csv", "ZZZZ,Fiktif Z,Fiktif"), ("holidays.csv", "2026-12-30,fiktif")])
 def test_input_berubah_menjadi_bayangan_gerbang_dengan_berkas_yang_berubah(akar_uji, berkas, baris):
     ctx = _ctx(akar_uji)
-    _tulis_status(ctx, ["PB"])
+    _tulis_status(ctx, ["TP"])
     _tambah_baris(akar_uji / "input_uji" / berkas, baris)
-    assert gb.alasan_tidak_lolos_ctx(ctx, "PB", T) == (
-        f"strategi PB: berkas input berubah sejak backtest: {berkas} — jalankan ulang backtest.bat"
+    assert gb.alasan_tidak_lolos_ctx(ctx, "TP", T) == (
+        f"strategi TP: berkas input berubah sejak backtest: {berkas} — jalankan ulang backtest.bat"
     )
 
 
 def test_kedaluwarsa_dan_lolos_false(akar_uji):
     ctx = _ctx(akar_uji)
-    _tulis_status(ctx, ["PB"], tanggal=T - timedelta(days=90))
-    assert gb.alasan_tidak_lolos_ctx(ctx, "PB", T) is None  # tepat 90 hari: belum kedaluwarsa
-    _tulis_status(ctx, ["PB"], tanggal=T - timedelta(days=91))
-    assert gb.alasan_tidak_lolos_ctx(ctx, "PB", T) == (
-        "strategi PB: hasil gerbang kedaluwarsa (data backtest terakhir 2026-07-16, 91 hari kalender sebelum "
+    _tulis_status(ctx, ["TP"], tanggal=T - timedelta(days=90))
+    assert gb.alasan_tidak_lolos_ctx(ctx, "TP", T) is None  # tepat 90 hari: belum kedaluwarsa
+    _tulis_status(ctx, ["TP"], tanggal=T - timedelta(days=91))
+    assert gb.alasan_tidak_lolos_ctx(ctx, "TP", T) == (
+        "strategi TP: hasil gerbang kedaluwarsa (data backtest terakhir 2026-07-16, 91 hari kalender sebelum "
         "2026-10-15 > 90 hari) — jalankan ulang backtest.bat"
     )
-    _tulis_status(ctx, ["PB"], lolos=False)
-    assert gb.alasan_tidak_lolos_ctx(ctx, "PB", T) == (
-        "strategi PB tidak lolos gerbang backtest: G1 holdout: transaksi tertutup 29 < 30"
+    _tulis_status(ctx, ["TP"], lolos=False)
+    assert gb.alasan_tidak_lolos_ctx(ctx, "TP", T) == (
+        "strategi TP tidak lolos gerbang backtest: G1 holdout: transaksi tertutup 29 < 30"
     )
 
 
 def test_hash_berbeda_tanpa_rincian_tetap_tidak_lolos():
-    status = {"PB": {"hash_aturan": "lama", "hash_input": "x", "tanggal_data_terakhir": "2026-10-15", "lolos": True}}
+    status = {"TP": {"hash_aturan": "lama", "hash_input": "x", "tanggal_data_terakhir": "2026-10-15", "lolos": True}}
     kw = dict(hash_input="x", t=T, kedaluwarsa_hari=90)
-    assert gb.alasan_tidak_lolos(status, "pb", hash_aturan="baru", **kw) == (
-        "strategi PB: aturan (config atau versi program) berubah sejak backtest — jalankan ulang backtest.bat"
+    assert gb.alasan_tidak_lolos(status, "tp", hash_aturan="baru", **kw) == (
+        "strategi TP: aturan (config atau versi program) berubah sejak backtest — jalankan ulang backtest.bat"
     )
-    assert gb.alasan_tidak_lolos(status, "PB", hash_aturan="lama", **kw) is None
+    assert gb.alasan_tidak_lolos(status, "TP", hash_aturan="lama", **kw) is None
 
 
 # ---------------------------------------------------------------------------
@@ -608,23 +608,23 @@ def test_holdout_log_dibuat_dengan_disclaimer_lalu_ditambah(tmp_path, atur_waktu
     m_kosong = _m([])
     baris = [
         gb.baris_holdout_log(holdout_mulai=date(2024, 10, 1), hash_aturan="A" * 64, hash_input="I" * 64,
-                             strategi="pb", mode="edge", holdout=m_pf),
+                             strategi="tp", mode="edge", holdout=m_pf),
         gb.baris_holdout_log(holdout_mulai=date(2024, 10, 1), hash_aturan="A" * 64, hash_input="I" * 64,
-                             strategi="pb", mode="realistis", holdout=m_na),
+                             strategi="tp", mode="realistis", holdout=m_na),
     ]
     path, peringatan = gb.tambah_holdout_log(tmp_path, baris)
     assert peringatan is None
     atur_waktu("2026-10-16T21:00:00+07:00")
     gb.tambah_holdout_log(tmp_path, [
         gb.baris_holdout_log(holdout_mulai=date(2024, 10, 1), hash_aturan="B" * 64, hash_input="I" * 64,
-                             strategi="mr", mode="edge", holdout=m_kosong),
+                             strategi="pj", mode="edge", holdout=m_kosong),
     ])
     teks = path.read_text(encoding="utf-8").splitlines()
     assert teks[0] == DISCLAIMER_CSV and teks[0].startswith("# BUKAN SARAN INVESTASI")
     assert teks[1] == "waktu,holdout_mulai,hash_aturan,hash_input,strategi,mode,pf_r_holdout,n_holdout"
     assert sum(1 for t in teks if t.startswith("#")) == 1 and len(teks) == 5
-    assert teks[2] == f"2026-10-15T20:00:00+07:00,2024-10-01,{'A' * 64},{'I' * 64},pb,edge,2.0000,2"
-    assert teks[3].endswith(",pb,realistis,n/a,1") and teks[4].endswith(",mr,edge,,0")
+    assert teks[2] == f"2026-10-15T20:00:00+07:00,2024-10-01,{'A' * 64},{'I' * 64},tp,edge,2.0000,2"
+    assert teks[3].endswith(",tp,realistis,n/a,1") and teks[4].endswith(",pj,edge,,0")
     df = pd.read_csv(path, comment="#")
     assert list(df.columns) == list(gb.KOLOM_HOLDOUT_LOG) and len(df) == 3
     r = gb.baca_holdout_log(path)
@@ -639,7 +639,7 @@ def test_holdout_log_kosong_dan_satu_konfigurasi(tmp_path):
     assert (r.n_dilihat, r.m_konfigurasi, r.holdout_mulai_pertama) == (0, 0, None)
     (tmp_path / "holdout_log.csv").write_text("", encoding="utf-8")  # berkas kosong → diawali disclaimer + header
     gb.tambah_holdout_log(tmp_path, [gb.baris_holdout_log(
-        holdout_mulai=date(2024, 10, 1), hash_aturan="A", hash_input="I", strategi="pb", mode="edge", holdout=_m([]))])
+        holdout_mulai=date(2024, 10, 1), hash_aturan="A", hash_input="I", strategi="tp", mode="edge", holdout=_m([]))])
     teks = (tmp_path / "holdout_log.csv").read_text(encoding="utf-8").splitlines()
     assert teks[0] == DISCLAIMER_CSV and teks[1].startswith("waktu,") and len(teks) == 3
     r = gb.baca_holdout_log(tmp_path / "holdout_log.csv")
@@ -710,25 +710,25 @@ LONGGAR = {
 def _jalankan_gerbang(akar: Path, cfg, saat: datetime) -> tuple[Path, gb.HasilGerbang]:
     """Rantai jalankan.py yang diharapkan: simulasi edge → periode → metrik → G1–G6 → subset → berkas."""
     h = simulasi_integrasi("edge")
-    pb = jd.bagi_periode(h, cfg)
-    metrik = jd.metrik_semua_periode(pb, KAL, cfg)
-    # Transaksi berasal dari ACAK (pembangkit transaksi uji); fungsi gerbang hanya membaca metrik, label PB
+    tp = jd.bagi_periode(h, cfg)
+    metrik = jd.metrik_semua_periode(tp, KAL, cfg)
+    # Transaksi berasal dari ACAK (pembangkit transaksi uji); fungsi gerbang hanya membaca metrik, label TP
     # dipakai sebagai kunci berkas karena ACAK tidak pernah dinilai gerbang.
-    hasil = gb.nilai_gerbang_dari_metrik("PB", metrik, cfg)
-    subset = gb.subset_terjangkau(pb.holdout.tertutup, cfg)
+    hasil = gb.nilai_gerbang_dari_metrik("TP", metrik, cfg)
+    subset = gb.subset_terjangkau(tp.holdout.tertutup, cfg)
     folder_bt = akar / "output" / "backtest"
     nama = gb.nama_folder_run(gb.hash8("g" * 64, "i" * 64), saat)
     e = gb.entri_gate(
-        hasil, hash_aturan=gb.hash_aturan_strategi(cfg, "PB"), hash_input="i" * 64,
-        tanggal_data_terakhir=pb.akhir_data, holdout_mulai=cfg.backtest.holdout_mulai,
+        hasil, hash_aturan=gb.hash_aturan_strategi(cfg, "TP"), hash_input="i" * 64,
+        tanggal_data_terakhir=tp.akhir_data, holdout_mulai=cfg.backtest.holdout_mulai,
         subset_terjangkau_lemah=subset.lemah, folder_run=f"output/backtest/{nama}", dibuat_pada=saat,
     )
-    gb.tulis_gerbang_run(folder_bt / nama, {"PB": e})
+    gb.tulis_gerbang_run(folder_bt / nama, {"TP": e})
     holdout = next(m for m in metrik if m.periode.jenis == jd.HOLDOUT).transaksi
     gb.tambah_holdout_log(folder_bt, [gb.baris_holdout_log(
         holdout_mulai=cfg.backtest.holdout_mulai, hash_aturan=gb.hash_aturan_global(cfg), hash_input="i" * 64,
         strategi="acak", mode="edge", holdout=holdout, saat=saat)])
-    return gb.gabung_gate_status(folder_bt, {"PB": e}, ["edge", "realistis"]), hasil
+    return gb.gabung_gate_status(folder_bt, {"TP": e}, ["edge", "realistis"]), hasil
 
 
 def test_integrasi_mesin_ke_gate_status(tmp_path):
@@ -738,11 +738,11 @@ def test_integrasi_mesin_ke_gate_status(tmp_path):
     path, hasil = _jalankan_gerbang(tmp_path / "a", cfg, SAAT)
     assert not hasil.lolos  # ACAK di pasar ini: PF_R holdout < 1,2 dan transaksi < 30
     isi = json.loads(path.read_text(encoding="utf-8"))
-    pb = isi["strategi"]["PB"]
-    assert pb["lolos"] is False and pb["syarat"]["G1"]["lolos"] is False
-    assert pb["syarat"]["G1"]["nilai"] == len(jd.bagi_periode(h, cfg).holdout.tertutup)
-    assert pb["tanggal_data_terakhir"] == h.ekuitas[-1].tanggal.isoformat()
-    assert (tmp_path / "a" / "output" / "backtest" / pb["folder_run"].split("/")[-1] / "gerbang_run.json").exists()
+    tp = isi["strategi"]["TP"]
+    assert tp["lolos"] is False and tp["syarat"]["G1"]["lolos"] is False
+    assert tp["syarat"]["G1"]["nilai"] == len(jd.bagi_periode(h, cfg).holdout.tertutup)
+    assert tp["tanggal_data_terakhir"] == h.ekuitas[-1].tanggal.isoformat()
+    assert (tmp_path / "a" / "output" / "backtest" / tp["folder_run"].split("/")[-1] / "gerbang_run.json").exists()
     cfg_l = cfg_uji({**UBAH_INTEGRASI, **LONGGAR})
     path2, hasil2 = _jalankan_gerbang(tmp_path / "b", cfg_l, SAAT + timedelta(minutes=5))
     assert hasil2.lolos, hasil2.alasan()
@@ -752,20 +752,20 @@ def test_integrasi_mesin_ke_gate_status(tmp_path):
     log = gb.baca_holdout_log(tmp_path / "b" / "output" / "backtest" / "holdout_log.csv")
     assert log.n_dilihat == 1 and log.baris[0]["strategi"] == "acak" and int(log.baris[0]["n_holdout"]) > 0
     status = gb.baca_gate_status(path2)
-    assert gb.alasan_tidak_lolos(status, "PB", hash_aturan=gb.hash_aturan_strategi(cfg_l, "PB"), hash_input="i" * 64,
+    assert gb.alasan_tidak_lolos(status, "TP", hash_aturan=gb.hash_aturan_strategi(cfg_l, "TP"), hash_input="i" * 64,
                                  t=h.ekuitas[-1].tanggal, kedaluwarsa_hari=90) is None
-    assert gb.alasan_tidak_lolos(gb.baca_gate_status(path), "PB", hash_aturan=gb.hash_aturan_strategi(cfg, "PB"),
+    assert gb.alasan_tidak_lolos(gb.baca_gate_status(path), "TP", hash_aturan=gb.hash_aturan_strategi(cfg, "TP"),
                                  hash_input="i" * 64, t=h.ekuitas[-1].tanggal, kedaluwarsa_hari=90).startswith(
-        "strategi PB tidak lolos gerbang backtest: G1 holdout: transaksi tertutup ")
+        "strategi TP tidak lolos gerbang backtest: G1 holdout: transaksi tertutup ")
 
 
 def test_integrasi_subset_terjangkau_dari_transaksi_mesin():
     """Posisi mesin membawa meta rencana (harga nominal, status pasar) sehingga subset bisa dihitung; di pasar
     sintetis ini harga ± Rp 1.000–2.000 dengan jarak stop kecil → semua transaksi holdout terjangkau."""
     cfg = pasar_integrasi()[0]
-    pb = jd.bagi_periode(simulasi_integrasi("edge"), cfg)
-    s = gb.subset_terjangkau(pb.holdout.tertutup, cfg)
-    assert s.n_holdout == len(pb.holdout.tertutup) > 0
+    tp = jd.bagi_periode(simulasi_integrasi("edge"), cfg)
+    s = gb.subset_terjangkau(tp.holdout.tertutup, cfg)
+    assert s.n_holdout == len(tp.holdout.tertutup) > 0
     assert 0 < s.n <= s.n_holdout
     harap = mt.profit_factor([p.keluar.r for p in s.transaksi])
     assert s.pf_r == harap and s.lemah  # n < 30
@@ -776,7 +776,7 @@ def test_holdout_log_terkunci_ditulis_ke_nama_alternatif_dan_tetap_dihitung(tmp_
     berkas alternatif tetap dihitung untuk N/M."""
     def baris(h: str):
         return [gb.baris_holdout_log(holdout_mulai=date(2024, 10, 1), hash_aturan=h, hash_input="I",
-                                     strategi="pb", mode="edge", holdout=_m([]))]
+                                     strategi="tp", mode="edge", holdout=_m([]))]
 
     utama, _ = gb.tambah_holdout_log(tmp_path, baris("A"))
     asli = os.replace
@@ -802,7 +802,7 @@ def test_holdout_log_terkunci_ditulis_ke_nama_alternatif_dan_tetap_dihitung(tmp_
 
 def _baris_log(h: str, holdout_mulai: date = date(2024, 10, 1)):
     return [gb.baris_holdout_log(holdout_mulai=holdout_mulai, hash_aturan=h, hash_input="I",
-                                 strategi="pb", mode="edge", holdout=_m([]))]
+                                 strategi="tp", mode="edge", holdout=_m([]))]
 
 
 def _kunci_tulis(monkeypatch, nama: str = "holdout_log.csv"):

@@ -144,7 +144,7 @@ def _info(waktu_run: str, t: str, lolos: bool, status: str = "LENGKAP") -> jr.In
     return jr.InfoRun(
         waktu_run=datetime.fromisoformat(waktu_run), tanggal_data=date.fromisoformat(t), untuk_tanggal=None,
         status_data_run=status, status_pasar="BOLEH_BELI", alasan_pasar="", hash_aturan="h", hash_input="i",
-        versi_program="0", gerbang_snapshot={"PB": {"lolos": lolos}, "BO": {"lolos": False}, "MR": {"lolos": lolos}},
+        versi_program="0", gerbang_snapshot={"TP": {"lolos": lolos}, "TB": {"lolos": False}, "PJ": {"lolos": lolos}},
         snapshot_input={"universe": [{"kode": "AAAA", "sektor": "S1"}], "exclude": []},
     )
 
@@ -165,7 +165,7 @@ def test_gerbang_hari_susulan_dari_run_sebelum_hari_itu(tmp_path, proyek):
         pada = jr.snapshot_per_hari(j)
         for d in ("2025-05-12", "2025-05-13", "2025-05-14"):
             s = pada(date.fromisoformat(d))
-            assert s.lolos == {"PB", "MR"} and not s.gerbang_dari_pemroses
+            assert s.lolos == {"TP", "PJ"} and not s.gerbang_dari_pemroses
         s = pada(date(2025, 5, 15))  # run 2025-05-15 20:00 < 2025-05-16 00:00
         assert s.lolos == frozenset() and not s.gerbang_dari_pemroses
     with jr.Jurnal(tmp_path / "k.sqlite") as j:
@@ -174,7 +174,7 @@ def test_gerbang_hari_susulan_dari_run_sebelum_hari_itu(tmp_path, proyek):
             j.con.execute("UPDATE run SET hari_diproses = ?", (json.dumps(
                 [{"tanggal": "2025-05-14", "final": 1, "susulan": 1}]),))
         s = jr.snapshot_per_hari(j)(date(2025, 5, 14))  # tidak ada run sebelum 2025-05-15 00:00
-        assert s.lolos == {"PB", "MR"} and s.gerbang_dari_pemroses
+        assert s.lolos == {"TP", "PJ"} and s.gerbang_dari_pemroses
 
 
 def test_belum_tersedia_tidak_menulis_sinyal(proyek):
@@ -224,7 +224,7 @@ def test_periode_kertas_baru_saat_hash_aturan_berubah(proyek):
     assert proyek.harian("2025-05-14").kode in (0, 2)
     assert proyek.harian("2025-05-15").kode in (0, 2)
     lama = proyek.tabel("kertas_ekuitas", "WHERE periode_id = 1 ORDER BY tanggal")
-    proyek.ubah_config({"strategi.pb.target_r": 2.5})
+    proyek.ubah_config({"strategi.tp.target_r": 2.5})
     assert proyek.harian("2025-05-16").kode in (0, 2)
     per = proyek.tabel("kertas_periode", "ORDER BY periode_id")
     assert len(per) == 2
@@ -319,19 +319,19 @@ def test_bootstrap_deterministik_dan_memberi_peringatan():
     cfg = _cfg(min_transaksi_peringatan=5, bootstrap_iterasi=2000)
     holdout = [Decimal(x) for x in ("1.5", "-1", "2", "-1", "0.5", "1", "-0.8", "2.2")]
     buruk = [Decimal("-1")] * 6
-    a = jr.uji_penyimpangan(buruk, holdout, cfg, "PB")
-    b = jr.uji_penyimpangan(buruk, holdout, cfg, "PB")
+    a = jr.uji_penyimpangan(buruk, holdout, cfg, "TP")
+    b = jr.uji_penyimpangan(buruk, holdout, cfg, "TP")
     assert a == b and a.peringatan and a.persentil is not None
     baik = [Decimal("1")] * 6
-    assert not jr.uji_penyimpangan(baik, holdout, cfg, "PB").peringatan
+    assert not jr.uji_penyimpangan(baik, holdout, cfg, "TP").peringatan
     c = jr.uji_penyimpangan(buruk, holdout, _cfg(min_transaksi_peringatan=5, bootstrap_iterasi=2000, bootstrap_seed=7),
-                            "PB")
+                            "TP")
     assert c.persentil != a.persentil  # seed dari config dipakai
 
 
 def test_bootstrap_sampel_kecil_belum_diuji():
     cfg = _cfg()
-    p = jr.uji_penyimpangan([Decimal("-1")] * 3, [Decimal("1")] * 10, cfg, "MR")
+    p = jr.uji_penyimpangan([Decimal("-1")] * 3, [Decimal("1")] * 10, cfg, "PJ")
     assert not p.peringatan and "belum diuji" in p.catatan
 
 

@@ -459,7 +459,7 @@ def _rincian(k: KandidatSeleksi) -> str:
 
 
 def target_untuk(sg, bei: AturanBEI) -> Decimal | None:
-    """Target PB untuk harga isi = harga_maks (nominal pada tanggal sinyal); None tanpa target_r."""
+    """Target TP untuk harga isi = harga_maks (nominal pada tanggal sinyal); None tanpa target_r."""
     if sg.target_r is None or sg.harga_maks <= sg.stop:
         return None
     from .strategi.dasar import hitung_target

@@ -149,7 +149,7 @@ def buat_pasar(
 def order(
     *,
     i_sinyal: int,
-    strategi: str = "PB",
+    strategi: str = "TP",
     harga_maks: str = "1050",
     stop: str = "950",
     lembar: int = 100,
@@ -234,7 +234,7 @@ def risiko_rencana(lembar, harga_maks, stop) -> Decimal:
     return D(lembar) * (D(harga_maks) * (1 + FB) - D(stop) * (1 - SLIP) * (1 - FJ))
 
 
-# Skenario dasar PB: sinyal pada I0+2, entry I0+3. Order 100 lembar, harga_maks 1.050, stop 950, 2R.
+# Skenario dasar TP: sinyal pada I0+2, entry I0+3. Order 100 lembar, harga_maks 1.050, stop 950, 2R.
 #   harga isi = min(1.000 × 1,001; 1.050) = 1.001
 #   biaya beli = 100.100 + 150,15 = 100.250,15
 #   risiko rencana = 100 × (1.050 × 1,0015 − 950 × 0,999 × 0,9975) = 100 × (1.051,575 − 946,677375)
@@ -249,7 +249,7 @@ RISIKO_DASAR = D("10489.7625")
 TARGET_DASAR = D("1103")
 
 
-def pb_dasar(*setelah: Bar | None, cfg=CFG, entry: Bar | None = NORMAL, strategi: str = "PB"):
+def tp_dasar(*setelah: Bar | None, cfg=CFG, entry: Bar | None = NORMAL, strategi: str = "TP"):
     """(pasar, order) skenario dasar dengan bar hari entry dan hari-hari sesudahnya."""
     pp = buat_pasar({KODE: [*AWAL, entry, *setelah]}, cfg)
     return pp, order(i_sinyal=S0, strategi=strategi)
@@ -283,20 +283,20 @@ def cek_keluar(k: ex.Keluar, *, tanggal: date, alasan: str, harga: str, lembar=1
     ],
 )
 def test_batal_data(bar_entry):
-    pp, od = pb_dasar(NORMAL, entry=bar_entry)
+    pp, od = tp_dasar(NORMAL, entry=bar_entry)
     j = jalankan(pp, od, E0, E0 + 1)
     assert j.status_isi == ex.BATAL_DATA
     assert j.pos is None
 
 
 def test_batal_gap_open_di_atas_harga_maks():
-    pp, od = pb_dasar(entry=(1051, 1060, 1040, 1050))
+    pp, od = tp_dasar(entry=(1051, 1060, 1040, 1050))
     assert jalankan(pp, od, E0, E0).status_isi == ex.BATAL_GAP
 
 
 def test_open_sama_dengan_harga_maks_terisi_di_harga_maks():
     # open = harga_maks = 1.050 → harga isi = min(1.050 × 1,001 = 1.051,05; 1.050) = 1.050 (tidak di atas limit)
-    pp, od = pb_dasar(entry=(1050, 1060, 1040, 1050))
+    pp, od = tp_dasar(entry=(1050, 1060, 1040, 1050))
     j = jalankan(pp, od, E0, E0)
     assert j.status_isi == ex.TERISI
     p = j.pos
@@ -310,7 +310,7 @@ def test_open_sama_dengan_harga_maks_terisi_di_harga_maks():
 
 
 def test_harga_isi_dengan_slippage_dan_nilai_posisi():
-    pp, od = pb_dasar()
+    pp, od = tp_dasar()
     p = jalankan(pp, od, E0, E0).pos
     assert p.harga_beli == D("1001")  # 1.000 × 1,001
     assert p.lembar == 100
@@ -383,7 +383,7 @@ def test_batal_ara_batas_harga_dan_tanggal_berlaku(cfg, bar_entry, status):
 def test_harga_isi_dibatasi_harga_maks_saat_slippage_melewati_limit():
     # open 1.049 ≤ harga_maks 1.050, tetapi 1.049 × 1,001 = 1.050,049 > 1.050 → harga isi = min(...) = 1.050.
     # Slippage beli = 100 × (1.050 − min(1.049; 1.050)) = 100. Target = 1.050 + 2 × 100 = 1.250.
-    pp, od = pb_dasar(entry=(1049, 1060, 1040, 1050))
+    pp, od = tp_dasar(entry=(1049, 1060, 1040, 1050))
     p = jalankan(pp, od, E0, E0).pos
     assert p.harga_beli == D("1050")
     assert p.biaya_beli_idr == D("105157.5")
@@ -443,14 +443,14 @@ ENTRY_LEBAR = (1000, 1110, 940, 1000)
 
 
 def test_stop_aktif_hari_entry_true_stop_didahulukan_di_hari_entry():
-    pp, od = pb_dasar(entry=ENTRY_LEBAR)
+    pp, od = tp_dasar(entry=ENTRY_LEBAR)
     k = jalankan(pp, od, E0, E0).keluar
     cek_keluar(k, tanggal=tgl(E0), alasan=ex.STOP, harga="949.05")
 
 
 def test_stop_aktif_hari_entry_false_tanpa_stop_target_hari_entry():
     cfg = cfg_uji({"entry.stop_aktif_hari_entry": False})
-    pp, od = pb_dasar(NORMAL, (1000, 1010, 945, 990), cfg=cfg, entry=ENTRY_LEBAR)
+    pp, od = tp_dasar(NORMAL, (1000, 1010, 945, 990), cfg=cfg, entry=ENTRY_LEBAR)
     j = jalankan(pp, od, E0, E0 + 2)
     assert j.jadwal[tgl(E0)] is None  # tidak keluar di hari entry walau low ≤ stop dan high ≥ target
     assert j.keluar is not None
@@ -461,20 +461,20 @@ def test_stop_aktif_hari_entry_false_tanpa_stop_target_hari_entry():
 def test_stop_aktif_hari_entry_false_langkah7_tetap_berlaku():
     # PAKSA_JUAL_PASAR dijadwalkan pada close hari entry walau stop belum aktif → jual di open hari ke-2.
     cfg = cfg_uji({"entry.stop_aktif_hari_entry": False, "kondisi_pasar.jangan_beli_paksa_jual": True})
-    pp, od = pb_dasar((1004, 1010, 990, 1000), cfg=cfg, entry=ENTRY_LEBAR)
+    pp, od = tp_dasar((1004, 1010, 990, 1000), cfg=cfg, entry=ENTRY_LEBAR)
     j = jalankan(pp, od, E0, E0 + 1, status=JANGAN_BELI)
     assert j.jadwal[tgl(E0)] == ex.PAKSA_JUAL_PASAR
     # 1.004 × 0,999 = 1.002,996
     cek_keluar(j.keluar, tanggal=tgl(E0 + 1), alasan=ex.PAKSA_JUAL_PASAR, harga="1002.996")
 
 
-def test_stop_aktif_hari_entry_false_trailing_bo_tetap_diperbarui_di_hari_entry():
-    # Pemanasan ATR(14) datar: TR = 10 setiap bar → ATR = 10. Entry BO: high 1.060, TR 60 →
+def test_stop_aktif_hari_entry_false_trailing_tb_tetap_diperbarui_di_hari_entry():
+    # Pemanasan ATR(14) datar: TR = 10 setiap bar → ATR = 10. Entry TB: high 1.060, TR 60 →
     # ATR = (13 × 10 + 60)/14 = 190/14; trail = 1.060 − 3 × 190/14 = 1.019,2857 → ke atas 1.020.
     cfg = cfg_uji({"entry.stop_aktif_hari_entry": False})
     datar = (1000, 1005, 995, 1000)
     pp = buat_pasar({KODE: [datar] * 15 + [(1000, 1060, 1000, 1060)]}, cfg)
-    od = order(i_sinyal=I0 + 14, strategi="BO", harga_maks="1010", stop="980", target_r=None)
+    od = order(i_sinyal=I0 + 14, strategi="TB", harga_maks="1010", stop="980", target_r=None)
     j = jalankan(pp, od, I0 + 15, I0 + 15)
     assert j.stop[tgl(I0 + 15)] == D("1020")
 
@@ -485,7 +485,7 @@ ENTRY_TARGET = (1000, 1105, 995, 1050)
 
 def test_target_intraday_di_hari_entry_bila_stop_aktif():
     # Langkah 6 berlaku di hari entry (stop_aktif_hari_entry: true): TARGET di 1.103 pada hari entry.
-    pp, od = pb_dasar(entry=ENTRY_TARGET)
+    pp, od = tp_dasar(entry=ENTRY_TARGET)
     cek_keluar(jalankan(pp, od, E0, E0).keluar, tanggal=tgl(E0), alasan=ex.TARGET, harga="1103")
 
 
@@ -493,7 +493,7 @@ def test_target_tidak_dieksekusi_di_hari_entry_bila_stop_tidak_aktif():
     # stop_aktif_hari_entry: false → order target baru dipasang besok. E+1 open 1.050 < 1.103, high 1.104 ≥ 1.103
     # → TARGET di 1.103 pada E+1 (P&L 9.774,10, sama dengan test_target_intraday_tepat_di_target).
     cfg = cfg_uji({"entry.stop_aktif_hari_entry": False})
-    pp, od = pb_dasar((1050, 1104, 1040, 1060), cfg=cfg, entry=ENTRY_TARGET)
+    pp, od = tp_dasar((1050, 1104, 1040, 1060), cfg=cfg, entry=ENTRY_TARGET)
     j = jalankan(pp, od, E0, E0 + 1)
     assert tgl(E0) in j.nilai and j.jadwal[tgl(E0)] is None  # masih terbuka setelah close hari entry
     cek_keluar(j.keluar, tanggal=tgl(E0 + 1), alasan=ex.TARGET, harga="1103")
@@ -507,7 +507,7 @@ def test_target_tidak_dieksekusi_di_hari_entry_bila_stop_tidak_aktif():
 
 def test_stop_intraday_di_stop_dikurangi_slippage():
     # low 940 ≤ 950 → 950 × 0,999 = 949,05; hasil = 94.905 − 237,2625 = 94.667,7375; P&L −5.582,4125.
-    pp, od = pb_dasar((990, 995, 940, 960))
+    pp, od = tp_dasar((990, 995, 940, 960))
     k = jalankan(pp, od, E0, E0 + 1).keluar
     cek_keluar(k, tanggal=tgl(E0 + 1), alasan=ex.STOP, harga="949.05")
     assert k.pnl_idr == D("-5582.4125")
@@ -516,18 +516,18 @@ def test_stop_intraday_di_stop_dikurangi_slippage():
 
 
 def test_stop_intraday_batas_low_sama_dengan_stop():
-    pp, od = pb_dasar((990, 995, 950, 960))
+    pp, od = tp_dasar((990, 995, 950, 960))
     cek_keluar(jalankan(pp, od, E0, E0 + 1).keluar, tanggal=tgl(E0 + 1), alasan=ex.STOP, harga="949.05")
 
 
 def test_low_di_atas_stop_tidak_keluar():
-    pp, od = pb_dasar((990, 995, 951, 960))
+    pp, od = tp_dasar((990, 995, 951, 960))
     assert jalankan(pp, od, E0, E0 + 1).keluar is None
 
 
 def test_gap_di_bawah_stop_posisi_lama_keluar_di_open():
     # open 930 ≤ 950 → 930 × 0,999 = 929,07 (bukan di level stop).
-    pp, od = pb_dasar((930, 940, 920, 935))
+    pp, od = tp_dasar((930, 940, 920, 935))
     k = jalankan(pp, od, E0, E0 + 1).keluar
     cek_keluar(k, tanggal=tgl(E0 + 1), alasan=ex.STOP_GAP, harga="929.07")
     assert k.pnl_idr == D("-7575.4175")  # 92.674,7325 − 100.250,15
@@ -535,19 +535,19 @@ def test_gap_di_bawah_stop_posisi_lama_keluar_di_open():
 
 
 def test_gap_batas_open_sama_dengan_stop():
-    pp, od = pb_dasar((950, 960, 945, 955))
+    pp, od = tp_dasar((950, 960, 945, 955))
     cek_keluar(jalankan(pp, od, E0, E0 + 1).keluar, tanggal=tgl(E0 + 1), alasan=ex.STOP_GAP, harga="949.05")
 
 
 def test_stop_dan_target_hari_sama_stop_didahulukan():
     # low 945 ≤ 950 dan high 1.110 ≥ 1.103 pada hari yang sama → STOP.
-    pp, od = pb_dasar((1000, 1110, 945, 1050))
+    pp, od = tp_dasar((1000, 1110, 945, 1050))
     cek_keluar(jalankan(pp, od, E0, E0 + 1).keluar, tanggal=tgl(E0 + 1), alasan=ex.STOP, harga="949.05")
 
 
 def test_gap_di_atas_target_keluar_di_open_tanpa_slippage():
     # open 1.110 ≥ 1.103 → TARGET_GAP di 1.110; hasil 111.000 − 277,5 = 110.722,5; P&L 10.472,35.
-    pp, od = pb_dasar((1110, 1120, 1100, 1115))
+    pp, od = tp_dasar((1110, 1120, 1100, 1115))
     k = jalankan(pp, od, E0, E0 + 1).keluar
     cek_keluar(k, tanggal=tgl(E0 + 1), alasan=ex.TARGET_GAP, harga="1110")
     assert k.pnl_idr == D("10472.35")
@@ -555,13 +555,13 @@ def test_gap_di_atas_target_keluar_di_open_tanpa_slippage():
 
 
 def test_target_gap_batas_open_sama_dengan_target():
-    pp, od = pb_dasar((1103, 1110, 1100, 1105))
+    pp, od = tp_dasar((1103, 1110, 1100, 1105))
     cek_keluar(jalankan(pp, od, E0, E0 + 1).keluar, tanggal=tgl(E0 + 1), alasan=ex.TARGET_GAP, harga="1103")
 
 
 def test_target_intraday_tepat_di_target():
     # high = 1.103 = T → keluar di 1.103 (limit, tanpa slippage); hasil 110.300 − 275,75; P&L 9.774,10.
-    pp, od = pb_dasar((1050, 1103, 1040, 1060))
+    pp, od = tp_dasar((1050, 1103, 1040, 1060))
     k = jalankan(pp, od, E0, E0 + 1).keluar
     cek_keluar(k, tanggal=tgl(E0 + 1), alasan=ex.TARGET, harga="1103")
     assert k.pnl_idr == D("9774.10")
@@ -569,14 +569,14 @@ def test_target_intraday_tepat_di_target():
 
 
 def test_high_di_bawah_target_tidak_keluar():
-    pp, od = pb_dasar((1050, 1102, 1040, 1060))
+    pp, od = tp_dasar((1050, 1102, 1040, 1060))
     assert jalankan(pp, od, E0, E0 + 1).keluar is None
 
 
 def test_jual_terjadwal_didahulukan_dari_gap_target():
     # STOP_WAKTU dijadwalkan pada close hari ke-10; open hari ke-11 1.110 ≥ target 1.103. Langkah 2 (jual
     # terjadwal) sebelum langkah 4: STOP_WAKTU di 1.110 × 0,999 = 1.108,89, bukan TARGET_GAP di 1.110.
-    pp, od = pb_dasar(*([NORMAL] * 9), (1110, 1120, 1100, 1110))
+    pp, od = tp_dasar(*([NORMAL] * 9), (1110, 1120, 1100, 1110))
     j = jalankan(pp, od, E0, E0 + 10)
     cek_keluar(j.keluar, tanggal=tgl(E0 + 10), alasan=ex.STOP_WAKTU, harga="1108.89")
 
@@ -592,7 +592,7 @@ def test_bar_tanpa_transaksi_atau_rusak_tidak_mengeksekusi_stop_maupun_target(ba
     # E+1: low 900 ≤ stop 950, open/high ≥ target 1.103, tetapi bar tidak valid → tidak ada eksekusi apa pun
     # (§15.1 langkah 0; bar tanpa transaksi tidak pernah menjadi harga eksekusi, §8.5). Nilai posisi memakai
     # close valid terakhir (1.000). Tidak ada jual terjadwal → tidak ada tanda tertunda.
-    pp, od = pb_dasar(bar_e1, NORMAL)
+    pp, od = tp_dasar(bar_e1, NORMAL)
     j = jalankan(pp, od, E0, E0 + 2)
     assert j.keluar is None
     assert j.nilai[tgl(E0 + 1)] == D("100000")
@@ -600,7 +600,7 @@ def test_bar_tanpa_transaksi_atau_rusak_tidak_mengeksekusi_stop_maupun_target(ba
     assert j.pos.tanda == set()
 
 
-# --- Target PB dibulatkan ke BAWAH (§12.1, §4.1) --------------------------------------------------------
+# --- Target TP dibulatkan ke BAWAH (§12.1, §4.1) --------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -616,7 +616,7 @@ def test_bar_tanpa_transaksi_atau_rusak_tidak_mengeksekusi_stop_maupun_target(ba
         pytest.param(cfg_dengan(ubah_fraksi(berlaku=BERLAKU_NANTI)), 1003, "1112", id="fiktif-belum-berlaku"),
     ],
 )
-def test_target_pb_dari_harga_isi_dibulatkan_ke_bawah(cfg, open_entry, target):
+def test_target_tp_dari_harga_isi_dibulatkan_ke_bawah(cfg, open_entry, target):
     pp = buat_pasar({KODE: [*AWAL, (open_entry, 1010, 990, 1000)]}, cfg)
     p = jalankan(pp, order(i_sinyal=S0), E0, E0).pos
     isi = D(open_entry) * (1 + SLIP)
@@ -625,7 +625,7 @@ def test_target_pb_dari_harga_isi_dibulatkan_ke_bawah(cfg, open_entry, target):
     assert p.target <= isi + 2 * (isi - D(950))  # selalu ke bawah
 
 
-def test_target_pb_memakai_target_r_order():
+def test_target_tp_memakai_target_r_order():
     # target_r 3 → 1.001 + 3 × 51 = 1.154.
     pp = buat_pasar({KODE: [*AWAL, NORMAL]})
     p = jalankan(pp, order(i_sinyal=S0, target_r=3.0), E0, E0).pos
@@ -633,7 +633,7 @@ def test_target_pb_memakai_target_r_order():
 
 
 # =====================================================================================================
-# BO: trailing (§12.2) — 5 hari hitung tangan, dibulatkan ke atas, tidak pernah turun, berlaku besok
+# TB: trailing (§12.2) — 5 hari hitung tangan, dibulatkan ke atas, tidak pernah turun, berlaku besok
 # =====================================================================================================
 
 CFG_ATR3 = cfg_uji({"indikator.atr_periode": 3})
@@ -641,7 +641,7 @@ CFG_ATR3 = cfg_uji({"indikator.atr_periode": 3})
 #   W1 (1.000/1.010/990/1.000)  TR 20
 #   W2 (1.000/1.015/995/1.010)  TR 20
 #   S  (1.010/1.040/1.005/1.035) TR 35 → ATR = (20 + 20 + 35)/3 = 25
-#      stop BO = 1.035 − 2 × 25 = 985; harga_maks = 1.035 + 12,5 → 1.047
+#      stop TB = 1.035 − 2 × 25 = 985; harga_maks = 1.035 + 12,5 → 1.047
 #   E   (1.040/1.060/1.030/1.055) TR 30 → ATR = (2·25 + 30)/3      = 80/3     ≈ 26,667
 #   E+1 (1.055/1.080/1.050/1.075) TR 30 → ATR = (2·80/3 + 30)/3    = 250/9    ≈ 27,778
 #   E+2 (1.075/1.078/1.040/1.045) TR 38 → ATR = (2·250/9 + 38)/3   = 842/27   ≈ 31,185
@@ -654,7 +654,7 @@ CFG_ATR3 = cfg_uji({"indikator.atr_periode": 3})
 #   close E+3: 1.100 − 3 × 3169/81  = 982,630   → 983  < 997 → tetap 997
 #   close E+4: 1.120 − 3 × 8768/243 = 1.011,753 → ke atas 1.012
 #   E+5 (1.100/1.105/1.011/1.020): low 1.011 ≤ 1.012 → TRAILING di 1.012 × 0,999 = 1.010,988
-BO_BAR = [
+TB_BAR = [
     (1000, 1010, 990, 1000),
     (1000, 1015, 995, 1010),
     (1010, 1040, 1005, 1035),
@@ -665,40 +665,40 @@ BO_BAR = [
     (1095, 1120, 1090, 1110),
     (1100, 1105, 1011, 1020),
 ]
-BO_S, BO_E = I0 + 2, I0 + 3
+TB_S, TB_E = I0 + 2, I0 + 3
 
 
-def _order_bo() -> ex.Order:
-    return order(i_sinyal=BO_S, strategi="BO", harga_maks="1047", stop="985", target_r=None)
+def _order_tb() -> ex.Order:
+    return order(i_sinyal=TB_S, strategi="TB", harga_maks="1047", stop="985", target_r=None)
 
 
-def test_trailing_bo_lima_hari_hitung_tangan():
-    pp = buat_pasar({KODE: BO_BAR}, CFG_ATR3)
-    j = jalankan(pp, _order_bo(), BO_E, BO_E + 5)
-    assert j.pos.target is None  # BO tanpa target tetap
+def test_trailing_tb_lima_hari_hitung_tangan():
+    pp = buat_pasar({KODE: TB_BAR}, CFG_ATR3)
+    j = jalankan(pp, _order_tb(), TB_E, TB_E + 5)
+    assert j.pos.target is None  # TB tanpa target tetap
     assert j.pos.harga_beli == D("1041.04")  # min(1.040 × 1,001; 1.047)
-    trail = [j.stop[tgl(BO_E + k)] for k in range(5)]
+    trail = [j.stop[tgl(TB_E + k)] for k in range(5)]
     assert trail == [D("985"), D("997"), D("997"), D("997"), D("1012")]
     assert all(b >= a for a, b in zip(trail, trail[1:]))  # tidak pernah turun
     assert j.pos.stop_awal == D("985")
     k = j.keluar
-    assert k.tanggal == tgl(BO_E + 5) and k.alasan == ex.TRAILING
+    assert k.tanggal == tgl(TB_E + 5) and k.alasan == ex.TRAILING
     assert k.harga == D("1010.988")
     biaya = biaya_beli(100, "1041.04")  # 104.104 + 156,156 = 104.260,156
     assert k.pnl_idr == hasil_jual(100, "1010.988") - biaya
     assert k.r == k.pnl_idr / risiko_rencana(100, 1047, 985)
 
 
-def test_trailing_bo_dibulatkan_ke_atas_ke_fraksi_fiktif():
+def test_trailing_tb_dibulatkan_ke_atas_ke_fraksi_fiktif():
     # Fraksi FIKTIF 5 pada [500, 2000): 996,667 → 1.000; 986,444 → 990; 982,630 → 985; 1.011,753 → 1.015.
-    pp = buat_pasar({KODE: BO_BAR}, cfg_dengan(ubah_fraksi(), {"indikator.atr_periode": 3}))
-    j = jalankan(pp, _order_bo(), BO_E, BO_E + 5)
-    trail = [j.stop[tgl(BO_E + k)] for k in range(5)]
+    pp = buat_pasar({KODE: TB_BAR}, cfg_dengan(ubah_fraksi(), {"indikator.atr_periode": 3}))
+    j = jalankan(pp, _order_tb(), TB_E, TB_E + 5)
+    trail = [j.stop[tgl(TB_E + k)] for k in range(5)]
     assert trail == [D("985"), D("1000"), D("1000"), D("1000"), D("1015")]
     assert j.keluar.alasan == ex.TRAILING and j.keluar.harga == D("1015") * (1 - SLIP)  # 1.013,985
 
 
-def test_trailing_bo_berlaku_mulai_hari_berikutnya():
+def test_trailing_tb_berlaku_mulai_hari_berikutnya():
     # ATR(14) datar = 10 (TR 10 setiap bar pemanasan). Stop awal 980.
     #   E   (1.000/1.005/995/1.000): trail = 1.005 − 30 = 975 → tetap 980.
     #   E+1 (1.000/1.060/1.000/1.060): TR 60 → ATR = 190/14; trail = 1.060 − 3 × 190/14 = 1.019,29 → 1.020.
@@ -706,7 +706,7 @@ def test_trailing_bo_berlaku_mulai_hari_berikutnya():
     #   E+2 (1.030/1.035/1.019/1.025): low 1.019 ≤ 1.020 → TRAILING di 1.020 × 0,999 = 1.018,98.
     datar = (1000, 1005, 995, 1000)
     pp = buat_pasar({KODE: [datar] * 15 + [datar, (1000, 1060, 1000, 1060), (1030, 1035, 1019, 1025)]})
-    od = order(i_sinyal=I0 + 14, strategi="BO", harga_maks="1010", stop="980", target_r=None)
+    od = order(i_sinyal=I0 + 14, strategi="TB", harga_maks="1010", stop="980", target_r=None)
     j = jalankan(pp, od, I0 + 15, I0 + 17)
     assert j.stop[tgl(I0 + 15)] == D("980")
     assert j.stop[tgl(I0 + 16)] == D("1020")
@@ -714,7 +714,7 @@ def test_trailing_bo_berlaku_mulai_hari_berikutnya():
     assert k.tanggal == tgl(I0 + 17) and k.alasan == ex.TRAILING and k.harga == D("1018.98")
 
 
-def test_trailing_bo_hhv_sejak_entry_tanpa_bar_sinyal():
+def test_trailing_tb_hhv_sejak_entry_tanpa_bar_sinyal():
     # §9: HHV_sejak_entry dimulai dari hari entry; bar hari sinyal tidak termasuk.
     # Pemanasan ATR(14) datar (TR 10). Bar sinyal (1.000/1.040/995/1.000): TR 45 → ATR = (13·10 + 45)/14 = 12,5.
     # E (1.000/1.005/995/1.000): TR 10 → ATR = (13·12,5 + 10)/14 = 172,5/14 ≈ 12,3214.
@@ -722,53 +722,53 @@ def test_trailing_bo_hhv_sejak_entry_tanpa_bar_sinyal():
     #   (Bila high bar sinyal 1.040 ikut: 1.040 − 36,964 = 1.003,036 → 1.004, dan E+1 low 990 akan keluar.)
     datar = (1000, 1005, 995, 1000)
     pp = buat_pasar({KODE: [datar] * 14 + [(1000, 1040, 995, 1000), datar, (1000, 1005, 990, 1000)]})
-    od = order(i_sinyal=I0 + 14, strategi="BO", harga_maks="1010", stop="980", target_r=None)
+    od = order(i_sinyal=I0 + 14, strategi="TB", harga_maks="1010", stop="980", target_r=None)
     j = jalankan(pp, od, I0 + 15, I0 + 16)
     assert j.stop[tgl(I0 + 15)] == D("980")
     assert j.keluar is None
 
 
-def test_bo_keluar_di_trailing_awal_berlabel_trailing():
+def test_tb_keluar_di_trailing_awal_berlabel_trailing():
     # E+1 low 980 ≤ trail awal 985 (= stop_awal) → TRAILING (bukan STOP), di 985 × 0,999 = 984,015.
-    bar = BO_BAR[:4] + [(1050, 1060, 980, 1000)]
+    bar = TB_BAR[:4] + [(1050, 1060, 980, 1000)]
     pp = buat_pasar({KODE: bar}, CFG_ATR3)
-    k = jalankan(pp, _order_bo(), BO_E, BO_E + 1).keluar
+    k = jalankan(pp, _order_tb(), TB_E, TB_E + 1).keluar
     assert k.alasan == ex.TRAILING and k.harga == D("984.015")
 
 
-def test_bo_gap_di_bawah_trailing_berlabel_trailing_gap():
+def test_tb_gap_di_bawah_trailing_berlabel_trailing_gap():
     # E+1 open 970 ≤ 985 → TRAILING_GAP di 970 × 0,999 = 969,03.
-    bar = BO_BAR[:4] + [(970, 990, 960, 980)]
+    bar = TB_BAR[:4] + [(970, 990, 960, 980)]
     pp = buat_pasar({KODE: bar}, CFG_ATR3)
-    k = jalankan(pp, _order_bo(), BO_E, BO_E + 1).keluar
+    k = jalankan(pp, _order_tb(), TB_E, TB_E + 1).keluar
     assert k.alasan == ex.TRAILING_GAP and k.harga == D("969.03")
 
 
-def test_bo_hari_entry_open_di_bawah_stop_berlabel_stop_gap_hari_entry():
+def test_tb_hari_entry_open_di_bawah_stop_berlabel_stop_gap_hari_entry():
     # Label hari entry sama untuk semua strategi (§15.1 "Hari entry"), bukan TRAILING_GAP.
     # open 980 ≤ 985 → isi 980,98; jual 980 × 0,999 = 979,02.
-    pp = buat_pasar({KODE: BO_BAR[:3] + [(980, 990, 975, 985)]}, CFG_ATR3)
-    j = jalankan(pp, _order_bo(), BO_E, BO_E)
+    pp = buat_pasar({KODE: TB_BAR[:3] + [(980, 990, 975, 985)]}, CFG_ATR3)
+    j = jalankan(pp, _order_tb(), TB_E, TB_E)
     k = j.keluar
-    assert k.tanggal == tgl(BO_E) and k.alasan == ex.STOP_GAP_HARI_ENTRY and k.harga == D("979.02")
+    assert k.tanggal == tgl(TB_E) and k.alasan == ex.STOP_GAP_HARI_ENTRY and k.harga == D("979.02")
     assert k.pnl_idr == hasil_jual(100, "979.02") - biaya_beli(100, "980.98")
     assert k.r == k.pnl_idr / risiko_rencana(100, 1047, 985)
 
 
-def test_bo_stop_intraday_hari_entry_berlabel_trailing():
+def test_tb_stop_intraday_hari_entry_berlabel_trailing():
     # stop_aktif_hari_entry: true; open 1.040 > 985, low 984 ≤ 985 (trailing awal = stop_awal) → TRAILING di
     # 985 × 0,999 = 984,015 pada hari entry.
-    pp = buat_pasar({KODE: BO_BAR[:3] + [(1040, 1060, 984, 1000)]}, CFG_ATR3)
-    k = jalankan(pp, _order_bo(), BO_E, BO_E).keluar
-    assert k.tanggal == tgl(BO_E) and k.alasan == ex.TRAILING and k.harga == D("984.015")
+    pp = buat_pasar({KODE: TB_BAR[:3] + [(1040, 1060, 984, 1000)]}, CFG_ATR3)
+    k = jalankan(pp, _order_tb(), TB_E, TB_E).keluar
+    assert k.tanggal == tgl(TB_E) and k.alasan == ex.TRAILING and k.harga == D("984.015")
 
 
-def test_bo_gap_di_bawah_trailing_yang_sudah_naik():
+def test_tb_gap_di_bawah_trailing_yang_sudah_naik():
     # Trail 1.012 setelah close E+4; E+5 open 1.005 ≤ 1.012 → TRAILING_GAP di 1.005 × 0,999 = 1.003,995.
-    bar = BO_BAR[:8] + [(1005, 1010, 1000, 1005)]
+    bar = TB_BAR[:8] + [(1005, 1010, 1000, 1005)]
     pp = buat_pasar({KODE: bar}, CFG_ATR3)
-    k = jalankan(pp, _order_bo(), BO_E, BO_E + 5).keluar
-    assert k.tanggal == tgl(BO_E + 5) and k.alasan == ex.TRAILING_GAP and k.harga == D("1003.995")
+    k = jalankan(pp, _order_tb(), TB_E, TB_E + 5).keluar
+    assert k.tanggal == tgl(TB_E + 5) and k.alasan == ex.TRAILING_GAP and k.harga == D("1003.995")
 
 
 @pytest.mark.parametrize(
@@ -783,29 +783,29 @@ def test_trailing_tidak_diperbarui_tanpa_bar_valid(bar_e3):
     # E+4 (bar valid berikutnya): ATR dari E+2 → TR E+4 = max(30, |1.120 − 1.045|, |1.090 − 1.045|) = 75,
     #   ATR = (2 × 842/27 + 75)/3 = 3709/81; trail = 1.120 − 3 × 3709/81 = 982,630 → 983 < 997 → tetap 997.
     #   (Bila high 1.500 ikut HHV, trail akan 1.500 − 137,37 = 1.362,63.)
-    bar = BO_BAR[:6] + [bar_e3, BO_BAR[7]]
+    bar = TB_BAR[:6] + [bar_e3, TB_BAR[7]]
     pp = buat_pasar({KODE: bar}, CFG_ATR3)
-    j = jalankan(pp, _order_bo(), BO_E, BO_E + 4)
+    j = jalankan(pp, _order_tb(), TB_E, TB_E + 4)
     assert j.keluar is None
-    assert j.stop[tgl(BO_E + 3)] == D("997")  # tanpa bar valid: langkah 7 tidak memperbarui trailing
+    assert j.stop[tgl(TB_E + 3)] == D("997")  # tanpa bar valid: langkah 7 tidak memperbarui trailing
     assert j.pos.stop == D("997")
-    assert j.stop[tgl(BO_E + 4)] == D("997")
+    assert j.stop[tgl(TB_E + 4)] == D("997")
 
 
-def test_bo_tanpa_stop_waktu_default_null():
-    # stop_waktu_hari BO = null: posisi BO yang diam 15 hari tidak pernah dijadwalkan jual.
+def test_tb_tanpa_stop_waktu_default_null():
+    # stop_waktu_hari TB = null: posisi TB yang diam 15 hari tidak pernah dijadwalkan jual.
     datar = (1000, 1005, 995, 1000)
     pp = buat_pasar({KODE: [datar] * 15 + [datar] * 15})
-    od = order(i_sinyal=I0 + 14, strategi="BO", harga_maks="1010", stop="980", target_r=None)
+    od = order(i_sinyal=I0 + 14, strategi="TB", harga_maks="1010", stop="980", target_r=None)
     j = jalankan(pp, od, I0 + 15, I0 + 29)
     assert j.keluar is None and all(v is None for v in j.jadwal.values())
 
 
-def test_bo_stop_waktu_dari_config():
-    cfg = cfg_uji({"strategi.bo.stop_waktu_hari": 3})
+def test_tb_stop_waktu_dari_config():
+    cfg = cfg_uji({"strategi.tb.stop_waktu_hari": 3})
     datar = (1000, 1005, 995, 1000)
     pp = buat_pasar({KODE: [datar] * 15 + [datar] * 3 + [(1002, 1005, 995, 1000)]}, cfg)
-    od = order(i_sinyal=I0 + 14, strategi="BO", harga_maks="1010", stop="980", target_r=None)
+    od = order(i_sinyal=I0 + 14, strategi="TB", harga_maks="1010", stop="980", target_r=None)
     j = jalankan(pp, od, I0 + 15, I0 + 18)
     assert j.jadwal[tgl(I0 + 16)] is None and j.jadwal[tgl(I0 + 17)] == ex.STOP_WAKTU
     assert j.keluar.tanggal == tgl(I0 + 18) and j.keluar.alasan == ex.STOP_WAKTU
@@ -813,7 +813,7 @@ def test_bo_stop_waktu_dari_config():
 
 
 # =====================================================================================================
-# MR: keluar SMA5 mulai hari ke-2, stop waktu hari ke-5 (§12.3)
+# PJ: keluar SMA5 mulai hari ke-2, stop waktu hari ke-5 (§12.3)
 # =====================================================================================================
 
 
@@ -822,86 +822,86 @@ def _b(c: float) -> Bar:
 
 
 # Pemanasan 5 bar (close 1.000, 990, 980, 970, 960); sinyal pada bar ke-5 (close 960).
-MR_AWAL = [_b(1000), _b(990), _b(980), _b(970), _b(960)]
-MR_S, MR_E = I0 + 4, I0 + 5
+PJ_AWAL = [_b(1000), _b(990), _b(980), _b(970), _b(960)]
+PJ_S, PJ_E = I0 + 4, I0 + 5
 
 
-def _order_mr() -> ex.Order:
-    return order(i_sinyal=MR_S, strategi="MR", harga_maks="970", stop="900", target_r=None)
+def _order_pj() -> ex.Order:
+    return order(i_sinyal=PJ_S, strategi="PJ", harga_maks="970", stop="900", target_r=None)
 
 
-def test_mr_keluar_sma_hanya_mulai_hari_ke_2():
+def test_pj_keluar_sma_hanya_mulai_hari_ke_2():
     # Hari ke-1 (E): close 1.000 > SMA5 = (990+980+970+960+1.000)/5 = 980 → tidak dijadwalkan (hari ke-1).
     # Hari ke-2 (E+1): close 1.010 > SMA5 = (980+970+960+1.000+1.010)/5 = 984 → KELUAR_SMA.
     # E+2: jual di open 1.012 × 0,999 = 1.010,988.
-    bar = MR_AWAL + [(965, 1005, 960, 1000), (1000, 1015, 995, 1010), (1012, 1020, 1005, 1015)]
+    bar = PJ_AWAL + [(965, 1005, 960, 1000), (1000, 1015, 995, 1010), (1012, 1020, 1005, 1015)]
     pp = buat_pasar({KODE: bar})
-    j = jalankan(pp, _order_mr(), MR_E, MR_E + 2)
+    j = jalankan(pp, _order_pj(), PJ_E, PJ_E + 2)
     assert j.pos.harga_beli == D("965.965")  # min(965 × 1,001; 970)
     assert j.pos.target is None
-    assert j.jadwal[tgl(MR_E)] is None
-    assert j.jadwal[tgl(MR_E + 1)] == ex.KELUAR_SMA
+    assert j.jadwal[tgl(PJ_E)] is None
+    assert j.jadwal[tgl(PJ_E + 1)] == ex.KELUAR_SMA
     k = j.keluar
-    assert k.tanggal == tgl(MR_E + 2) and k.alasan == ex.KELUAR_SMA and k.harga == D("1010.988")
+    assert k.tanggal == tgl(PJ_E + 2) and k.alasan == ex.KELUAR_SMA and k.harga == D("1010.988")
     biaya = biaya_beli(100, "965.965")
     assert k.pnl_idr == hasil_jual(100, "1010.988") - biaya
     assert k.r == k.pnl_idr / risiko_rencana(100, 970, 900)
 
 
-def test_mr_min_hari_tahan_dari_config():
+def test_pj_min_hari_tahan_dari_config():
     # min_hari_tahan 3: hari ke-2 belum; hari ke-3 (E+2): close 1.015 > SMA5 = (970+960+1.000+1.010+1.015)/5
     # = 991 → KELUAR_SMA; jual di open E+3.
-    cfg = cfg_uji({"strategi.mr.min_hari_tahan": 3})
-    bar = MR_AWAL + [(965, 1005, 960, 1000), (1000, 1015, 995, 1010), (1012, 1020, 1005, 1015),
+    cfg = cfg_uji({"strategi.pj.min_hari_tahan": 3})
+    bar = PJ_AWAL + [(965, 1005, 960, 1000), (1000, 1015, 995, 1010), (1012, 1020, 1005, 1015),
                      (1016, 1020, 1010, 1018)]
     pp = buat_pasar({KODE: bar}, cfg)
-    j = jalankan(pp, _order_mr(), MR_E, MR_E + 3)
-    assert j.jadwal[tgl(MR_E + 1)] is None
-    assert j.jadwal[tgl(MR_E + 2)] == ex.KELUAR_SMA
-    assert j.keluar.tanggal == tgl(MR_E + 3) and j.keluar.harga == D("1016") * (1 - SLIP)
+    j = jalankan(pp, _order_pj(), PJ_E, PJ_E + 3)
+    assert j.jadwal[tgl(PJ_E + 1)] is None
+    assert j.jadwal[tgl(PJ_E + 2)] == ex.KELUAR_SMA
+    assert j.keluar.tanggal == tgl(PJ_E + 3) and j.keluar.harga == D("1016") * (1 - SLIP)
 
 
-def test_mr_close_sama_dengan_sma_tidak_keluar():
+def test_pj_close_sama_dengan_sma_tidak_keluar():
     # Hari ke-2 dengan close tepat = SMA5: c = (980 + 970 + 960 + 1.000 + c)/5 → c = 977,5.
-    bar = MR_AWAL + [(965, 1005, 960, 1000), (980, 985, 975, 977.5)]
+    bar = PJ_AWAL + [(965, 1005, 960, 1000), (980, 985, 975, 977.5)]
     pp = buat_pasar({KODE: bar})
-    baris = pp.tampilan(tgl(MR_E + 1)).baris(KODE)
+    baris = pp.tampilan(tgl(PJ_E + 1)).baris(KODE)
     assert float(baris["sma_5"]) == float(baris["close"]) == 977.5  # batas tepat, tanpa derau float
-    j = jalankan(pp, _order_mr(), MR_E, MR_E + 1)
-    assert j.jadwal[tgl(MR_E + 1)] is None  # syarat ketat: close_d > SMA5_d
+    j = jalankan(pp, _order_pj(), PJ_E, PJ_E + 1)
+    assert j.jadwal[tgl(PJ_E + 1)] is None  # syarat ketat: close_d > SMA5_d
 
 
-def test_mr_stop_waktu_hari_ke_5_jual_open_hari_ke_6():
+def test_pj_stop_waktu_hari_ke_5_jual_open_hari_ke_6():
     # Close turun pelan (955, 950, 945, 940, 935), selalu < SMA5, low ≥ 932 > stop 900.
     #   SMA5 hari ke-5 = (955+950+945+940+935)/5 = 945 > 935 → hanya STOP_WAKTU (hari ke-5).
-    bar = MR_AWAL + [_b(955), _b(950), _b(945), _b(940), _b(935), (936, 940, 930, 935)]
+    bar = PJ_AWAL + [_b(955), _b(950), _b(945), _b(940), _b(935), (936, 940, 930, 935)]
     pp = buat_pasar({KODE: bar})
-    j = jalankan(pp, _order_mr(), MR_E, MR_E + 5)
-    assert [j.jadwal[tgl(MR_E + k)] for k in range(4)] == [None] * 4
-    assert j.jadwal[tgl(MR_E + 4)] == ex.STOP_WAKTU
+    j = jalankan(pp, _order_pj(), PJ_E, PJ_E + 5)
+    assert [j.jadwal[tgl(PJ_E + k)] for k in range(4)] == [None] * 4
+    assert j.jadwal[tgl(PJ_E + 4)] == ex.STOP_WAKTU
     k = j.keluar
-    assert k.tanggal == tgl(MR_E + 5) and k.alasan == ex.STOP_WAKTU
+    assert k.tanggal == tgl(PJ_E + 5) and k.alasan == ex.STOP_WAKTU
     assert k.harga == D("935.064")  # 936 × 0,999
     assert k.pnl_idr == hasil_jual(100, "935.064") - biaya_beli(100, "955.955")
 
 
-def test_mr_stop_intraday_berlabel_stop():
-    bar = MR_AWAL + [_b(955), (930, 935, 899, 910)]
+def test_pj_stop_intraday_berlabel_stop():
+    bar = PJ_AWAL + [_b(955), (930, 935, 899, 910)]
     pp = buat_pasar({KODE: bar})
-    k = jalankan(pp, _order_mr(), MR_E, MR_E + 1).keluar
+    k = jalankan(pp, _order_pj(), PJ_E, PJ_E + 1).keluar
     assert k.alasan == ex.STOP and k.harga == D("899.1")  # 900 × 0,999
 
 
 # =====================================================================================================
-# PB & ACAK: stop waktu hari ke-10 → open hari ke-11 (§12.1, §12.4)
+# TP & ACAK: stop waktu hari ke-10 → open hari ke-11 (§12.1, §12.4)
 # =====================================================================================================
 
 
-@pytest.mark.parametrize("strategi", ["PB", "ACAK"])
+@pytest.mark.parametrize("strategi", ["TP", "ACAK"])
 def test_stop_waktu_hari_ke_10_jual_open_hari_ke_11(strategi):
     # 10 hari bar normal (tanpa stop/target), hari ke-11 open 1.005 → 1.005 × 0,999 = 1.003,995;
     # hasil = 100.399,5 − 250,99875 = 100.148,50125; P&L = −101,64875.
-    pp, od = pb_dasar(*([NORMAL] * 9), (1005, 1010, 990, 1000), strategi=strategi)
+    pp, od = tp_dasar(*([NORMAL] * 9), (1005, 1010, 990, 1000), strategi=strategi)
     j = jalankan(pp, od, E0, E0 + 10)
     assert j.jadwal[tgl(E0 + 8)] is None  # hari ke-9
     assert j.jadwal[tgl(E0 + 9)] == ex.STOP_WAKTU  # close hari ke-10
@@ -909,14 +909,14 @@ def test_stop_waktu_hari_ke_10_jual_open_hari_ke_11(strategi):
     assert j.keluar.pnl_idr == D("-101.64875")
 
 
-def test_stop_waktu_acak_dan_pb_memakai_kunci_masing_masing():
-    cfg = cfg_uji({"strategi.acak.stop_waktu_hari": 7, "strategi.pb.stop_waktu_hari": 4})
+def test_stop_waktu_acak_dan_tp_memakai_kunci_masing_masing():
+    cfg = cfg_uji({"strategi.acak.stop_waktu_hari": 7, "strategi.tp.stop_waktu_hari": 4})
     hasil = {}
-    for strategi in ("PB", "ACAK"):
-        pp, od = pb_dasar(*([NORMAL] * 10), cfg=cfg, strategi=strategi)
+    for strategi in ("TP", "ACAK"):
+        pp, od = tp_dasar(*([NORMAL] * 10), cfg=cfg, strategi=strategi)
         j = jalankan(pp, od, E0, E0 + 10)
         hasil[strategi] = j.keluar.tanggal
-    assert hasil == {"PB": tgl(E0 + 4), "ACAK": tgl(E0 + 7)}
+    assert hasil == {"TP": tgl(E0 + 4), "ACAK": tgl(E0 + 7)}
 
 
 @pytest.mark.parametrize(
@@ -928,7 +928,7 @@ def test_stop_waktu_acak_dan_pb_memakai_kunci_masing_masing():
     ],
 )
 def test_acak_target_dan_stop(bar_e1, alasan, harga):
-    pp, od = pb_dasar(bar_e1, strategi="ACAK")
+    pp, od = tp_dasar(bar_e1, strategi="ACAK")
     j = jalankan(pp, od, E0, E0 + 1)
     assert j.pos.target == TARGET_DASAR  # 1.001 + 2 × 51
     cek_keluar(j.keluar, tanggal=tgl(E0 + 1), alasan=alasan, harga=harga)
@@ -938,8 +938,8 @@ def test_acak_target_dan_stop(bar_e1, alasan, harga):
 # Bar hilang / tanpa transaksi menunda jual terjadwal (§15.1 langkah 0)
 # =====================================================================================================
 
-# MR: KELUAR_SMA dijadwalkan pada close E+1 (lihat test_mr_keluar_sma_hanya_mulai_hari_ke_2).
-MR_JADWAL = MR_AWAL + [(965, 1005, 960, 1000), (1000, 1015, 995, 1010)]
+# PJ: KELUAR_SMA dijadwalkan pada close E+1 (lihat test_pj_keluar_sma_hanya_mulai_hari_ke_2).
+PJ_JADWAL = PJ_AWAL + [(965, 1005, 960, 1000), (1000, 1015, 995, 1010)]
 
 
 @pytest.mark.parametrize(
@@ -953,33 +953,33 @@ MR_JADWAL = MR_AWAL + [(965, 1005, 960, 1000), (1000, 1015, 995, 1010)]
 def test_jual_terjadwal_ditunda_tanpa_bar_valid(bar_e2):
     # E+2 tanpa bar valid → tidak ada eksekusi, tanda TERTUNDA_TANPA_TRANSAKSI; E+3 open 1.008 → KELUAR_SMA
     # (label asli) di 1.008 × 0,999 = 1.006,992.
-    pp = buat_pasar({KODE: MR_JADWAL + [bar_e2, (1008, 1012, 1000, 1010)]})
-    j = jalankan(pp, _order_mr(), MR_E, MR_E + 3)
+    pp = buat_pasar({KODE: PJ_JADWAL + [bar_e2, (1008, 1012, 1000, 1010)]})
+    j = jalankan(pp, _order_pj(), PJ_E, PJ_E + 3)
     k = j.keluar
-    assert k.tanggal == tgl(MR_E + 3) and k.alasan == ex.KELUAR_SMA and k.harga == D("1006.992")
+    assert k.tanggal == tgl(PJ_E + 3) and k.alasan == ex.KELUAR_SMA and k.harga == D("1006.992")
     assert ex.TERTUNDA_TANPA_TRANSAKSI in j.pos.tanda
     assert ex.TERTUNDA_ARB not in j.pos.tanda
 
 
 def test_jual_terjadwal_tertunda_tetap_label_asli_walau_open_di_bawah_stop():
     # Langkah 2 sebelum langkah 3: open 880 ≤ stop 900 tetapi jual terjadwal → KELUAR_SMA di 880 × 0,999.
-    pp = buat_pasar({KODE: MR_JADWAL + [None, (880, 890, 870, 885)]})
-    k = jalankan(pp, _order_mr(), MR_E, MR_E + 3).keluar
+    pp = buat_pasar({KODE: PJ_JADWAL + [None, (880, 890, 870, 885)]})
+    k = jalankan(pp, _order_pj(), PJ_E, PJ_E + 3).keluar
     assert k.alasan == ex.KELUAR_SMA and k.harga == D("879.12")
 
 
 def test_nilai_posisi_tanpa_bar_valid_memakai_close_valid_terakhir():
-    pp = buat_pasar({KODE: MR_JADWAL + [None]})
+    pp = buat_pasar({KODE: PJ_JADWAL + [None]})
     cfg, bei, kal = pp.cfg, AturanBEI(pp.cfg), pp.kalender
-    j = jalankan(pp, _order_mr(), MR_E, MR_E + 1)
+    j = jalankan(pp, _order_pj(), PJ_E, PJ_E + 1)
     pos = j.pos
-    b = ex.bar_hari(pp.tampilan(tgl(MR_E + 2)), KODE)
+    b = ex.bar_hari(pp.tampilan(tgl(PJ_E + 2)), KODE)
     assert not b.ada and not b.valid
     assert ex.buka(pos, b, cfg, bei, kal) is None
     assert ex.intraday(pos, b, cfg, hari_entry=False) is None
     ex.perbarui_nilai(pos, b)
-    assert ex.tutup(pos, b, pp.tampilan(tgl(MR_E + 2)), cfg, bei, kal, BOLEH_BELI) is None
-    assert pos.close_valid_terakhir == D("1010") and pos.tanggal_valid_terakhir == tgl(MR_E + 1)
+    assert ex.tutup(pos, b, pp.tampilan(tgl(PJ_E + 2)), cfg, bei, kal, BOLEH_BELI) is None
+    assert pos.close_valid_terakhir == D("1010") and pos.tanggal_valid_terakhir == tgl(PJ_E + 1)
     assert pos.nilai() == D("101000")  # 100 × close valid terakhir 1.010
 
 
@@ -990,7 +990,7 @@ def test_nilai_posisi_tanpa_bar_valid_memakai_close_valid_terakhir():
 def test_stop_waktu_jatuh_tempo_tanpa_bar_dievaluasi_pada_close_bar_valid_berikutnya(bar_h10):
     # Hari ke-10 tanpa bar valid → tidak ada jadwal pada hari ke-10; hari ke-11 bar valid: tidak dijual di
     # open (belum terjadwal), STOP_WAKTU dijadwalkan pada close hari ke-11, dijual di open hari ke-12.
-    pp, od = pb_dasar(*([NORMAL] * 8), bar_h10, NORMAL, (1006, 1010, 990, 1000))
+    pp, od = tp_dasar(*([NORMAL] * 8), bar_h10, NORMAL, (1006, 1010, 990, 1000))
     j = jalankan(pp, od, E0, E0 + 11)
     assert j.jadwal[tgl(E0 + 8)] is None
     assert j.jadwal[tgl(E0 + 9)] is None  # hari ke-10 tanpa bar valid: belum dievaluasi
@@ -1000,7 +1000,7 @@ def test_stop_waktu_jatuh_tempo_tanpa_bar_dievaluasi_pada_close_bar_valid_beriku
 
 def test_hitungan_hari_tetap_berjalan_saat_bar_hilang():
     # Bar hilang hari ke-3..5 tidak menghentikan hitungan: stop waktu tetap pada close hari ke-10.
-    pp, od = pb_dasar(NORMAL, None, None, None, *([NORMAL] * 5), (1005, 1010, 990, 1000))
+    pp, od = tp_dasar(NORMAL, None, None, None, *([NORMAL] * 5), (1005, 1010, 990, 1000))
     j = jalankan(pp, od, E0, E0 + 10)
     assert j.jadwal[tgl(E0 + 9)] == ex.STOP_WAKTU
     assert j.keluar.tanggal == tgl(E0 + 10)
@@ -1016,7 +1016,7 @@ ARB_TERKUNCI = (870, 870, 870, 870)
 def test_arb_terkunci_menunda_stop_gap_dan_stop_intraday():
     # E+1 terkunci di 870 (open ≤ stop 950 dan low ≤ stop): tidak ada jual, tanda TERTUNDA_ARB.
     # E+2 open 860 ≤ 950 → STOP_GAP di 860 × 0,999 = 859,14.
-    pp, od = pb_dasar(ARB_TERKUNCI, (860, 880, 850, 870), cfg=CFG_AR)
+    pp, od = tp_dasar(ARB_TERKUNCI, (860, 880, 850, 870), cfg=CFG_AR)
     j = jalankan(pp, od, E0, E0 + 2)
     assert tgl(E0 + 1) in j.jadwal  # posisi masih terbuka setelah close E+1
     assert ex.TERTUNDA_ARB in j.pos.tanda
@@ -1024,7 +1024,7 @@ def test_arb_terkunci_menunda_stop_gap_dan_stop_intraday():
 
 
 def test_arb_terkunci_intraday_tidak_mengeksekusi_stop():
-    pp, od = pb_dasar(ARB_TERKUNCI, cfg=CFG_AR)
+    pp, od = tp_dasar(ARB_TERKUNCI, cfg=CFG_AR)
     cfg, bei, kal = pp.cfg, AturanBEI(pp.cfg), pp.kalender
     pos = jalankan(pp, od, E0, E0).pos
     b = ex.bar_hari(pp.tampilan(tgl(E0 + 1)), KODE)
@@ -1035,13 +1035,13 @@ def test_arb_terkunci_intraday_tidak_mengeksekusi_stop():
 
 
 def test_arb_terkunci_menunda_jual_terjadwal():
-    # MR: KELUAR_SMA terjadwal setelah close E+1 (close 1.010). E+2 terkunci: batas ARB = bulat_atas(1.010 ×
+    # PJ: KELUAR_SMA terjadwal setelah close E+1 (close 1.010). E+2 terkunci: batas ARB = bulat_atas(1.010 ×
     # 0,87 = 878,7) = 879 → bar 879 datar terkunci. E+3 open 870 → KELUAR_SMA di 870 × 0,999 = 869,13.
-    pp = buat_pasar({KODE: MR_JADWAL + [(879, 879, 879, 879), (870, 880, 860, 875)]}, CFG_AR)
-    j = jalankan(pp, _order_mr(), MR_E, MR_E + 3)
-    assert j.jadwal[tgl(MR_E + 2)] == ex.KELUAR_SMA  # tetap terjadwal dengan alasan asli
+    pp = buat_pasar({KODE: PJ_JADWAL + [(879, 879, 879, 879), (870, 880, 860, 875)]}, CFG_AR)
+    j = jalankan(pp, _order_pj(), PJ_E, PJ_E + 3)
+    assert j.jadwal[tgl(PJ_E + 2)] == ex.KELUAR_SMA  # tetap terjadwal dengan alasan asli
     k = j.keluar
-    assert k.tanggal == tgl(MR_E + 3) and k.alasan == ex.KELUAR_SMA and k.harga == D("869.13")
+    assert k.tanggal == tgl(PJ_E + 3) and k.alasan == ex.KELUAR_SMA and k.harga == D("869.13")
     assert ex.TERTUNDA_ARB in j.pos.tanda
 
 
@@ -1050,11 +1050,11 @@ def test_jual_terjadwal_tertunda_arb_tidak_diberi_label_baru_pada_close_hari_ter
     # pasar JANGAN BELI dengan paksa jual aktif: jual yang tertunda tetap memakai alasan aslinya (§15.1
     # langkah 2), bukan PAKSA_JUAL_PASAR.
     cfg = cfg_dengan(ubah_ar(), {"kondisi_pasar.jangan_beli_paksa_jual": True})
-    pp = buat_pasar({KODE: MR_JADWAL + [(879, 879, 879, 879), (870, 880, 860, 875)]}, cfg)
-    hari_kunci = tgl(MR_E + 2)
-    j = jalankan(pp, _order_mr(), MR_E, MR_E + 3, status=lambda d: JANGAN_BELI if d == hari_kunci else BOLEH_BELI)
+    pp = buat_pasar({KODE: PJ_JADWAL + [(879, 879, 879, 879), (870, 880, 860, 875)]}, cfg)
+    hari_kunci = tgl(PJ_E + 2)
+    j = jalankan(pp, _order_pj(), PJ_E, PJ_E + 3, status=lambda d: JANGAN_BELI if d == hari_kunci else BOLEH_BELI)
     assert j.jadwal[hari_kunci] == ex.KELUAR_SMA
-    assert j.keluar.alasan == ex.KELUAR_SMA and j.keluar.tanggal == tgl(MR_E + 3)
+    assert j.keluar.alasan == ex.KELUAR_SMA and j.keluar.tanggal == tgl(PJ_E + 3)
 
 
 @pytest.mark.parametrize(
@@ -1067,7 +1067,7 @@ def test_jual_terjadwal_tertunda_arb_tidak_diberi_label_baru_pada_close_hari_ter
 )
 def test_arb_tidak_dimodelkan_bila_belum_terverifikasi_atau_belum_berlaku(cfg):
     # Bar yang sama 870 datar → STOP_GAP langsung di 870 × 0,999 = 869,13 pada E+1.
-    pp, od = pb_dasar(ARB_TERKUNCI, (860, 880, 850, 870), cfg=cfg)
+    pp, od = tp_dasar(ARB_TERKUNCI, (860, 880, 850, 870), cfg=cfg)
     j = jalankan(pp, od, E0, E0 + 2)
     cek_keluar(j.keluar, tanggal=tgl(E0 + 1), alasan=ex.STOP_GAP, harga="869.13")
     assert ex.TERTUNDA_ARB not in j.pos.tanda
@@ -1081,14 +1081,14 @@ def test_arb_tidak_dimodelkan_bila_belum_terverifikasi_atau_belum_berlaku(cfg):
     ],
 )
 def test_bar_tidak_terkunci_arb_dieksekusi(bar_e1, harga):
-    pp, od = pb_dasar(bar_e1, cfg=CFG_AR)
+    pp, od = tp_dasar(bar_e1, cfg=CFG_AR)
     cek_keluar(jalankan(pp, od, E0, E0 + 1).keluar, tanggal=tgl(E0 + 1), alasan=ex.STOP_GAP, harga=harga)
 
 
 def test_arb_terkunci_di_hari_entry_menunda_stop_gap_hari_entry():
     # Entry terisi di open 870 (≤ harga_maks), bar entry terkunci ARB (close kemarin 1.000 → batas 870),
     # open ≤ stop 950 → jual ditunda (TERTUNDA_ARB). E+1 open 860 → keluar di 860 × 0,999 = 859,14.
-    pp, od = pb_dasar((860, 880, 850, 870), cfg=CFG_AR, entry=ARB_TERKUNCI)
+    pp, od = tp_dasar((860, 880, 850, 870), cfg=CFG_AR, entry=ARB_TERKUNCI)
     j = jalankan(pp, od, E0, E0 + 1)
     assert j.pos.harga_beli == D("870.87")  # min(870 × 1,001; 1.050)
     assert ex.TERTUNDA_ARB in j.pos.tanda
@@ -1106,7 +1106,7 @@ PULIH = (960, 970, 955, 965)
 def test_arb_terkunci_di_hari_entry_jual_tertunda_dieksekusi_di_open_berikutnya():
     # Bar entry terkunci di 870 ≤ stop → jual ditunda (bukan dibatalkan). E+1 open 960 > stop: jual yang tertunda
     # tetap dieksekusi di open E+1: 960 × 0,999 = 959,04.
-    pp, od = pb_dasar(PULIH, cfg=CFG_AR, entry=ARB_TERKUNCI)
+    pp, od = tp_dasar(PULIH, cfg=CFG_AR, entry=ARB_TERKUNCI)
     j = jalankan(pp, od, E0, E0 + 1)
     k = j.keluar
     assert k is not None and k.tanggal == tgl(E0 + 1) and k.harga == D("959.04")
@@ -1118,7 +1118,7 @@ def test_arb_terkunci_posisi_lama_jual_stop_tertunda_dieksekusi_di_open_berikutn
     # E+1 terkunci ARB di 870 ≤ stop 950: jual stop (gap) tidak dapat dieksekusi dan DITUNDA ke E+2. E+2 open 960
     # (> stop, low 955 > stop) → jual yang tertunda dieksekusi di open E+2: 960 × 0,999 = 959,04, label asli
     # STOP_GAP (open E+1 ≤ S). Sama dengan perilaku hari entry di atas.
-    pp, od = pb_dasar(ARB_TERKUNCI, PULIH, NORMAL, cfg=CFG_AR)
+    pp, od = tp_dasar(ARB_TERKUNCI, PULIH, NORMAL, cfg=CFG_AR)
     j = jalankan(pp, od, E0, E0 + 3)
     assert ex.TERTUNDA_ARB in j.pos.tanda
     cek_keluar(j.keluar, tanggal=tgl(E0 + 2), alasan=ex.STOP_GAP, harga="959.04")
@@ -1126,7 +1126,7 @@ def test_arb_terkunci_posisi_lama_jual_stop_tertunda_dieksekusi_di_open_berikutn
 
 def test_arb_terkunci_di_bawah_batas_juga_terkunci():
     # Datar 860 ≤ batas ARB 870 → terkunci; E+2 open 850 → STOP_GAP di 850 × 0,999 = 849,15.
-    pp, od = pb_dasar((860, 860, 860, 860), (850, 870, 840, 860), cfg=CFG_AR)
+    pp, od = tp_dasar((860, 860, 860, 860), (850, 870, 840, 860), cfg=CFG_AR)
     j = jalankan(pp, od, E0, E0 + 2)
     assert ex.TERTUNDA_ARB in j.pos.tanda
     cek_keluar(j.keluar, tanggal=tgl(E0 + 2), alasan=ex.STOP_GAP, harga="849.15")
@@ -1142,7 +1142,7 @@ def test_arb_terkunci_di_bawah_batas_juga_terkunci():
 def test_arb_berlaku_mulai_batas_tanggal(berlaku, ditunda):
     # d ≥ berlaku_mulai (inklusif). Dimodelkan → jual E+1 ditunda, STOP_GAP di open E+2 (860 × 0,999 = 859,14).
     # Belum berlaku → STOP_GAP langsung di open E+1 (870 × 0,999 = 869,13).
-    pp, od = pb_dasar(ARB_TERKUNCI, (860, 880, 850, 870), cfg=cfg_dengan(ubah_ar(berlaku=berlaku)))
+    pp, od = tp_dasar(ARB_TERKUNCI, (860, 880, 850, 870), cfg=cfg_dengan(ubah_ar(berlaku=berlaku)))
     j = jalankan(pp, od, E0, E0 + 2)
     if ditunda:
         cek_keluar(j.keluar, tanggal=tgl(E0 + 2), alasan=ex.STOP_GAP, harga="859.14")
@@ -1162,15 +1162,15 @@ def test_arb_terkunci_tanpa_jual_jatuh_tempo_tidak_diberi_tanda():
 
 
 def test_jual_terjadwal_ditunda_beruntun_arb_lalu_bar_hilang():
-    # MR: KELUAR_SMA terjadwal setelah close E+1 (1.010). E+2 terkunci ARB (batas = bulat_atas(1.010 × 0,87) = 879),
+    # PJ: KELUAR_SMA terjadwal setelah close E+1 (1.010). E+2 terkunci ARB (batas = bulat_atas(1.010 × 0,87) = 879),
     # E+3 terkunci lagi (acuan 879 → batas = bulat_atas(764,73) = 765), E+4 bar hilang, E+5 open 760 →
     # KELUAR_SMA (label asli) di 760 × 0,999 = 759,24, dengan kedua tanda tertunda.
-    bar = MR_JADWAL + [(879, 879, 879, 879), (765, 765, 765, 765), None, (760, 770, 750, 765)]
+    bar = PJ_JADWAL + [(879, 879, 879, 879), (765, 765, 765, 765), None, (760, 770, 750, 765)]
     pp = buat_pasar({KODE: bar}, CFG_AR)
-    j = jalankan(pp, _order_mr(), MR_E, MR_E + 5)
-    assert [j.jadwal[tgl(MR_E + k)] for k in (1, 2, 3, 4)] == [ex.KELUAR_SMA] * 4
+    j = jalankan(pp, _order_pj(), PJ_E, PJ_E + 5)
+    assert [j.jadwal[tgl(PJ_E + k)] for k in (1, 2, 3, 4)] == [ex.KELUAR_SMA] * 4
     k = j.keluar
-    assert k.tanggal == tgl(MR_E + 5) and k.alasan == ex.KELUAR_SMA and k.harga == D("759.24")
+    assert k.tanggal == tgl(PJ_E + 5) and k.alasan == ex.KELUAR_SMA and k.harga == D("759.24")
     assert {ex.TERTUNDA_ARB, ex.TERTUNDA_TANPA_TRANSAKSI} <= j.pos.tanda
 
 
@@ -1192,7 +1192,7 @@ def test_data_berakhir_setelah_maks_hari_tanpa_bar(kosong):
     # E+6 = hari ke-5 tanpa bar → DATA_BERAKHIR di 1.004 × (1 − 50 %) = 502 (tanpa slippage):
     # hasil = 50.200 − 125,5 = 50.074,5; P&L = 50.074,5 − 100.250,15 = −50.175,65.
     cfg = cfg_uji({"backtest.maks_hari_tanpa_bar": 5})
-    pp, od = pb_dasar((1000, 1010, 990, 1004), *([kosong] * 5), cfg=cfg)
+    pp, od = tp_dasar((1000, 1010, 990, 1004), *([kosong] * 5), cfg=cfg)
     j = jalankan(pp, od, E0, E0 + 6)
     cek_keluar(j.keluar, tanggal=tgl(E0 + 6), alasan=ex.DATA_BERAKHIR, harga="502")
     assert j.keluar.pnl_idr == D("-50175.65")
@@ -1205,14 +1205,14 @@ def test_data_berakhir_setelah_maks_hari_tanpa_bar(kosong):
 def test_data_berakhir_memakai_potongan_dari_config():
     # potongan 30 % → 1.004 × 0,7 = 702,8.
     cfg = cfg_uji({"backtest.maks_hari_tanpa_bar": 5, "backtest.potongan_data_berakhir_pct": 30})
-    pp, od = pb_dasar((1000, 1010, 990, 1004), *([None] * 5), cfg=cfg)
+    pp, od = tp_dasar((1000, 1010, 990, 1004), *([None] * 5), cfg=cfg)
     cek_keluar(jalankan(pp, od, E0, E0 + 6).keluar, tanggal=tgl(E0 + 6), alasan=ex.DATA_BERAKHIR, harga="702.8")
 
 
 def test_data_berakhir_default_60_hari_bursa():
     # Default rilis 60: hari ke-59 tanpa bar masih terbuka, hari ke-60 ditutup.
     assert CFG.backtest.maks_hari_tanpa_bar == 60
-    pp, od = pb_dasar((1000, 1010, 990, 1004), *([None] * 60))
+    pp, od = tp_dasar((1000, 1010, 990, 1004), *([None] * 60))
     j59 = jalankan(pp, od, E0, E0 + 60)
     assert j59.keluar is None
     j60 = jalankan(pp, od, E0, E0 + 61)
@@ -1223,8 +1223,8 @@ def test_data_berakhir_as_of_dan_tidak_dibatalkan_bila_bar_muncul_lagi():
     # Seri muncul lagi pada E+7 (dan bar sesudahnya). Keputusan pada E+6 sama persis dengan data yang
     # berhenti, dan posisi tidak dibuka kembali (P3: tidak melihat masa depan).
     cfg = cfg_uji({"backtest.maks_hari_tanpa_bar": 5})
-    pp_henti, od = pb_dasar((1000, 1010, 990, 1004), *([None] * 5), cfg=cfg)
-    pp_lagi, _ = pb_dasar((1000, 1010, 990, 1004), *([None] * 5), (1200, 1300, 1150, 1250), NORMAL, cfg=cfg)
+    pp_henti, od = tp_dasar((1000, 1010, 990, 1004), *([None] * 5), cfg=cfg)
+    pp_lagi, _ = tp_dasar((1000, 1010, 990, 1004), *([None] * 5), (1200, 1300, 1150, 1250), NORMAL, cfg=cfg)
     a = jalankan(pp_henti, od, E0, E0 + 6).keluar
     b = jalankan(pp_lagi, od, E0, E0 + 8).keluar
     assert a == b
@@ -1232,14 +1232,14 @@ def test_data_berakhir_as_of_dan_tidak_dibatalkan_bila_bar_muncul_lagi():
 
 
 def test_data_berakhir_saat_jual_terjadwal_tertunda():
-    # MR: KELUAR_SMA terjadwal setelah close E+1 (close 1.010), lalu 5 hari tanpa bar (maks 5). Pada E+6 posisi
+    # PJ: KELUAR_SMA terjadwal setelah close E+1 (close 1.010), lalu 5 hari tanpa bar (maks 5). Pada E+6 posisi
     # ditutup DATA_BERAKHIR di 1.010 × (1 − 50 %) = 505 (bukan KELUAR_SMA), tanpa slippage; tanda
     # TERTUNDA_TANPA_TRANSAKSI tetap tercatat.
     cfg = cfg_uji({"backtest.maks_hari_tanpa_bar": 5})
-    pp = buat_pasar({KODE: MR_JADWAL + [None] * 5}, cfg)
-    j = jalankan(pp, _order_mr(), MR_E, MR_E + 6)
+    pp = buat_pasar({KODE: PJ_JADWAL + [None] * 5}, cfg)
+    j = jalankan(pp, _order_pj(), PJ_E, PJ_E + 6)
     k = j.keluar
-    assert k.tanggal == tgl(MR_E + 6) and k.alasan == ex.DATA_BERAKHIR and k.harga == D("505")
+    assert k.tanggal == tgl(PJ_E + 6) and k.alasan == ex.DATA_BERAKHIR and k.harga == D("505")
     assert k.pnl_idr == hasil_jual(100, "505") - biaya_beli(100, "965.965")
     assert ex.TERTUNDA_TANPA_TRANSAKSI in j.pos.tanda
 
@@ -1258,40 +1258,40 @@ def test_data_berakhir_lewat_simulasikan_tidak_dibatalkan():
 # Prioritas label jual terjadwal: PAKSA_JUAL_PASAR > KELUAR_SMA > STOP_WAKTU (§15.1 langkah 7)
 # =====================================================================================================
 
-# MR: hari ke-1..4 close turun (selalu < SMA5); hari ke-5 close 990 > SMA5 = (955+950+945+940+990)/5 = 956.
-MR_HARI5_SMA = MR_AWAL + [_b(955), _b(950), _b(945), _b(940), (945, 995, 940, 990), (992, 1000, 985, 995)]
-MR_HARI5_TANPA_SMA = MR_AWAL + [_b(955), _b(950), _b(945), _b(940), _b(935), (936, 940, 930, 935)]
+# PJ: hari ke-1..4 close turun (selalu < SMA5); hari ke-5 close 990 > SMA5 = (955+950+945+940+990)/5 = 956.
+PJ_HARI5_SMA = PJ_AWAL + [_b(955), _b(950), _b(945), _b(940), (945, 995, 940, 990), (992, 1000, 985, 995)]
+PJ_HARI5_TANPA_SMA = PJ_AWAL + [_b(955), _b(950), _b(945), _b(940), _b(935), (936, 940, 930, 935)]
 
 
 @pytest.mark.parametrize(
     ("bar", "paksa", "status", "harapan"),
     [
-        pytest.param(MR_HARI5_SMA, True, JANGAN_BELI, ex.PAKSA_JUAL_PASAR, id="paksa>sma>waktu"),
-        pytest.param(MR_HARI5_SMA, True, BOLEH_BELI, ex.KELUAR_SMA, id="sma>waktu"),
-        pytest.param(MR_HARI5_SMA, False, JANGAN_BELI, ex.KELUAR_SMA, id="paksa-nonaktif"),
-        pytest.param(MR_HARI5_TANPA_SMA, True, JANGAN_BELI, ex.PAKSA_JUAL_PASAR, id="paksa>waktu"),
-        pytest.param(MR_HARI5_TANPA_SMA, False, JANGAN_BELI, ex.STOP_WAKTU, id="waktu-saja"),
+        pytest.param(PJ_HARI5_SMA, True, JANGAN_BELI, ex.PAKSA_JUAL_PASAR, id="paksa>sma>waktu"),
+        pytest.param(PJ_HARI5_SMA, True, BOLEH_BELI, ex.KELUAR_SMA, id="sma>waktu"),
+        pytest.param(PJ_HARI5_SMA, False, JANGAN_BELI, ex.KELUAR_SMA, id="paksa-nonaktif"),
+        pytest.param(PJ_HARI5_TANPA_SMA, True, JANGAN_BELI, ex.PAKSA_JUAL_PASAR, id="paksa>waktu"),
+        pytest.param(PJ_HARI5_TANPA_SMA, False, JANGAN_BELI, ex.STOP_WAKTU, id="waktu-saja"),
     ],
 )
 def test_prioritas_label_jual_terjadwal(bar, paksa, status, harapan):
     cfg = cfg_uji({"kondisi_pasar.jangan_beli_paksa_jual": paksa})
-    hari5 = tgl(MR_E + 4)
+    hari5 = tgl(PJ_E + 4)
 
     def status_pasar(d: date) -> str:
         return status if d == hari5 else BOLEH_BELI
 
     pp = buat_pasar({KODE: bar}, cfg)
-    j = jalankan(pp, _order_mr(), MR_E, MR_E + 5, status=status_pasar)
-    assert [j.jadwal[tgl(MR_E + k)] for k in range(4)] == [None] * 4
+    j = jalankan(pp, _order_pj(), PJ_E, PJ_E + 5, status=status_pasar)
+    assert [j.jadwal[tgl(PJ_E + k)] for k in range(4)] == [None] * 4
     assert j.jadwal[hari5] == harapan
     k = j.keluar
-    assert k.tanggal == tgl(MR_E + 5) and k.alasan == harapan
+    assert k.tanggal == tgl(PJ_E + 5) and k.alasan == harapan
     assert k.harga == D(str(bar[-1][0])) * (1 - SLIP)
 
 
 def test_estimasi_hasil_stop_untuk_kas_tersedia():
     # §13.2 langkah 8: stop_aktif × lembar × (1 − slip) × (1 − fj) = 950 × 100 × 0,999 × 0,9975 = 94.667,7375.
-    pp, od = pb_dasar()
+    pp, od = tp_dasar()
     p = jalankan(pp, od, E0, E0).pos
     assert p.estimasi_hasil_stop(pp.cfg) == D("94667.7375")
 
@@ -1299,7 +1299,7 @@ def test_estimasi_hasil_stop_untuk_kas_tersedia():
 def test_tutup_terbuka_menilai_pada_close_valid_terakhir_tanpa_mengubah_posisi():
     # §16.9: nilai TERBUKA = lembar × close valid terakhir (E+1 close 1.010; E+2 bar hilang), tanpa fee jual;
     # "P&L" = 101.000 − 100.250,15 = 749,85. Posisi tidak ditutup.
-    pp, od = pb_dasar((1000, 1015, 995, 1010), None)
+    pp, od = tp_dasar((1000, 1015, 995, 1010), None)
     j = jalankan(pp, od, E0, E0 + 2)
     k = ex.tutup_terbuka(j.pos, tgl(E0 + 2), pp.cfg, D(1))
     assert k.alasan == ex.TERBUKA and k.harga == D("1010") and k.harga_nominal == D("1010") and k.fee_jual_idr == 0
@@ -1310,7 +1310,7 @@ def test_tutup_terbuka_menilai_pada_close_valid_terakhir_tanpa_mengubah_posisi()
 
 def test_paksa_jual_pasar_hanya_saat_jangan_beli():
     cfg = cfg_uji({"kondisi_pasar.jangan_beli_paksa_jual": True})
-    pp, od = pb_dasar(NORMAL, NORMAL, cfg=cfg)
+    pp, od = tp_dasar(NORMAL, NORMAL, cfg=cfg)
     j = jalankan(pp, od, E0, E0 + 2, status=lambda d: JANGAN_BELI if d == tgl(E0 + 1) else BOLEH_BELI)
     assert j.jadwal[tgl(E0)] is None
     assert j.jadwal[tgl(E0 + 1)] == ex.PAKSA_JUAL_PASAR
@@ -1321,7 +1321,7 @@ def test_paksa_jual_tidak_dijadwalkan_pada_hari_tanpa_bar_valid():
     # §15.1 langkah 0: tanpa bar valid tidak ada langkah lain ("lanjut ke posisi berikutnya"), termasuk langkah 7.
     # JANGAN BELI hanya pada E+1 yang tidak punya bar → tidak ada jadwal; E+2 (BOLEH BELI) juga tidak.
     cfg = cfg_uji({"kondisi_pasar.jangan_beli_paksa_jual": True})
-    pp, od = pb_dasar(None, NORMAL, NORMAL, cfg=cfg)
+    pp, od = tp_dasar(None, NORMAL, NORMAL, cfg=cfg)
     j = jalankan(pp, od, E0, E0 + 3, status=lambda d: JANGAN_BELI if d == tgl(E0 + 1) else BOLEH_BELI)
     assert j.jadwal[tgl(E0 + 1)] is None and j.jadwal[tgl(E0 + 2)] is None
     assert j.keluar is None and j.pos.tanda == set()
@@ -1389,10 +1389,10 @@ def test_split_target_sesudah_split_pnl_rupiah_sama_dengan_nominal():
 
 
 def test_split_jual_terjadwal_dieksekusi_di_open_pasca_split():
-    # stop waktu PB 2 hari: STOP_WAKTU dijadwalkan pada close E+1 (pra-split), dijual di open X (pasca-split) 201:
+    # stop waktu TP 2 hari: STOP_WAKTU dijadwalkan pada close E+1 (pra-split), dijual di open X (pasca-split) 201:
     # 201 × 0,999 = 200,799 × 500 lembar = 100.399,5 = 100 × 1.003,995 nominal; P&L −101,64875
     # (= test_stop_waktu_hari_ke_10_jual_open_hari_ke_11 tanpa split).
-    cfg = cfg_uji({"strategi.pb.stop_waktu_hari": 2})
+    cfg = cfg_uji({"strategi.tp.stop_waktu_hari": 2})
     nominal = [*AWAL, NORMAL, (1010, 1020, 1000, 1010), (201, 204, 200, 202)]
     pp = buat_pasar({KODE: _ke_cache(nominal, SPLIT_X - I0, 5.0)}, cfg, split=SPLIT)
     j = jalankan(pp, order(i_sinyal=S0, faktor="5"), E0, SPLIT_X)
@@ -1446,7 +1446,7 @@ def sinyal(
     kode: str,
     *,
     i: int = S0,
-    strategi: str = "PB",
+    strategi: str = "TP",
     harga_maks: str = "1050",
     stop: str = "950",
     faktor_split: float = 1.0,
@@ -1455,7 +1455,7 @@ def sinyal(
     sg = Sinyal(
         tanggal=tgl(i), kode=kode, strategi=strategi, cek=(), harga_ref=D(harga_maks), harga_maks=D(harga_maks),
         stop=D(stop), atr=D(25), faktor_split=faktor_split, k_sinyal=0.5,
-        target_r=2.0 if strategi in ("PB", "ACAK") else None, rata_nilai=RN, fraksi_dipakai=False,
+        target_r=2.0 if strategi in ("TP", "ACAK") else None, rata_nilai=RN, fraksi_dipakai=False,
     )
     return SinyalBerskor(sg, KomponenSkor(0.5, 0.5, 0.5, 0.5, skor))
 
@@ -1477,7 +1477,7 @@ def sim(
     *,
     mode: str = "edge",
     sektor: dict[str, str] | None = None,
-    strategi: str = "PB",
+    strategi: str = "TP",
 ) -> HasilSimulasi:
     sek = sektor or SEKTOR
     kh = [keputusan(i, per_hari.get(i, [])) for i in range(i_awal, i_akhir + 1)]
@@ -1491,7 +1491,7 @@ def dilewati(h: HasilSimulasi, kode: str) -> list:
     return [x for x in h.dilewati if x.kode == kode]
 
 
-# Skenario jual terjadwal yang tertunda: A (ZXQA) sinyal S0, entry E0 (hari ke-1); stop waktu PB = 2 →
+# Skenario jual terjadwal yang tertunda: A (ZXQA) sinyal S0, entry E0 (hari ke-1); stop waktu TP = 2 →
 # STOP_WAKTU dijadwalkan pada close E0+1 (hari ke-2). Pada close yang sama ada sinyal B (ZXQB), dan seleksi
 # membebaskan slot/sektor A (slot_bebas_dari_jual_terjadwal). Pada open E0+2 jual A tertunda (A tanpa bar
 # valid / terkunci ARB) → slot/sektor tetap penuh → order B batal di open. Jual A terjadi di open E0+3.
@@ -1517,7 +1517,7 @@ PENUNDA = [
 
 
 def _cfg_tunda(**ubah) -> Config:
-    return cfg_dengan(ubah_ar(), {"strategi.pb.stop_waktu_hari": 2, **ubah})
+    return cfg_dengan(ubah_ar(), {"strategi.tp.stop_waktu_hari": 2, **ubah})
 
 
 def _cek_a_tertunda(h: HasilSimulasi, tanda: str) -> None:
@@ -1544,8 +1544,8 @@ def test_slot_kontrol_jual_terisi_order_terisi():
     pp = buat_pasar(_data_tunda(None), cfg)
     h = sim(pp, {S0: [sinyal(KODE)], I_JADWAL: [sinyal(KODE_B, i=I_JADWAL)]}, I0, I_OPEN + 1)
     assert not dilewati(h, KODE_B)
-    pb = next(p for p in h.transaksi if p.kode == KODE_B)
-    assert pb.tanggal_entry == tgl(I_OPEN)
+    tp = next(p for p in h.transaksi if p.kode == KODE_B)
+    assert tp.tanggal_entry == tgl(I_OPEN)
     pa = next(p for p in h.transaksi if p.kode == KODE)
     assert pa.keluar.tanggal == tgl(I_OPEN) and pa.keluar.alasan == ex.STOP_WAKTU
 
@@ -1633,10 +1633,10 @@ def test_order_di_open_diproses_berurutan_sesuai_skor():
     ],
 )
 def test_aturan_berbasis_close_tidak_membatalkan_order_di_open(bar_entry, tanda):
-    # §16.2: pembatalan di open hanya memakai fakta ketersediaan transaksi dan harga open. MR (tanpa target) agar
+    # §16.2: pembatalan di open hanya memakai fakta ketersediaan transaksi dan harga open. PJ (tanpa target) agar
     # high 1.500 tidak memicu target; isi = min(1.000 × 1,001; 1.050) = 1.001.
     pp = buat_pasar({KODE: [*AWAL, bar_entry]})
-    h = sim(pp, {S0: [sinyal(KODE, strategi="MR")]}, I0, E0, strategi="MR")
+    h = sim(pp, {S0: [sinyal(KODE, strategi="PJ")]}, I0, E0, strategi="PJ")
     assert not dilewati(h, KODE)
     (p,) = h.transaksi
     assert p.tanggal_entry == tgl(E0) and p.harga_beli == D("1001") and p.terbuka
@@ -1701,10 +1701,10 @@ def test_kas_kontrol_hasil_jual_open_membiayai_beli():
     pp = buat_pasar(_data_kas(None), _cfg_kas())
     h = sim(pp, _sinyal_kas(), I0, I_OPEN + 1)
     assert not dilewati(h, KODE_B)
-    pb = next(p for p in h.transaksi if p.kode == KODE_B)
-    assert pb.tanggal_entry == tgl(I_OPEN)
-    assert pb.harga_beli == D("1991.99")  # min(1.990 × 1,001; 2.000)
-    assert pb.biaya_beli_idr == D("199497.7985")
+    tp = next(p for p in h.transaksi if p.kode == KODE_B)
+    assert tp.tanggal_entry == tgl(I_OPEN)
+    assert tp.harga_beli == D("1991.99")  # min(1.990 × 1,001; 2.000)
+    assert tp.biaya_beli_idr == D("199497.7985")
 
 
 # --- Lewat simulasikan: pembatalan data/gap/ARA dicatat, open = harga_maks dan jaminan risiko ---------
@@ -1747,18 +1747,18 @@ def test_open_sama_dengan_harga_maks_risiko_rencana_dalam_anggaran_dan_stop_tepa
 @pytest.mark.parametrize(
     ("bar", "s", "e", "sg", "n"),
     [
-        pytest.param([*AWAL, NORMAL, (990, 995, 940, 960)], S0, E0, sinyal(KODE), 1, id="pb-stop"),
-        pytest.param(BO_BAR, BO_S, BO_E, sinyal(KODE, i=BO_S, strategi="BO", harga_maks="1047", stop="985"), 5,
-                     id="bo-trailing"),
-        pytest.param(MR_AWAL + [(965, 1005, 960, 1000), (1000, 1015, 995, 1010), (1012, 1020, 1005, 1015)],
-                     MR_S, MR_E, sinyal(KODE, i=MR_S, strategi="MR", harga_maks="970", stop="900"), 2,
-                     id="mr-keluar-sma"),
+        pytest.param([*AWAL, NORMAL, (990, 995, 940, 960)], S0, E0, sinyal(KODE), 1, id="tp-stop"),
+        pytest.param(TB_BAR, TB_S, TB_E, sinyal(KODE, i=TB_S, strategi="TB", harga_maks="1047", stop="985"), 5,
+                     id="tb-trailing"),
+        pytest.param(PJ_AWAL + [(965, 1005, 960, 1000), (1000, 1015, 995, 1010), (1012, 1020, 1005, 1015)],
+                     PJ_S, PJ_E, sinyal(KODE, i=PJ_S, strategi="PJ", harga_maks="970", stop="900"), 2,
+                     id="pj-keluar-sma"),
     ],
 )
 def test_simulasikan_sama_dengan_pemutar_exit(bar, s, e, sg, n):
     # Pemutar `jalankan` di berkas ini harus sama dengan mesin backtest untuk satu posisi (alasan, tanggal,
     # harga isi jual, dan R — R tidak bergantung jumlah lembar karena fee minimum 0).
-    cfg = CFG_ATR3 if sg.strategi == "BO" else CFG
+    cfg = CFG_ATR3 if sg.strategi == "TB" else CFG
     pp = buat_pasar({KODE: bar}, cfg)
     h = sim(pp, {s: [sg]}, I0, I0 + len(bar) - 1, strategi=sg.strategi)
     (p,) = h.transaksi
@@ -1874,17 +1874,17 @@ def test_split_belum_disesuaikan_close_kemarin_ara_arb_dalam_skala_hari_ini():
     assert b.close_acuan == D("202")  # close E+1 1.010 ÷ 5, bukan 1.010 (yang akan tampak seperti ARB)
 
 
-def test_split_belum_disesuaikan_trailing_bo_memakai_puncak_pra_split_dibagi_rasio():
-    # BO_BAR sampai E+4 (trail 1.012), lalu split 1:5 belum disesuaikan pada E+5 dan 12 bar datar pasca-split.
+def test_split_belum_disesuaikan_trailing_tb_memakai_puncak_pra_split_dibagi_rasio():
+    # TB_BAR sampai E+4 (trail 1.012), lalu split 1:5 belum disesuaikan pada E+5 dan 12 bar datar pasca-split.
     # Puncak pra-split 1.120 ÷ 5 = 224; tanpa pembagian, HHV 1.120 − 3 × ATR membuat trail melompat jauh di atas
     # harga (≈ 1.099) begitu ATR mereda, lalu keluar TRAILING_GAP palsu.
     # Setelah ATR mereda, trail naik ke ⌈224 − 3 × ATR⌉ (puncak pra-split ÷ 5, bukan high pasca-split 221).
-    x = BO_E + 5
+    x = TB_E + 5
     pasca = [(218, 221, 214, 218)] * 20
     split = {KODE: pd.Series([5.0], index=pd.DatetimeIndex([HARI[x]]))}
-    pp = buat_pasar({KODE: [*BO_BAR[:8], *pasca]}, CFG_ATR3, split=split)
+    pp = buat_pasar({KODE: [*TB_BAR[:8], *pasca]}, CFG_ATR3, split=split)
     akhir = x + len(pasca) - 1
-    j = jalankan(pp, _order_bo(), BO_E, akhir)
+    j = jalankan(pp, _order_tb(), TB_E, akhir)
     assert j.keluar is None and j.pos.lembar == 500 and ex.ANOMALI in j.pos.tanda
     trail = [j.stop[tgl(i)] for i in range(x, x + len(pasca))]
     assert trail[0] == D("1012") / 5
@@ -1896,12 +1896,12 @@ def test_split_belum_disesuaikan_trailing_bo_memakai_puncak_pra_split_dibagi_ras
 
 
 def test_split_belum_disesuaikan_keluar_sma_ditahan_selama_sma_memuat_bar_pra_split():
-    # MR, split terbalik 0,2 belum disesuaikan pada X = E+2: close 4.950 jauh di atas SMA5 campuran (≈ 1.790),
+    # PJ, split terbalik 0,2 belum disesuaikan pada X = E+2: close 4.950 jauh di atas SMA5 campuran (≈ 1.790),
     # jadi tanpa aturan ini KELUAR_SMA terjadwal pada close X. SMA5 bersih mulai X+4.
     split = {KODE: pd.Series([0.2], index=pd.DatetimeIndex([HARI[SPLIT_X]]))}
     nominal = [*AWAL, NORMAL, (990, 1000, 985, 990)] + [(4950, 5000, 4900, 4950)] * 5
     pp = buat_pasar({KODE: nominal}, split=split)
-    od = order(i_sinyal=S0, strategi="MR", stop="900", target_r=None)
+    od = order(i_sinyal=S0, strategi="PJ", stop="900", target_r=None)
     j = jalankan(pp, od, E0, SPLIT_X + 4)
     assert [j.jadwal[tgl(i)] for i in range(SPLIT_X, SPLIT_X + 3)] == [None, None, ex.STOP_WAKTU]  # hari ke-5
     assert j.keluar.alasan == ex.STOP_WAKTU and j.keluar.tanggal == tgl(SPLIT_X + 3)

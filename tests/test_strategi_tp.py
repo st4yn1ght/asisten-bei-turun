@@ -1,12 +1,12 @@
-"""Uji T-ST strategi PB — pullback dalam tren naik (SPEC §12.1, §13.1 K_sinyal PB, §22.1 T-ST/T-CFG).
+"""Uji T-ST strategi TP — pullback dalam tren naik (SPEC §12.1, §13.1 K_sinyal TP, §22.1 T-ST/T-CFG).
 
 Fixture sintetis kecil dan deterministik dengan periode config yang diperkecil agar setiap nilai bisa
 dihitung tangan. Semua harga fiktif (ruang tersesuaikan); pembulatan harga memakai rupiah bulat karena
 fraksi harga dipaksa `terverifikasi: false` (tidak ada tabel fraksi BEI di uji ini).
 
-Config uji (semua parameter PB disematkan eksplisit, tidak bergantung pada nilai rilis):
+Config uji (semua parameter TP disematkan eksplisit, tidak bergantung pada nilai rilis):
   indikator.atr_periode = 3, likuiditas.periode_hari = 3, data.pengali_volume = 1, entry.gap_maks_atr = 0,5
-  pb: sma_cepat 3, sma_tren 5, sma_panjang 8, lookback_slope_sma_tren 2, lookback_sentuh_sma_cepat 2,
+  tp: sma_cepat 3, sma_tren 5, sma_panjang 8, lookback_slope_sma_tren 2, lookback_sentuh_sma_cepat 2,
       maks_jarak_atas_sma_cepat_atr 1,0, lookback_swing_low 3, penyangga_stop_atr 0,2,
       maks_jarak_stop_atr 3,0, target_r 2,0
 
@@ -28,11 +28,11 @@ Hitung tangan:
   SMA8_t     = (1080 + 1100 + 1120 + 5647)/8 = 8947/8 = 1118,375
   CLV_t      = (1171 − 1146)/(1196 − 1146) = 25/50 = 0,5
   LLV(low,3)_t = min(1080, 1096, 1146) = 1080
-  PB1: 1171 > 1129,4 ✓ dan 1129,4 > 1118,375 ✓
-  PB2: 1129,4 > 1116 ✓
-  PB3: k=0: low 1146 > SMA3 1129 (tidak); k=1: low 1096 ≤ SMA3 1112 ✓ (satu-satunya sentuhan di jendela)
-  PB4: 1171 > high kemarin 1136 ✓ dan 1171 > open 1150 ✓
-  PB5: (1171 − 1129)/(160/3) = 42 × 3/160 = 0,7875 ≤ 1,0 ✓
+  TP1: 1171 > 1129,4 ✓ dan 1129,4 > 1118,375 ✓
+  TP2: 1129,4 > 1116 ✓
+  TP3: k=0: low 1146 > SMA3 1129 (tidak); k=1: low 1096 ≤ SMA3 1112 ✓ (satu-satunya sentuhan di jendela)
+  TP4: 1171 > high kemarin 1136 ✓ dan 1171 > open 1150 ✓
+  TP5: (1171 − 1129)/(160/3) = 42 × 3/160 = 0,7875 ≤ 1,0 ✓
   harga_maks = 1171 + 0,5 × 160/3 = 1197,666… → bawah 1197 (bukan 1198)
   stop       = 1080 − 0,2 × 160/3 = 1069,333… → atas 1070 (bukan 1069)
   jarak stop = (1197 − 1070)/53,333333 = 2,38125… ATR ≤ 3,0 → valid
@@ -56,7 +56,7 @@ from bantu_pasar import HARI, KAL, cfg_uji, data_saham, tgl
 
 KODE = "UJPB"
 POS_T = 11
-ATURAN = ["PB1", "PB2", "PB3", "PB4", "PB5"]
+ATURAN = ["TP1", "TP2", "TP3", "TP4", "TP5"]
 
 UBAH_DASAR = {
     "indikator.atr_periode": 3,
@@ -64,24 +64,24 @@ UBAH_DASAR = {
     "data.pengali_volume": 1,
     "entry.gap_maks_atr": 0.5,
     "pasar.fraksi_harga.terverifikasi": False,  # pembulatan ke rupiah bulat (§4.1)
-    "strategi.pb.aktif": True,
-    "strategi.pb.sma_cepat": 3,
-    "strategi.pb.sma_tren": 5,
-    "strategi.pb.sma_panjang": 8,
-    "strategi.pb.lookback_slope_sma_tren": 2,
-    "strategi.pb.lookback_sentuh_sma_cepat": 2,
-    "strategi.pb.maks_jarak_atas_sma_cepat_atr": 1.0,
-    "strategi.pb.lookback_swing_low": 3,
-    "strategi.pb.penyangga_stop_atr": 0.2,
-    "strategi.pb.maks_jarak_stop_atr": 3.0,
-    "strategi.pb.target_r": 2.0,
+    "strategi.tp.aktif": True,
+    "strategi.tp.sma_cepat": 3,
+    "strategi.tp.sma_tren": 5,
+    "strategi.tp.sma_panjang": 8,
+    "strategi.tp.lookback_slope_sma_tren": 2,
+    "strategi.tp.lookback_sentuh_sma_cepat": 2,
+    "strategi.tp.maks_jarak_atas_sma_cepat_atr": 1.0,
+    "strategi.tp.lookback_swing_low": 3,
+    "strategi.tp.penyangga_stop_atr": 0.2,
+    "strategi.tp.maks_jarak_stop_atr": 3.0,
+    "strategi.tp.target_r": 2.0,
 }
 
 CLOSE_DASAR = [1000, 1020, 1040, 1060, 1080, 1100, 1120, 1140, 1120, 1100, 1116]
 BAR_T = {"open": 1150.0, "high": 1196.0, "low": 1146.0, "close": 1171.0}
 
 
-def cfg_pb(ubah: dict | None = None):
+def cfg_tp(ubah: dict | None = None):
     return cfg_uji({**UBAH_DASAR, **(ubah or {})})
 
 
@@ -110,7 +110,7 @@ def evaluasi(
     pos_t: int = POS_T,
     split: pd.Series | None = None,
 ) -> EvaluasiStrategi:
-    cfg = cfg or cfg_pb()
+    cfg = cfg or cfg_tp()
     df = buat_bar() if df is None else df
     akhir = max(tgl(pos_t), df.index[-1].date())
     ds = data_saham(KODE, df, cfg, akhir, split=split)
@@ -140,12 +140,12 @@ def ringkas(ev: EvaluasiStrategi) -> dict:
 
 def test_fixture_dasar_lolos_semua_aturan_dan_level_hitung_tangan():
     ev = evaluasi()
-    assert ev.kode == KODE and ev.strategi == "PB" and Pullback.kode == "PB"
+    assert ev.kode == KODE and ev.strategi == "TP" and Pullback.kode == "TP"
     assert [c.kode for c in ev.cek] == ATURAN
     assert ev.aturan_gagal == []
     s = ev.sinyal
     assert s is not None
-    assert (s.tanggal, s.kode, s.strategi) == (tgl(POS_T), KODE, "PB")
+    assert (s.tanggal, s.kode, s.strategi) == (tgl(POS_T), KODE, "TP")
     assert s.harga_ref == Decimal("1171")
     assert s.harga_maks == Decimal("1197")  # 1197,666… dibulatkan ke BAWAH
     assert s.stop == Decimal("1070")  # 1069,333… dibulatkan ke ATAS
@@ -161,14 +161,14 @@ def test_fixture_dasar_lolos_semua_aturan_dan_level_hitung_tangan():
 
 def test_uraian_memuat_nilai_aktual():
     ev = evaluasi()
-    assert uraian(ev, "PB1") == "close 1.171,00 > SMA5 1.129,40 dan SMA5 1.129,40 > SMA8 1.118,38"
-    assert uraian(ev, "PB2") == "SMA5 1.129,40 > SMA5 2 bar lalu 1.116,00"
-    assert uraian(ev, "PB3") == (
+    assert uraian(ev, "TP1") == "close 1.171,00 > SMA5 1.129,40 dan SMA5 1.129,40 > SMA8 1.118,38"
+    assert uraian(ev, "TP2") == "SMA5 1.129,40 > SMA5 2 bar lalu 1.116,00"
+    assert uraian(ev, "TP3") == (
         "low ≤ SMA3 dalam 2 bar terakhir: hari ini low 1.146,00 > SMA3 1.129,00; "
         "1 bar lalu low 1.096,00 ≤ SMA3 1.112,00"
     )
-    assert uraian(ev, "PB4") == "close 1.171,00 > high kemarin 1.136,00 dan close 1.171,00 > open 1.150,00"
-    assert uraian(ev, "PB5") == "(close 1.171,00 − SMA3 1.129,00) / ATR 53,33 = 0,79 ≤ 1,00"
+    assert uraian(ev, "TP4") == "close 1.171,00 > high kemarin 1.136,00 dan close 1.171,00 > open 1.150,00"
+    assert uraian(ev, "TP5") == "(close 1.171,00 − SMA3 1.129,00) / ATR 53,33 = 0,79 ≤ 1,00"
     assert ev.cek[3].teks().endswith("✓")
 
 
@@ -179,38 +179,38 @@ def test_uraian_memuat_nilai_aktual():
 # (id, perubahan bar, aturan yang gagal). Hitung tangan per varian:
 VARIAN_GAGAL = [
     # c7 = 1348 → SMA5_t = (1348 + 1120 + 1100 + 1116 + 1171)/5 = 5855/5 = 1171 = close → bukan ">".
-    # c7 tidak masuk jendela SMA3 dan selisih PB2 (c10 + c11 − c5 − c6) tidak berubah; ATR membesar.
-    ("PB1_close_tidak_di_atas_sma_tren", {7: 1348}, "PB1"),
+    # c7 tidak masuk jendela SMA3 dan selisih TP2 (c10 + c11 − c5 − c6) tidak berubah; ATR membesar.
+    ("TP1_close_tidak_di_atas_sma_tren", {7: 1348}, "TP1"),
     # c7 = 1143, c4 = 1170 → SMA5_t = (1143 + 1120 + 1100 + 1116 + 1171)/5 = 5650/5 = 1130;
     # SMA8_t = (1170 + 1100 + 1120 + 5650)/8 = 9040/8 = 1130 = SMA5_t → bukan ">".
-    # c4 di luar jendela SMA5_{t−2}; SMA5_{t−2} = (1100+1120+1143+1120+1100)/5 = 1116,6 < 1130 (PB2 lolos).
-    ("PB1_sma_tren_tidak_di_atas_sma_panjang", {7: 1143, 4: 1170}, "PB1"),
+    # c4 di luar jendela SMA5_{t−2}; SMA5_{t−2} = (1100+1120+1143+1120+1100)/5 = 1116,6 < 1130 (TP2 lolos).
+    ("TP1_sma_tren_tidak_di_atas_sma_panjang", {7: 1143, 4: 1170}, "TP1"),
     # c6 = 1187 → SMA5_{t−2} = (1100 + 1187 + 1140 + 1120 + 1100)/5 = 5647/5 = 1129,4 = SMA5_t → bukan ">".
-    # SMA8_t = (1080 + 1100 + 1187 + 5647)/8 = 1126,75 < 1129,4 → PB1 tetap lolos.
-    ("PB2_sma_tren_tidak_menanjak", {6: 1187}, "PB2"),
+    # SMA8_t = (1080 + 1100 + 1187 + 5647)/8 = 1126,75 < 1129,4 → TP1 tetap lolos.
+    ("TP2_sma_tren_tidak_menanjak", {6: 1187}, "TP2"),
     # low_{t−1} = 1113 > SMA3_{t−1} 1112, dan low_t 1146 > SMA3_t 1129 → tidak ada sentuhan.
-    ("PB3_tidak_menyentuh_sma_cepat", {10: {"low": 1113.0}}, "PB3"),
-    # high_{t−1} = 1171 = close_t → bukan ">". TR/ATR membesar (PB5 makin longgar).
-    ("PB4_close_tidak_di_atas_high_kemarin", {10: {"high": 1171.0}}, "PB4"),
+    ("TP3_tidak_menyentuh_sma_cepat", {10: {"low": 1113.0}}, "TP3"),
+    # high_{t−1} = 1171 = close_t → bukan ">". TR/ATR membesar (TP5 makin longgar).
+    ("TP4_close_tidak_di_atas_high_kemarin", {10: {"high": 1171.0}}, "TP4"),
     # open_t = 1171 = close_t → bukan ">".
-    ("PB4_close_tidak_di_atas_open", {POS_T: {"open": 1171.0}}, "PB4"),
+    ("TP4_close_tidak_di_atas_open", {POS_T: {"open": 1171.0}}, "TP4"),
     # close_t = 1206, high_t = 1231: TR_t = 1231 − 1116 = 115, ATR = (80 + 115)/3 = 65,
     # SMA3_t = (1100 + 1116 + 1206)/3 = 1140,667 → (1206 − 1140,667)/65 = 65,333/65 = 1,0051 > 1,0.
-    ("PB5_terlalu_jauh_di_atas_sma_cepat", {POS_T: {"high": 1231.0, "close": 1206.0}}, "PB5"),
+    ("TP5_terlalu_jauh_di_atas_sma_cepat", {POS_T: {"high": 1231.0, "close": 1206.0}}, "TP5"),
 ]
 
 # Sisi lain setiap batas: varian yang tepat lolos (perbedaan 1 rupiah dari varian gagal).
 VARIAN_LOLOS = [
-    ("PB1_close", {7: 1347}),  # SMA5_t = 5854/5 = 1170,8 < 1171
-    ("PB1_sma", {7: 1143, 4: 1169}),  # SMA8_t = 9039/8 = 1129,875 < SMA5_t 1130
-    ("PB2", {6: 1186}),  # SMA5_{t−2} = 5646/5 = 1129,2 < 1129,4
-    ("PB3_sama_dengan_sma", {10: {"low": 1112.0}}),  # low = SMA3 1112 → "≤" terpenuhi
+    ("TP1_close", {7: 1347}),  # SMA5_t = 5854/5 = 1170,8 < 1171
+    ("TP1_sma", {7: 1143, 4: 1169}),  # SMA8_t = 9039/8 = 1129,875 < SMA5_t 1130
+    ("TP2", {6: 1186}),  # SMA5_{t−2} = 5646/5 = 1129,2 < 1129,4
+    ("TP3_sama_dengan_sma", {10: {"low": 1112.0}}),  # low = SMA3 1112 → "≤" terpenuhi
     # Sentuhan hanya pada k = 0: low_{t−1} 1113 > SMA3_{t−1} 1112, low_t 1129 = SMA3_t 1129.
-    ("PB3_sentuh_hanya_hari_ini", {10: {"low": 1113.0}, POS_T: {"low": 1129.0}}),
-    ("PB4_high", {10: {"high": 1170.0}}),  # 1171 > 1170
-    ("PB4_open", {POS_T: {"open": 1170.0}}),  # 1171 > 1170
+    ("TP3_sentuh_hanya_hari_ini", {10: {"low": 1113.0}, POS_T: {"low": 1129.0}}),
+    ("TP4_high", {10: {"high": 1170.0}}),  # 1171 > 1170
+    ("TP4_open", {POS_T: {"open": 1170.0}}),  # 1171 > 1170
     # close 1204, high 1229: ATR = (80 + 113)/3 = 64,333; SMA3_t = 3420/3 = 1140 → 64/64,333 = 0,9948 ≤ 1
-    ("PB5", {POS_T: {"high": 1229.0, "close": 1204.0}}),
+    ("TP5", {POS_T: {"high": 1229.0, "close": 1204.0}}),
 ]
 
 
@@ -231,18 +231,18 @@ def test_sisi_lain_batas_aturan_lolos(ubah):
     assert ev.sinyal is not None and ev.sinyal.valid
 
 
-def test_pb5_batas_inklusif():
+def test_tp5_batas_inklusif():
     # high_t = 1186: TR_t = 1186 − 1116 = 70 → ATR_t = (80 + 70)/3 = 50 (tepat); SMA3_t = 1129 (tepat)
     # → jarak = (1171 − 1129)/50 = 0,84 (tepat sama dengan literal 0.84).
     df = buat_bar({POS_T: {"high": 1186.0}})
-    ev = evaluasi(df, cfg_pb({"strategi.pb.maks_jarak_atas_sma_cepat_atr": 0.84}))
+    ev = evaluasi(df, cfg_tp({"strategi.tp.maks_jarak_atas_sma_cepat_atr": 0.84}))
     assert ev.aturan_gagal == []  # 0,84 ≤ 0,84
     # K_sinyal = 0,5 × (1 − 0,84) + 0,5 × CLV (1171 − 1146)/(1186 − 1146) = 0,08 + 0,3125 = 0,3925
     assert ev.sinyal is not None and ev.sinyal.k_sinyal == pytest.approx(0.3925, abs=1e-12)
     # harga_maks = 1171 + 0,5 × 50 = 1196; stop = 1080 − 0,2 × 50 = 1070 (sudah bulat)
     assert (ev.sinyal.harga_maks, ev.sinyal.stop, ev.sinyal.atr) == (Decimal("1196"), Decimal("1070"), Decimal("50"))
-    ev = evaluasi(df, cfg_pb({"strategi.pb.maks_jarak_atas_sma_cepat_atr": 0.83}))
-    assert ev.sinyal is None and ev.aturan_gagal == ["PB5"]
+    ev = evaluasi(df, cfg_tp({"strategi.tp.maks_jarak_atas_sma_cepat_atr": 0.83}))
+    assert ev.sinyal is None and ev.aturan_gagal == ["TP5"]
 
 
 def test_k_sinyal_jarak_dipotong_ke_0_sampai_1():
@@ -252,32 +252,32 @@ def test_k_sinyal_jarak_dipotong_ke_0_sampai_1():
     ev = evaluasi(buat_bar({9: 1300}))
     assert ev.aturan_gagal == []
     assert ev.sinyal is not None and ev.sinyal.k_sinyal == pytest.approx(0.75, abs=1e-12)
-    # Atas: varian jarak 1,0051 dengan batas PB5 1,01 → clip 1.
+    # Atas: varian jarak 1,0051 dengan batas TP5 1,01 → clip 1.
     #   CLV = (1206 − 1146)/(1231 − 1146) = 60/85 → K = 0,5 × (1 − 1) + 0,5 × 60/85 = 30/85.
     ev = evaluasi(
         buat_bar({POS_T: {"high": 1231.0, "close": 1206.0}}),
-        cfg_pb({"strategi.pb.maks_jarak_atas_sma_cepat_atr": 1.01}),
+        cfg_tp({"strategi.tp.maks_jarak_atas_sma_cepat_atr": 1.01}),
     )
     assert ev.aturan_gagal == []
     assert ev.sinyal is not None and ev.sinyal.k_sinyal == pytest.approx(30 / 85, abs=1e-12)
 
 
-def test_uraian_pb3_gagal_menyebut_setiap_bar_yang_diperiksa():
+def test_uraian_tp3_gagal_menyebut_setiap_bar_yang_diperiksa():
     ev = evaluasi(buat_bar({10: {"low": 1113.0}}))
-    assert uraian(ev, "PB3") == (
+    assert uraian(ev, "TP3") == (
         "low ≤ SMA3 dalam 2 bar terakhir: hari ini low 1.146,00 > SMA3 1.129,00; "
         "1 bar lalu low 1.113,00 > SMA3 1.112,00"
     )
 
 
-def test_pb3_jendela_sentuhan_k_sampai_lookback_minus_1():
+def test_tp3_jendela_sentuhan_k_sampai_lookback_minus_1():
     # Dasar: satu-satunya sentuhan di k = 1 = lookback − 1 → dihitung (lolos).
     assert evaluasi().aturan_gagal == []
     # Varian low_{t−1} = 1113: sentuhan terdekat di k = 2 (low_9 1080 ≤ SMA3_9 = (1140+1120+1100)/3 = 1120)
     # = lookback → di luar jendela {0, 1} → gagal; dengan lookback 3 sentuhan itu masuk → lolos.
     df = buat_bar({10: {"low": 1113.0}})
-    assert evaluasi(df).aturan_gagal == ["PB3"]
-    assert evaluasi(df, cfg_pb({"strategi.pb.lookback_sentuh_sma_cepat": 3})).aturan_gagal == []
+    assert evaluasi(df).aturan_gagal == ["TP3"]
+    assert evaluasi(df, cfg_tp({"strategi.tp.lookback_sentuh_sma_cepat": 3})).aturan_gagal == []
 
 
 # ---------------------------------------------------------------------------
@@ -287,7 +287,7 @@ def test_pb3_jendela_sentuhan_k_sampai_lookback_minus_1():
 
 def test_stop_terlalu_jauh_sinyal_tetap_dikembalikan_tidak_valid():
     # jarak = (1197 − 1070)/53,333333 = 2,38125… ATR > 2,38 → STOP_TERLALU_JAUH
-    ev = evaluasi(cfg=cfg_pb({"strategi.pb.maks_jarak_stop_atr": 2.38}))
+    ev = evaluasi(cfg=cfg_tp({"strategi.tp.maks_jarak_stop_atr": 2.38}))
     assert ev.aturan_gagal == []
     s = ev.sinyal
     assert s is not None
@@ -299,7 +299,7 @@ def test_stop_terlalu_jauh_sinyal_tetap_dikembalikan_tidak_valid():
 
 
 def test_stop_tepat_di_bawah_batas_jarak_valid():
-    ev = evaluasi(cfg=cfg_pb({"strategi.pb.maks_jarak_stop_atr": 2.39}))  # 2,38125 ≤ 2,39
+    ev = evaluasi(cfg=cfg_tp({"strategi.tp.maks_jarak_stop_atr": 2.39}))  # 2,38125 ≤ 2,39
     assert ev.sinyal is not None and ev.sinyal.valid is True and ev.sinyal.alasan_tidak_valid is None
 
 
@@ -311,15 +311,15 @@ def test_stop_tepat_di_bawah_batas_jarak_valid():
 @pytest.mark.parametrize(
     ("buang_awal", "gagal"),
     [
-        # 7 bar (pos 5..11): SMA8_t NaN → PB1; SMA5_{t−2} = c5..c9 masih ada; ATR tetap 160/3.
-        (5, ["PB1"]),
-        # 6 bar (pos 6..11): SMA5_{t−2} butuh c5 → NaN → PB2 juga gagal.
-        (6, ["PB1", "PB2"]),
-        # 3 bar (pos 9..11): SMA3_{t−1} NaN dan low_t > SMA3_t → PB3 gagal; ATR_t = (40+40+80)/3 masih ada.
-        (9, ["PB1", "PB2", "PB3"]),
-        # 2 bar: ATR (n = 3) NaN → PB5 gagal; high_{t−1} dan open_t masih ada → PB4 lolos.
-        (10, ["PB1", "PB2", "PB3", "PB5"]),
-        # 1 bar: high_{t−1} tidak ada → PB4 juga gagal.
+        # 7 bar (pos 5..11): SMA8_t NaN → TP1; SMA5_{t−2} = c5..c9 masih ada; ATR tetap 160/3.
+        (5, ["TP1"]),
+        # 6 bar (pos 6..11): SMA5_{t−2} butuh c5 → NaN → TP2 juga gagal.
+        (6, ["TP1", "TP2"]),
+        # 3 bar (pos 9..11): SMA3_{t−1} NaN dan low_t > SMA3_t → TP3 gagal; ATR_t = (40+40+80)/3 masih ada.
+        (9, ["TP1", "TP2", "TP3"]),
+        # 2 bar: ATR (n = 3) NaN → TP5 gagal; high_{t−1} dan open_t masih ada → TP4 lolos.
+        (10, ["TP1", "TP2", "TP3", "TP5"]),
+        # 1 bar: high_{t−1} tidak ada → TP4 juga gagal.
         (11, ATURAN),
     ],
 )
@@ -333,41 +333,41 @@ def test_riwayat_kurang_nilai_nan_membuat_aturan_tidak_terpenuhi(buang_awal, gag
 
 def test_uraian_nan_ditampilkan_sebagai_strip():
     ev = evaluasi(buat_bar().iloc[5:])
-    assert uraian(ev, "PB1") == "close 1.171,00 > SMA5 1.129,40 dan SMA5 1.129,40 > SMA8 —"
+    assert uraian(ev, "TP1") == "close 1.171,00 > SMA5 1.129,40 dan SMA5 1.129,40 > SMA8 —"
     ev = evaluasi(buat_bar().iloc[9:])
-    assert "1 bar lalu low 1.096,00 vs SMA3 —" in uraian(ev, "PB3")
+    assert "1 bar lalu low 1.096,00 vs SMA3 —" in uraian(ev, "TP3")
 
 
-def test_atr_nan_hanya_pb5_gagal():
+def test_atr_nan_hanya_tp5_gagal():
     # atr_periode 13 > 12 bar → ATR_t NaN; aturan lain tidak memakai ATR dan tetap lolos.
-    ev = evaluasi(cfg=cfg_pb({"indikator.atr_periode": 13}))
+    ev = evaluasi(cfg=cfg_tp({"indikator.atr_periode": 13}))
     assert ev.sinyal is None
-    assert ev.aturan_gagal == ["PB5"]
-    assert "tidak dapat dihitung" in uraian(ev, "PB5")
+    assert ev.aturan_gagal == ["TP5"]
+    assert "tidak dapat dihitung" in uraian(ev, "TP5")
 
 
-def test_atr_nol_pb5_tidak_terpenuhi_tanpa_pembagian_nol():
+def test_atr_nol_tp5_tidak_terpenuhi_tanpa_pembagian_nol():
     # 12 bar datar open = high = low = close = 1000 → TR = 0, ATR = 0.
-    # PB1: 1000 > 1000 ✗; PB2: SMA sama ✗; PB3: low 1000 ≤ SMA3 1000 ✓; PB4: 1000 > 1000 ✗; PB5: ATR 0 ✗.
+    # TP1: 1000 > 1000 ✗; TP2: SMA sama ✗; TP3: low 1000 ≤ SMA3 1000 ✓; TP4: 1000 > 1000 ✗; TP5: ATR 0 ✗.
     df = buat_bar({p: {"open": 1000.0, "high": 1000.0, "low": 1000.0, "close": 1000.0} for p in range(12)})
     ev = evaluasi(df)
     assert ev.sinyal is None
-    assert ev.aturan_gagal == ["PB1", "PB2", "PB4", "PB5"]
-    assert "ATR 0,00 tidak dapat dihitung" in uraian(ev, "PB5")
+    assert ev.aturan_gagal == ["TP1", "TP2", "TP4", "TP5"]
+    assert "ATR 0,00 tidak dapat dihitung" in uraian(ev, "TP5")
 
 
 @pytest.mark.parametrize(
     "ubah",
     [
         # lookback_swing_low 13 > 12 bar → LLV NaN: semua aturan lolos tetapi stop tidak dapat dihitung.
-        {"strategi.pb.lookback_swing_low": 13},
+        {"strategi.tp.lookback_swing_low": 13},
         # stop = 1080 − 25 × 160/3 = −253,3 ≤ 0 → tidak dapat dipakai (tanpa error pembulatan).
-        {"strategi.pb.penyangga_stop_atr": 25.0},
+        {"strategi.tp.penyangga_stop_atr": 25.0},
     ],
     ids=["llv_nan", "stop_negatif"],
 )
 def test_stop_tidak_dapat_dihitung_tidak_membuat_sinyal(ubah):
-    ev = evaluasi(cfg=cfg_pb(ubah))
+    ev = evaluasi(cfg=cfg_tp(ubah))
     assert ev.sinyal is None
     assert ev.aturan_gagal == ["STOP"]
     assert [c.kode for c in ev.cek] == [*ATURAN, "STOP"]
@@ -449,40 +449,40 @@ def test_bar_sesudah_t_tidak_berpengaruh():
 
 
 # ---------------------------------------------------------------------------
-# T-CFG: setiap kunci strategi.pb.* (dan entry.gap_maks_atr) benar-benar berpengaruh
+# T-CFG: setiap kunci strategi.tp.* (dan entry.gap_maks_atr) benar-benar berpengaruh
 # ---------------------------------------------------------------------------
 
 # (kunci, nilai baru, perubahan bar fixture | None, harapan). Pembanding = fixture yang sama dengan
 # config dasar. Hitung tangan:
 KASUS_CFG = [
-    # Varian low_{t−1} = 1113 (PB3 gagal dengan SMA3). SMA4_{t−1} = (1140+1120+1100+1116)/4 = 1119 ≥ 1113
+    # Varian low_{t−1} = 1113 (TP3 gagal dengan SMA3). SMA4_{t−1} = (1140+1120+1100+1116)/4 = 1119 ≥ 1113
     # → menyentuh → lolos.
-    ("strategi.pb.sma_cepat", 4, {10: {"low": 1113.0}}, {"gagal": []}),
+    ("strategi.tp.sma_cepat", 4, {10: {"low": 1113.0}}, {"gagal": []}),
     # SMA2_t = (1116 + 1171)/2 = 1143,5 → jarak (1171 − 1143,5)/(160/3) = 0,515625
     # → K_sinyal = 0,5 × 0,484375 + 0,25 = 0,4921875 (dasar 0,35625).
-    ("strategi.pb.sma_cepat", 2, None, {"gagal": [], "k_sinyal": 0.4921875}),
-    # SMA9_t = (1060 + 8947)/9 = 1111,89 < SMA8_t 1118,375 → PB1 gagal.
-    ("strategi.pb.sma_tren", 9, None, {"gagal": ["PB1"]}),
-    # SMA2_t = 1143,5 > SMA5_t 1129,4 → PB1 gagal.
-    ("strategi.pb.sma_panjang", 2, None, {"gagal": ["PB1"]}),
-    # Varian c6 = 1187 (PB2 gagal dengan lookback 2). SMA5_{t−3} = (1080+1100+1187+1140+1120)/5 = 1125,4
+    ("strategi.tp.sma_cepat", 2, None, {"gagal": [], "k_sinyal": 0.4921875}),
+    # SMA9_t = (1060 + 8947)/9 = 1111,89 < SMA8_t 1118,375 → TP1 gagal.
+    ("strategi.tp.sma_tren", 9, None, {"gagal": ["TP1"]}),
+    # SMA2_t = 1143,5 > SMA5_t 1129,4 → TP1 gagal.
+    ("strategi.tp.sma_panjang", 2, None, {"gagal": ["TP1"]}),
+    # Varian c6 = 1187 (TP2 gagal dengan lookback 2). SMA5_{t−3} = (1080+1100+1187+1140+1120)/5 = 1125,4
     # < 1129,4 → lolos.
-    ("strategi.pb.lookback_slope_sma_tren", 3, {6: 1187}, {"gagal": []}),
-    # Hanya k = 0: low_t 1146 > SMA3_t 1129 → PB3 gagal.
-    ("strategi.pb.lookback_sentuh_sma_cepat", 1, None, {"gagal": ["PB3"]}),
+    ("strategi.tp.lookback_slope_sma_tren", 3, {6: 1187}, {"gagal": []}),
+    # Hanya k = 0: low_t 1146 > SMA3_t 1129 → TP3 gagal.
+    ("strategi.tp.lookback_sentuh_sma_cepat", 1, None, {"gagal": ["TP3"]}),
     # Varian low_{t−1} = 1113: k = 2 masuk jendela (low_9 1080 ≤ SMA3_9 1120) → lolos.
-    ("strategi.pb.lookback_sentuh_sma_cepat", 3, {10: {"low": 1113.0}}, {"gagal": []}),
-    # 0,7875 > 0,78 → PB5 gagal.
-    ("strategi.pb.maks_jarak_atas_sma_cepat_atr", 0.78, None, {"gagal": ["PB5"]}),
-    # Varian PB5 gagal (jarak 1,0051): batas 1,01 → lolos.
-    ("strategi.pb.maks_jarak_atas_sma_cepat_atr", 1.01, {POS_T: {"high": 1231.0, "close": 1206.0}}, {"gagal": []}),
+    ("strategi.tp.lookback_sentuh_sma_cepat", 3, {10: {"low": 1113.0}}, {"gagal": []}),
+    # 0,7875 > 0,78 → TP5 gagal.
+    ("strategi.tp.maks_jarak_atas_sma_cepat_atr", 0.78, None, {"gagal": ["TP5"]}),
+    # Varian TP5 gagal (jarak 1,0051): batas 1,01 → lolos.
+    ("strategi.tp.maks_jarak_atas_sma_cepat_atr", 1.01, {POS_T: {"high": 1231.0, "close": 1206.0}}, {"gagal": []}),
     # LLV(low, 1)_t = 1146 → stop = atas(1146 − 10,666…) = atas(1135,333…) = 1136.
-    ("strategi.pb.lookback_swing_low", 1, None, {"stop": Decimal("1136")}),
+    ("strategi.tp.lookback_swing_low", 1, None, {"stop": Decimal("1136")}),
     # stop = atas(1080 − 0,5 × 160/3) = atas(1053,333…) = 1054.
-    ("strategi.pb.penyangga_stop_atr", 0.5, None, {"stop": Decimal("1054")}),
+    ("strategi.tp.penyangga_stop_atr", 0.5, None, {"stop": Decimal("1054")}),
     # 2,38125 > 2,0 → STOP_TERLALU_JAUH.
-    ("strategi.pb.maks_jarak_stop_atr", 2.0, None, {"valid": False}),
-    ("strategi.pb.target_r", 1.5, None, {"target_r": 1.5}),
+    ("strategi.tp.maks_jarak_stop_atr", 2.0, None, {"valid": False}),
+    ("strategi.tp.target_r", 1.5, None, {"target_r": 1.5}),
     # harga_maks = bawah(1171 + 0,25 × 160/3) = bawah(1184,333…) = 1184.
     ("entry.gap_maks_atr", 0.25, None, {"harga_maks": Decimal("1184")}),
 ]
@@ -496,17 +496,17 @@ KASUS_CFG = [
 def test_kunci_config_berpengaruh(kunci, nilai, ubah_bar, harapan):
     df = buat_bar(ubah_bar)
     dasar = ringkas(evaluasi(df))
-    hasil = ringkas(evaluasi(df, cfg_pb({kunci: nilai})))
+    hasil = ringkas(evaluasi(df, cfg_tp({kunci: nilai})))
     assert hasil != dasar
     for k, v in harapan.items():
         assert hasil[k] == v, k
 
 
-def test_semua_kunci_pb_yang_dipakai_evaluasi_teruji():
-    """Penjaga: setiap kunci strategi.pb yang dibaca `evaluasi` punya kasus T-CFG (aktif: daftar_strategi;
+def test_semua_kunci_tp_yang_dipakai_evaluasi_teruji():
+    """Penjaga: setiap kunci strategi.tp yang dibaca `evaluasi` punya kasus T-CFG (aktif: daftar_strategi;
     stop_waktu_hari dipakai mesin exit, bukan evaluasi sinyal)."""
-    teruji = {k.split(".")[-1] for k, *_ in KASUS_CFG if k.startswith("strategi.pb.")}
-    semua = set(cfg_pb().strategi.pb.model_dump()) - {"aktif", "stop_waktu_hari"}
+    teruji = {k.split(".")[-1] for k, *_ in KASUS_CFG if k.startswith("strategi.tp.")}
+    semua = set(cfg_tp().strategi.tp.model_dump()) - {"aktif", "stop_waktu_hari"}
     assert teruji == semua
 
 
@@ -515,19 +515,19 @@ def test_semua_kunci_pb_yang_dipakai_evaluasi_teruji():
 # ---------------------------------------------------------------------------
 
 
-def test_daftar_strategi_memuat_pb_bila_aktif():
-    daftar = daftar_strategi(cfg_pb({"strategi.pb.aktif": True}))
-    pb = [s for s in daftar if isinstance(s, Pullback)]
-    assert len(pb) == 1 and pb[0].kode == "PB"
-    assert daftar[0] is pb[0]  # urutan PB, BO, MR
-    hanya = daftar_strategi(cfg_pb(), hanya=["pb"])
+def test_daftar_strategi_memuat_tp_bila_aktif():
+    daftar = daftar_strategi(cfg_tp({"strategi.tp.aktif": True}))
+    tp = [s for s in daftar if isinstance(s, Pullback)]
+    assert len(tp) == 1 and tp[0].kode == "TP"
+    assert daftar[0] is tp[0]  # urutan TP, TB, PJ
+    hanya = daftar_strategi(cfg_tp(), hanya=["tp"])
     assert len(hanya) == 1 and isinstance(hanya[0], Pullback)
 
 
-def test_daftar_strategi_tanpa_pb_bila_tidak_aktif():
-    cfg = cfg_pb({"strategi.pb.aktif": False})
+def test_daftar_strategi_tanpa_tp_bila_tidak_aktif():
+    cfg = cfg_tp({"strategi.tp.aktif": False})
     assert not any(isinstance(s, Pullback) for s in daftar_strategi(cfg))
-    assert daftar_strategi(cfg, hanya=["pb"]) == []
+    assert daftar_strategi(cfg, hanya=["tp"]) == []
 
 
 # ---------------------------------------------------------------------------
@@ -537,7 +537,7 @@ def test_daftar_strategi_tanpa_pb_bila_tidak_aktif():
 
 def test_berjalan_dengan_periode_config_rilis():
     cfg = cfg_uji({"pasar.fraksi_harga.terverifikasi": False})
-    p = cfg.strategi.pb
+    p = cfg.strategi.tp
     n = max(p.sma_panjang, p.sma_tren + p.lookback_slope_sma_tren) + 20
     close = [1000.0 * (1.002**i) for i in range(n)]
     df = pd.DataFrame(
@@ -550,9 +550,9 @@ def test_berjalan_dengan_periode_config_rilis():
     dv = DataPasar({KODE: ds}, None, KAL, cfg).tampilan(tgl(n - 1))
     ev = Pullback(cfg).evaluasi(dv, KODE, AturanBEI(cfg))
     assert [c.kode for c in ev.cek] == ATURAN
-    assert f"SMA{p.sma_tren}" in uraian(ev, "PB1") and f"SMA{p.sma_panjang}" in uraian(ev, "PB1")
-    assert f"SMA{p.sma_cepat}" in uraian(ev, "PB5")
-    assert "—" not in uraian(ev, "PB1")  # riwayat cukup: tidak ada NaN
-    # Deret naik geometris: close_t = open_t → PB4 gagal; nilai lain terdefinisi.
-    assert "PB4" in ev.aturan_gagal
+    assert f"SMA{p.sma_tren}" in uraian(ev, "TP1") and f"SMA{p.sma_panjang}" in uraian(ev, "TP1")
+    assert f"SMA{p.sma_cepat}" in uraian(ev, "TP5")
+    assert "—" not in uraian(ev, "TP1")  # riwayat cukup: tidak ada NaN
+    # Deret naik geometris: close_t = open_t → TP4 gagal; nilai lain terdefinisi.
+    assert "TP4" in ev.aturan_gagal
     assert not math.isnan(dv.sebelum(KODE, "atr", 0))

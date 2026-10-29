@@ -1,16 +1,16 @@
-"""MR — Oversold dalam tren naik (SPEC §12.3; `K_sinyal` MR §13.1).
+"""PJ — Oversold dalam tren naik (SPEC §12.3; `K_sinyal` PJ §13.1).
 
 Syarat sinyal pada close `t` (= `dv.as_of`); semua aturan selalu dievaluasi dan dicantumkan, juga
-sesudah satu aturan gagal, dengan nilai aktual di uraiannya. Angka default ada di `strategi.mr` (P4):
+sesudah satu aturan gagal, dengan nilai aktual di uraiannya. Angka default ada di `strategi.pj` (P4):
 
-| # | Aturan (kunci `strategi.mr.*`) |
+| # | Aturan (kunci `strategi.pj.*`) |
 |---|---|
-| MR1 | `close_t > SMA(sma_tren)_t` |
-| MR2 | `RSI(rsi_periode)_t < rsi_maks` |
-| MR3 | `close_{t−1} − close_t ≤ maks_turun_harian_atr × ATR_t` (bukan jatuh ekstrem dalam sehari) |
+| PJ1 | `close_t > SMA(sma_tren)_t` |
+| PJ2 | `RSI(rsi_periode)_t < rsi_maks` |
+| PJ3 | `close_{t−1} − close_t ≤ maks_turun_harian_atr × ATR_t` (bukan jatuh ekstrem dalam sehari) |
 
 `close_{t−1}` = close bar valid sebelumnya (`dv.sebelum(kode, "close", 1)`, §4.1), bukan hari kalender
-sebelumnya. MR3 adalah batas penurunan dalam satuan ATR (setara `(close_{t−1} − close_t)/ATR_t ≤ batas`),
+sebelumnya. PJ3 adalah batas penurunan dalam satuan ATR (setara `(close_{t−1} − close_t)/ATR_t ≤ batas`),
 sehingga ATR ≤ 0 atau NaN membuatnya tidak terpenuhi (§9). Nilai NaN (riwayat kurang) membuat aturan
 yang memakainya tidak terpenuhi.
 
@@ -19,9 +19,9 @@ dan pembulatan (harga_maks ke bawah, stop ke atas) dikerjakan `Strategi._bangun_
 (saham sangat volatil berharga rendah) tidak dapat dipakai → cek "STOP" gagal, tanpa sinyal. Tidak ada
 target tetap (`target_r = None`).
 
-`K_sinyal` MR = `clip((rsi_maks − RSI)/rsi_maks, 0, 1)`.
+`K_sinyal` PJ = `clip((rsi_maks − RSI)/rsi_maks, 0, 1)`.
 
-Exit MR (`sma_keluar`, `min_hari_tahan`, `stop_waktu_hari`) ditangani mesin exit (§15), bukan di sini.
+Exit PJ (`sma_keluar`, `min_hari_tahan`, `stop_waktu_hari`) ditangani mesin exit (§15), bukan di sini.
 """
 
 from __future__ import annotations
@@ -47,12 +47,12 @@ def _clip01(x: float) -> float:
 
 
 class Oversold(Strategi):
-    """MR — jenuh jual jangka pendek dalam tren naik (SPEC §12.3)."""
+    """PJ — jenuh jual jangka pendek dalam tren naik (SPEC §12.3)."""
 
-    kode = "MR"
+    kode = "PJ"
 
     def evaluasi(self, dv: "DataView", kode: str, bei: "AturanBEI") -> EvaluasiStrategi:
-        p = self.cfg.strategi.mr
+        p = self.cfg.strategi.pj
         baris = dv.baris(kode)
         if baris is None:
             return self.tanpa_sinyal(
@@ -70,31 +70,31 @@ class Oversold(Strategi):
 
         cek: list[CekAturan] = []
 
-        # MR1 — tren naik jangka panjang: close di atas SMA tren.
+        # PJ1 — tren naik jangka panjang: close di atas SMA tren.
         cek.append(
             CekAturan(
-                "MR1",
+                "PJ1",
                 f"close {a(close)} > SMA{n_tren} {a(sma_tren)}",
                 _ada(close, sma_tren) and close > sma_tren,
             )
         )
 
-        # MR2 — jenuh jual: RSI di bawah batas.
+        # PJ2 — jenuh jual: RSI di bawah batas.
         cek.append(
             CekAturan(
-                "MR2",
+                "PJ2",
                 f"RSI({n_rsi}) {a(rsi)} < {a(rsi_maks)}",
                 _ada(rsi) and rsi < rsi_maks,
             )
         )
 
-        # MR3 — penurunan hari ini bukan jatuh ekstrem (dalam satuan ATR).
-        dasar_mr3 = f"close kemarin {a(close_kemarin)} − close {a(close)}"
+        # PJ3 — penurunan hari ini bukan jatuh ekstrem (dalam satuan ATR).
+        dasar_pj3 = f"close kemarin {a(close_kemarin)} − close {a(close)}"
         if not atr_sah(atr):
             cek.append(
                 CekAturan(
-                    "MR3",
-                    f"{dasar_mr3} ≤ {a(maks_turun)} × ATR {a(atr)}: ATR tidak sah (≤ 0 atau tidak tersedia)",
+                    "PJ3",
+                    f"{dasar_pj3} ≤ {a(maks_turun)} × ATR {a(atr)}: ATR tidak sah (≤ 0 atau tidak tersedia)",
                     False,
                 )
             )
@@ -103,8 +103,8 @@ class Oversold(Strategi):
             batas = maks_turun * atr
             cek.append(
                 CekAturan(
-                    "MR3",
-                    f"{dasar_mr3} = {a(turun)} ≤ {a(maks_turun)} × ATR {a(atr)} = {a(batas)}",
+                    "PJ3",
+                    f"{dasar_pj3} = {a(turun)} ≤ {a(maks_turun)} × ATR {a(atr)} = {a(batas)}",
                     _ada(turun) and turun <= batas,
                 )
             )

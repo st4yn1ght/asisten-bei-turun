@@ -1,17 +1,17 @@
 """T-CFG bagian strategi & skor (SPEC §22.1, §7, §12, §13.1, P4): setiap kunci benar-benar berpengaruh.
 
-Untuk setiap kunci di `strategi.pb.*`, `strategi.bo.*`, `strategi.mr.*`, `strategi.acak.*`, `skor.*`, dan
+Untuk setiap kunci di `strategi.tp.*`, `strategi.tb.*`, `strategi.pj.*`, `strategi.acak.*`, `skor.*`, dan
 `entry.gap_maks_atr`, uji berparameter mengubah nilainya dan memastikan keluaran fixture berubah DI TEMPAT
-YANG SPEC TETAPKAN (mis. `strategi.pb.sma_panjang` mengubah pola lolos PB1; `penyangga_stop_atr` mengubah
-stop dan tidak menyentuh harga_maks atau pola lolos PB1–PB5). Kunci yang hanya dipakai mesin exit (§15)
-tidak dinilai di sini: `pb.stop_waktu_hari`, `bo.trailing_atr`, `bo.stop_waktu_hari`, `mr.sma_keluar`,
-`mr.min_hari_tahan`, `mr.stop_waktu_hari`, `acak.stop_waktu_hari`. Penjaga cakupan memastikan setiap kunci
+YANG SPEC TETAPKAN (mis. `strategi.tp.sma_panjang` mengubah pola lolos TP1; `penyangga_stop_atr` mengubah
+stop dan tidak menyentuh harga_maks atau pola lolos TP1–TP5). Kunci yang hanya dipakai mesin exit (§15)
+tidak dinilai di sini: `tp.stop_waktu_hari`, `tb.trailing_atr`, `tb.stop_waktu_hari`, `pj.sma_keluar`,
+`pj.min_hari_tahan`, `pj.stop_waktu_hari`, `acak.stop_waktu_hari`. Penjaga cakupan memastikan setiap kunci
 lain di model config punya kasus, sehingga kunci baru tidak lolos tanpa uji.
 
 Keluaran yang dibandingkan TIDAK memuat teks uraian cek (yang ikut menyebut angka config, mis. "SMA150"),
 melainkan "aspek" keputusan:
 
-- `cek:<KODE>`  — status lolos aturan (PB1..PB5, BO1..BO5, MR1..MR3, ACAK, STOP, DATA);
+- `cek:<KODE>`  — status lolos aturan (TP1..TP5, TB1..TB5, PJ1..PJ3, ACAK, STOP, DATA);
 - `sinyal`      — ada/tidaknya sinyal;
 - `sinyal.<f>`  — field Sinyal bila sinyal ada di kedua sisi (harga_maks, stop, valid, target_r, …);
 - `skor.<k>`    — komponen skor (k_sinyal, k_rs, k_likuid, k_stop, skor) untuk sinyal saham eligible;
@@ -55,33 +55,33 @@ AKHIR = HARI[N_BAR - 1].date()
 
 # Nilai default SPEC §7 untuk setiap kunci yang dinilai (disematkan; tidak bergantung config rilis).
 DASAR_STRATEGI = {
-    "strategi.pb.aktif": True,
-    "strategi.pb.sma_cepat": 20,
-    "strategi.pb.sma_tren": 50,
-    "strategi.pb.sma_panjang": 200,
-    "strategi.pb.lookback_slope_sma_tren": 10,
-    "strategi.pb.lookback_sentuh_sma_cepat": 4,
-    "strategi.pb.maks_jarak_atas_sma_cepat_atr": 1.0,
-    "strategi.pb.lookback_swing_low": 5,
-    "strategi.pb.penyangga_stop_atr": 0.2,
-    "strategi.pb.maks_jarak_stop_atr": 3.0,
-    "strategi.pb.target_r": 2.0,
-    "strategi.bo.aktif": True,
-    "strategi.bo.lookback_tertinggi": 20,
-    "strategi.bo.lookback_volume": 20,
-    "strategi.bo.min_rasio_volume": 1.5,
-    "strategi.bo.min_posisi_close": 0.6,
-    "strategi.bo.maks_lewat_level_atr": 1.0,
-    "strategi.bo.sma_tren": 50,
-    "strategi.bo.sma_panjang": 200,
-    "strategi.bo.stop_atr": 2.0,
-    "strategi.mr.aktif": True,
-    "strategi.mr.rsi_periode": 2,
-    "strategi.mr.rsi_maks": 10,
-    "strategi.mr.sma_tren": 200,
-    "strategi.mr.maks_turun_harian_atr": 3.0,
-    "strategi.mr.stop_atr": 2.5,
-    "strategi.mr.sma_keluar": 5,
+    "strategi.tp.aktif": True,
+    "strategi.tp.sma_cepat": 20,
+    "strategi.tp.sma_tren": 50,
+    "strategi.tp.sma_panjang": 200,
+    "strategi.tp.lookback_slope_sma_tren": 10,
+    "strategi.tp.lookback_sentuh_sma_cepat": 4,
+    "strategi.tp.maks_jarak_atas_sma_cepat_atr": 1.0,
+    "strategi.tp.lookback_swing_low": 5,
+    "strategi.tp.penyangga_stop_atr": 0.2,
+    "strategi.tp.maks_jarak_stop_atr": 3.0,
+    "strategi.tp.target_r": 2.0,
+    "strategi.tb.aktif": True,
+    "strategi.tb.lookback_tertinggi": 20,
+    "strategi.tb.lookback_volume": 20,
+    "strategi.tb.min_rasio_volume": 1.5,
+    "strategi.tb.min_posisi_close": 0.6,
+    "strategi.tb.maks_lewat_level_atr": 1.0,
+    "strategi.tb.sma_tren": 50,
+    "strategi.tb.sma_panjang": 200,
+    "strategi.tb.stop_atr": 2.0,
+    "strategi.pj.aktif": True,
+    "strategi.pj.rsi_periode": 2,
+    "strategi.pj.rsi_maks": 10,
+    "strategi.pj.sma_tren": 200,
+    "strategi.pj.maks_turun_harian_atr": 3.0,
+    "strategi.pj.stop_atr": 2.5,
+    "strategi.pj.sma_keluar": 5,
     "strategi.acak.peluang_sinyal_pct": 2.0,
     "strategi.acak.seed": 12345,
     "strategi.acak.stop_atr": 2.0,
@@ -169,7 +169,7 @@ class Keluaran:
 
 def jalankan(cfg: Config, strategi: set[str] | None = None, *, dengan_skor: bool = False,
              sinyal_dari: Keluaran | None = None) -> Keluaran:
-    """Evaluasi `strategi` (None = PB, BO, MR, ACAK) atas semua saham pada setiap tanggal uji; dengan
+    """Evaluasi `strategi` (None = TP, TB, PJ, ACAK) atas semua saham pada setiap tanggal uji; dengan
     `dengan_skor`, juga eligibilitas → `hitung_sinyal` → `skor.beri_skor`. `sinyal_dari`: pakai ulang
     eligibilitas & sinyal run lain dan hanya hitung ulang skor dengan `cfg` (kunci skor tidak dibaca
     strategi). Pasar selalu dibangun ulang dengan `cfg` (indikator mengikuti periode config)."""
@@ -269,33 +269,33 @@ def K(kunci, nilai, strategi, harus, cek_boleh=None, hanya=None) -> Kasus:
 
 
 KASUS_STRATEGI = [
-    # PB (§12.1)
-    K("strategi.pb.sma_cepat", 15, "PB", {"cek:PB3", "cek:PB5", "sinyal.k_sinyal"}, {"PB3", "PB5"}),
-    K("strategi.pb.sma_tren", 40, "PB", {"cek:PB1", "cek:PB2"}, {"PB1", "PB2"}),
-    K("strategi.pb.sma_panjang", 150, "PB", {"cek:PB1"}, {"PB1"}),
-    K("strategi.pb.lookback_slope_sma_tren", 3, "PB", {"cek:PB2"}, {"PB2"}),
-    K("strategi.pb.lookback_sentuh_sma_cepat", 1, "PB", {"cek:PB3"}, {"PB3"}),
-    K("strategi.pb.maks_jarak_atas_sma_cepat_atr", 0.5, "PB", {"cek:PB5"}, {"PB5"}),
-    K("strategi.pb.lookback_swing_low", 10, "PB", {"sinyal.stop"}, set(), _STOP),
-    K("strategi.pb.penyangga_stop_atr", 0.6, "PB", {"sinyal.stop"}, set(), _STOP),
-    K("strategi.pb.maks_jarak_stop_atr", 2.0, "PB", {"sinyal.valid"}, set(),
+    # TP (§12.1)
+    K("strategi.tp.sma_cepat", 15, "TP", {"cek:TP3", "cek:TP5", "sinyal.k_sinyal"}, {"TP3", "TP5"}),
+    K("strategi.tp.sma_tren", 40, "TP", {"cek:TP1", "cek:TP2"}, {"TP1", "TP2"}),
+    K("strategi.tp.sma_panjang", 150, "TP", {"cek:TP1"}, {"TP1"}),
+    K("strategi.tp.lookback_slope_sma_tren", 3, "TP", {"cek:TP2"}, {"TP2"}),
+    K("strategi.tp.lookback_sentuh_sma_cepat", 1, "TP", {"cek:TP3"}, {"TP3"}),
+    K("strategi.tp.maks_jarak_atas_sma_cepat_atr", 0.5, "TP", {"cek:TP5"}, {"TP5"}),
+    K("strategi.tp.lookback_swing_low", 10, "TP", {"sinyal.stop"}, set(), _STOP),
+    K("strategi.tp.penyangga_stop_atr", 0.6, "TP", {"sinyal.stop"}, set(), _STOP),
+    K("strategi.tp.maks_jarak_stop_atr", 2.0, "TP", {"sinyal.valid"}, set(),
       {"sinyal.valid", "sinyal.alasan_tidak_valid"}),
-    K("strategi.pb.target_r", 3.0, "PB", {"sinyal.target_r"}, set(), {"sinyal.target_r"}),
-    # BO (§12.2)
-    K("strategi.bo.lookback_tertinggi", 10, "BO", {"cek:BO1"}, {"BO1", "BO5"}),
-    K("strategi.bo.lookback_volume", 5, "BO", {"cek:BO2", "sinyal.k_sinyal"}, {"BO2"}),
-    K("strategi.bo.min_rasio_volume", 1.2, "BO", {"cek:BO2", "sinyal.k_sinyal"}, {"BO2"}),
-    K("strategi.bo.min_posisi_close", 0.4, "BO", {"cek:BO4"}, {"BO4"}),
-    K("strategi.bo.maks_lewat_level_atr", 0.3, "BO", {"cek:BO5"}, {"BO5"}),
-    K("strategi.bo.sma_tren", 30, "BO", {"cek:BO3"}, {"BO3"}),
-    K("strategi.bo.sma_panjang", 100, "BO", {"cek:BO3"}, {"BO3"}),
-    K("strategi.bo.stop_atr", 1.0, "BO", {"sinyal.stop"}, set(), _STOP),
-    # MR (§12.3)
-    K("strategi.mr.rsi_periode", 3, "MR", {"cek:MR2", "sinyal.k_sinyal"}, {"MR2"}),
-    K("strategi.mr.rsi_maks", 25, "MR", {"cek:MR2", "sinyal.k_sinyal"}, {"MR2"}),
-    K("strategi.mr.sma_tren", 100, "MR", {"cek:MR1"}, {"MR1"}),
-    K("strategi.mr.maks_turun_harian_atr", 0.5, "MR", {"cek:MR3"}, {"MR3"}),
-    K("strategi.mr.stop_atr", 1.5, "MR", {"sinyal.stop"}, set(), _STOP),
+    K("strategi.tp.target_r", 3.0, "TP", {"sinyal.target_r"}, set(), {"sinyal.target_r"}),
+    # TB (§12.2)
+    K("strategi.tb.lookback_tertinggi", 10, "TB", {"cek:TB1"}, {"TB1", "TB5"}),
+    K("strategi.tb.lookback_volume", 5, "TB", {"cek:TB2", "sinyal.k_sinyal"}, {"TB2"}),
+    K("strategi.tb.min_rasio_volume", 1.2, "TB", {"cek:TB2", "sinyal.k_sinyal"}, {"TB2"}),
+    K("strategi.tb.min_posisi_close", 0.4, "TB", {"cek:TB4"}, {"TB4"}),
+    K("strategi.tb.maks_lewat_level_atr", 0.3, "TB", {"cek:TB5"}, {"TB5"}),
+    K("strategi.tb.sma_tren", 30, "TB", {"cek:TB3"}, {"TB3"}),
+    K("strategi.tb.sma_panjang", 100, "TB", {"cek:TB3"}, {"TB3"}),
+    K("strategi.tb.stop_atr", 1.0, "TB", {"sinyal.stop"}, set(), _STOP),
+    # PJ (§12.3)
+    K("strategi.pj.rsi_periode", 3, "PJ", {"cek:PJ2", "sinyal.k_sinyal"}, {"PJ2"}),
+    K("strategi.pj.rsi_maks", 25, "PJ", {"cek:PJ2", "sinyal.k_sinyal"}, {"PJ2"}),
+    K("strategi.pj.sma_tren", 100, "PJ", {"cek:PJ1"}, {"PJ1"}),
+    K("strategi.pj.maks_turun_harian_atr", 0.5, "PJ", {"cek:PJ3"}, {"PJ3"}),
+    K("strategi.pj.stop_atr", 1.5, "PJ", {"sinyal.stop"}, set(), _STOP),
     # ACAK (§12.4)
     K("strategi.acak.peluang_sinyal_pct", 10.0, "ACAK", {"cek:ACAK", "sinyal"}, {"ACAK"}),
     K("strategi.acak.seed", 54321, "ACAK", {"cek:ACAK", "sinyal"}, {"ACAK"}),
@@ -315,12 +315,12 @@ def test_fixture_dasar_tidak_hampa():
     """Setiap strategi menghasilkan cukup sinyal (termasuk STOP_TERLALU_JAUH) dan semua saham eligible,
     sehingga perubahan level/skor bisa teramati."""
     d = keluaran_dasar()
-    jumlah = {s: sum(1 for k, v in d.sinyal.items() if k[2] == s and v is not None) for s in ("PB", "BO", "MR", "ACAK")}
-    assert jumlah["PB"] >= 15 and jumlah["BO"] >= 5 and jumlah["MR"] >= 20 and jumlah["ACAK"] >= 5, jumlah
+    jumlah = {s: sum(1 for k, v in d.sinyal.items() if k[2] == s and v is not None) for s in ("TP", "TB", "PJ", "ACAK")}
+    assert jumlah["TP"] >= 15 and jumlah["TB"] >= 5 and jumlah["PJ"] >= 20 and jumlah["ACAK"] >= 5, jumlah
     assert any(not v.valid for v in d.sinyal.values() if v is not None)
     assert all(len(v) == len(KODE) for v in d.eligible.values())
     assert len(d.skor) >= 50
-    assert d.daftar == ["PB", "BO", "MR"]
+    assert d.daftar == ["TP", "TB", "PJ"]
 
 
 @pytest.mark.parametrize("kasus", KASUS_STRATEGI, ids=lambda k: k.id)
@@ -338,7 +338,7 @@ def test_kunci_strategi_mengubah_keluaran_di_tempat_yang_benar(kasus: Kasus):
         assert berubah <= kasus.hanya, f"{kasus.id}: aspek tak terduga {sorted(berubah - kasus.hanya)}"
 
 
-@pytest.mark.parametrize("kunci", ["strategi.pb.target_r", "strategi.acak.target_r"])
+@pytest.mark.parametrize("kunci", ["strategi.tp.target_r", "strategi.acak.target_r"])
 def test_target_r_diteruskan_ke_sinyal(kunci):
     """target_r 2,0 → 3,0: setiap sinyal strategi itu membawa 3,0; level harga tidak berubah."""
     strategi = kunci.split(".")[1].upper()
@@ -348,11 +348,11 @@ def test_target_r_diteruskan_ke_sinyal(kunci):
     assert all(s.target_r == 2.0 for s in dasar_untuk(strategi).sinyal.values() if s is not None)
 
 
-@pytest.mark.parametrize("kunci, kode", [("strategi.pb.aktif", "PB"), ("strategi.bo.aktif", "BO"),
-                                         ("strategi.mr.aktif", "MR")])
+@pytest.mark.parametrize("kunci, kode", [("strategi.tp.aktif", "TP"), ("strategi.tb.aktif", "TB"),
+                                         ("strategi.pj.aktif", "PJ")])
 def test_kunci_aktif_mengeluarkan_strategi_dari_daftar_dan_sinyal(kunci, kode):
     cfg = cfg_dasar({kunci: False})
-    assert [s.kode for s in daftar_strategi(cfg)] == [k for k in ("PB", "BO", "MR") if k != kode]
+    assert [s.kode for s in daftar_strategi(cfg)] == [k for k in ("TP", "TB", "PJ") if k != kode]
     assert kode not in [s.kode for s in daftar_strategi(cfg, termasuk_acak=True)]
     dasar = keluaran_dasar()
     tanggal = sorted({k[0] for k, v in dasar.sinyal.items() if v is not None and k[2] == kode})
@@ -485,19 +485,19 @@ def test_jarak_stop_ideal_dan_buruk_mengubah_k_stop_sesuai_rumus(kunci, nilai):
 # ---------------------------------------------------------------------------
 
 KHUSUS_EXIT = {
-    "strategi.pb.stop_waktu_hari",
-    "strategi.bo.trailing_atr",
-    "strategi.bo.stop_waktu_hari",
-    "strategi.mr.sma_keluar",
-    "strategi.mr.min_hari_tahan",
-    "strategi.mr.stop_waktu_hari",
+    "strategi.tp.stop_waktu_hari",
+    "strategi.tb.trailing_atr",
+    "strategi.tb.stop_waktu_hari",
+    "strategi.pj.sma_keluar",
+    "strategi.pj.min_hari_tahan",
+    "strategi.pj.stop_waktu_hari",
     "strategi.acak.stop_waktu_hari",
 }
 
 
 def _kunci_model() -> set[str]:
     kunci = set()
-    for nama, model in (("pb", StrategiPB), ("bo", StrategiBO), ("mr", StrategiMR), ("acak", StrategiAcak)):
+    for nama, model in (("tp", StrategiPB), ("tb", StrategiBO), ("pj", StrategiMR), ("acak", StrategiAcak)):
         kunci |= {f"strategi.{nama}.{f}" for f in model.model_fields}
     kunci |= {f"skor.bobot.{f}" for f in BobotSkor.model_fields}
     kunci |= {f"skor.{f}" for f in Skor.model_fields if f != "bobot"}
@@ -508,7 +508,7 @@ def test_setiap_kunci_strategi_dan_skor_punya_kasus_t_cfg():
     model = _kunci_model()
     assert KHUSUS_EXIT <= model  # daftar pengecualian tidak usang
     tercakup = {k.kunci for k in KASUS_STRATEGI}
-    tercakup |= {"strategi.pb.aktif", "strategi.bo.aktif", "strategi.mr.aktif", "entry.gap_maks_atr",
+    tercakup |= {"strategi.tp.aktif", "strategi.tb.aktif", "strategi.pj.aktif", "entry.gap_maks_atr",
                  "skor.rs_lookback", "skor.jarak_stop_ideal_pct", "skor.jarak_stop_buruk_pct"}
     tercakup |= {f"skor.bobot.{a}" for a, _ in PASANGAN_BOBOT}
     assert tercakup == model - KHUSUS_EXIT, (sorted(model - KHUSUS_EXIT - tercakup), sorted(tercakup - model))

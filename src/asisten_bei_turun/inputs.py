@@ -40,7 +40,7 @@ ERROR: LevelMasalah = "ERROR"
 PERINGATAN: LevelMasalah = "PERINGATAN"
 
 KODE_IHSG = "IHSG"
-STRATEGI_PORTOFOLIO: tuple[str, ...] = ("PB", "BO", "MR", "MANUAL")  # enum §4.3 untuk portfolio.csv
+STRATEGI_PORTOFOLIO: tuple[str, ...] = ("TP", "TB", "PJ", "MANUAL")  # enum §4.3 untuk portfolio.csv
 AWALAN_SEKTOR_TIDAK_DIKETAHUI = "TIDAK_DIKETAHUI"
 
 # Skema kolom per berkas: (wajib, opsional). Kolom opsional yang tidak ada di header dianggap kosong.
@@ -144,7 +144,7 @@ class BarisPortofolio:
     tanggal_beli: date
     harga_beli: Decimal
     lot: int
-    strategi: str  # PB / BO / MR / MANUAL
+    strategi: str  # TP / TB / PJ / MANUAL
     stop_awal: Decimal
     sektor: str | None
     harga_per_tanggal: date | None
@@ -648,8 +648,8 @@ def _strategi(s: str) -> str:
     if s.upper() in STRATEGI_PORTOFOLIO:
         raise ValueError(f"tulis dengan huruf besar: {s.upper()!r}")
     if s.upper() == "ACAK":
-        raise ValueError("ACAK khusus backtest; di portfolio.csv gunakan PB, BO, MR, atau MANUAL")
-    raise ValueError(f"{s!r} tidak dikenal; gunakan PB, BO, MR, atau MANUAL")
+        raise ValueError("ACAK khusus backtest; di portfolio.csv gunakan TP, TB, PJ, atau MANUAL")
+    raise ValueError(f"{s!r} tidak dikenal; gunakan TP, TB, PJ, atau MANUAL")
 
 
 def _positif(fungsi: Callable[[str], Any], nama: str) -> Callable[[str], Any]:
@@ -667,7 +667,7 @@ def baca_portofolio(
 ) -> tuple[list[BarisPortofolio], list[Masalah]]:
     """portfolio.csv (§6.5, §15.3). Berkas wajib (§5; boleh hanya header).
 
-    - kode ganda = ERROR (satu kode = satu baris); lot bilangan bulat ≥ 1; strategi PB/BO/MR/MANUAL;
+    - kode ganda = ERROR (satu kode = satu baris); lot bilangan bulat ≥ 1; strategi TP/TB/PJ/MANUAL;
       harga_beli > 0; stop_awal > 0.
     - stop_awal ≥ harga_beli → PERINGATAN (bukan ERROR; saran posisinya JUAL, §15.4 #3).
     - sektor kosong dan kode di luar universe → ERROR.

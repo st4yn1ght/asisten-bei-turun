@@ -35,7 +35,7 @@ Program **hanya** membaca `input\`, `config.yaml`, dan `.env`. Isi di `contoh\` 
 - Edit dengan **Notepad**, bukan Excel (klik kanan berkas → *Buka dengan* → *Notepad*). Excel dengan format
   regional Indonesia mengganti koma menjadi `;` dan titik desimal menjadi koma, sehingga berkas ditolak.
 - Baris pertama adalah **baris judul (header)**. Jangan diubah atau dihapus; tambahkan data mulai baris kedua.
-- Pemisah kolom koma. Kolom kosong tetap ditulis dengan koma: `AAAA,2026-10-08,2850,2,PB,2720,,,,`
+- Pemisah kolom koma. Kolom kosong tetap ditulis dengan koma: `AAAA,2026-10-08,2850,2,TP,2720,,,,`
 - Angka memakai titik desimal **tanpa pemisah ribuan**: `2850`, `0.5`.
   - `1.000.000` ditolak `cek` sebagai ERROR.
   - **Awas:** `2.850` **tidak** ditolak, karena juga sah sebagai angka desimal. Program membacanya sebagai
@@ -263,7 +263,7 @@ diperbarui: 2026-10-15
 | `tanggal_beli` | ya | Tanggal beli (hari bursa). Tidak boleh sesudah tanggal data `t` yang dicetak `cek`: pembelian hari ini baru sah setelah `jadwal.jam_run` (19:30). Bila Anda mengisinya pagi/siang, `cek` memberi ERROR "setelah tanggal data t" — **jangan** mengubah tanggalnya; jalankan `cek` lagi setelah 19:30. |
 | `harga_beli` | ya | Harga rata-rata per lembar sesuai trade confirmation, tanpa fee, tanpa titik ribuan. |
 | `lot` | ya | Jumlah lot (1 lot = 100 lembar), bilangan bulat ≥ 1. Bila kolom `lembar` diisi, yang dipakai `lembar`, tetapi `lot` tetap wajib ≥ 1 (isi mis. `1`). |
-| `strategi` | ya | `PB`, `BO`, `MR`, atau `MANUAL` (posisi yang bukan dari rekomendasi program). |
+| `strategi` | ya | `TP`, `TB`, `PJ`, atau `MANUAL` (posisi yang bukan dari rekomendasi program). |
 | `stop_awal` | ya | Stop dari laporan, setelah Anda bulatkan ke fraksi harga. Untuk `MANUAL`, isi level stop yang Anda tetapkan sendiri. |
 | `sektor` | bila kode tidak ada di `universe.csv` | Nama sektor. |
 | `harga_per_tanggal` | tidak | Tanggal acuan harga dan lot (untuk aksi korporasi). Kosong = `tanggal_beli`. |
@@ -274,7 +274,7 @@ Contoh: [`contoh/input/portfolio.csv`](input/portfolio.csv)
 
 ```csv
 kode,tanggal_beli,harga_beli,lot,strategi,stop_awal,sektor,harga_per_tanggal,lembar,catatan
-AAAA,2026-10-08,2850,2,PB,2720,,,,contoh: saham di universe.csv sehingga sektor boleh kosong
+AAAA,2026-10-08,2850,2,TP,2720,,,,contoh: saham di universe.csv sehingga sektor boleh kosong
 KKKK,2026-09-14,400,4,MANUAL,370,Properti,,,contoh: saham di luar universe.csv wajib diisi sektornya
 ```
 
@@ -285,7 +285,7 @@ KKKK,2026-09-14,400,4,MANUAL,370,Properti,,,contoh: saham di luar universe.csv w
 
 **Contoh pembaruan dengan angka fiktif** (misalkan portofolio Anda masih kosong; fee beli 0,15 %, jual 0,25 %):
 
-- Beli 1 lot `BBBB` di harga 2010, strategi PB, stop 1888 → tambah baris `BBBB,2026-10-16,2010,1,PB,1888,,,,`
+- Beli 1 lot `BBBB` di harga 2010, strategi TP, stop 1888 → tambah baris `BBBB,2026-10-16,2010,1,TP,1888,,,,`
   dan kurangi `kas_idr` sebesar `201301.5` (= 2010 × 100 × 1,0015), lalu ubah `diperbarui` ke tanggal itu.
 - Jual 1 lot itu di harga 2254 → hapus barisnya dan tambah `kas_idr` sebesar `224836.5`
   (= 225400 × (1 − 0,0025)), lalu ubah `diperbarui`.

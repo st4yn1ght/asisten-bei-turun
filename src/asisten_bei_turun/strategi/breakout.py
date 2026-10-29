@@ -1,12 +1,12 @@
-"""BO — Breakout dengan lonjakan volume (SPEC §12.2, §13.1 K_sinyal BO).
+"""TB — Breakout dengan lonjakan volume (SPEC §12.2, §13.1 K_sinyal TB).
 
-Syarat sinyal pada close `t` (semua harus benar; angka default ada di `strategi.bo`, P4):
+Syarat sinyal pada close `t` (semua harus benar; angka default ada di `strategi.tb`, P4):
 
-- BO1 `close_t > HHV(high, lookback_tertinggi)_{t−1}` (kolom `k_hhv_high`, sudah tanpa bar t)
-- BO2 `RasioVol(lookback_volume)_t ≥ min_rasio_volume`
-- BO3 `close_t > SMA(sma_tren)_t` dan `SMA(sma_tren)_t > SMA(sma_panjang)_t`
-- BO4 `CLV_t ≥ min_posisi_close`
-- BO5 `(close_t − HHV(high, lookback_tertinggi)_{t−1}) / ATR_t ≤ maks_lewat_level_atr`
+- TB1 `close_t > HHV(high, lookback_tertinggi)_{t−1}` (kolom `k_hhv_high`, sudah tanpa bar t)
+- TB2 `RasioVol(lookback_volume)_t ≥ min_rasio_volume`
+- TB3 `close_t > SMA(sma_tren)_t` dan `SMA(sma_tren)_t > SMA(sma_panjang)_t`
+- TB4 `CLV_t ≥ min_posisi_close`
+- TB5 `(close_t − HHV(high, lookback_tertinggi)_{t−1}) / ATR_t ≤ maks_lewat_level_atr`
 
 Stop awal (ruang tersesuaikan) = `close_t − stop_atr × ATR_t`; konversi ke nominal dengan F(t) dan
 pembulatan ke atas dilakukan `Strategi._bangun_sinyal`. Tidak ada target tetap (`target_r = None`);
@@ -14,7 +14,7 @@ exit memakai trailing (`trailing_atr`, mesin exit §15).
 
 `K_sinyal = 0,5 × clip((RasioVol − v_min)/v_min, 0, 1) + 0,5 × CLV`, dengan `v_min = min_rasio_volume`.
 
-Nilai NaN membuat aturan tidak terpenuhi; ATR ≤ 0/NaN membuat BO5 (yang membagi dengan ATR) tidak
+Nilai NaN membuat aturan tidak terpenuhi; ATR ≤ 0/NaN membuat TB5 (yang membagi dengan ATR) tidak
 terpenuhi (§9). Semua aturan selalu dievaluasi dan dicantumkan, walau aturan sebelumnya gagal.
 """
 
@@ -41,10 +41,10 @@ def _clip01(x: float) -> float:
 
 
 class Breakout(Strategi):
-    kode = "BO"
+    kode = "TB"
 
     def evaluasi(self, dv: "DataView", kode: str, bei: "AturanBEI") -> EvaluasiStrategi:
-        p = self.cfg.strategi.bo
+        p = self.cfg.strategi.tb
         baris = dv.baris(kode)
         if baris is None:
             return self.tanpa_sinyal(
@@ -65,51 +65,51 @@ class Breakout(Strategi):
 
         cek: list[CekAturan] = []
 
-        # BO1 — close menembus high tertinggi n bar sebelum t.
+        # TB1 — close menembus high tertinggi n bar sebelum t.
         cek.append(
             CekAturan(
-                "BO1",
+                "TB1",
                 f"close {a(close)} > high tertinggi {n_hhv} bar sebelumnya {a(hhv)}",
                 _ada(close, hhv) and close > hhv,
             )
         )
 
-        # BO2 — lonjakan volume terhadap rata-rata n bar sebelum t.
+        # TB2 — lonjakan volume terhadap rata-rata n bar sebelum t.
         cek.append(
             CekAturan(
-                "BO2",
+                "TB2",
                 f"rasio volume ({n_vol} bar sebelumnya) {a(rasio)} ≥ {a(v_min)}",
                 _ada(rasio) and rasio >= v_min,
             )
         )
 
-        # BO3 — tren naik: close > SMA tren dan SMA tren > SMA panjang.
+        # TB3 — tren naik: close > SMA tren dan SMA tren > SMA panjang.
         cek.append(
             CekAturan(
-                "BO3",
+                "TB3",
                 f"close {a(close)} > SMA{p.sma_tren} {a(sma_tren)} dan "
                 f"SMA{p.sma_tren} {a(sma_tren)} > SMA{p.sma_panjang} {a(sma_panjang)}",
                 _ada(close, sma_tren, sma_panjang) and close > sma_tren and sma_tren > sma_panjang,
             )
         )
 
-        # BO4 — close di dekat high hari itu.
+        # TB4 — close di dekat high hari itu.
         cek.append(
             CekAturan(
-                "BO4",
+                "TB4",
                 f"posisi close dalam rentang hari ini (CLV) {a(clv)} ≥ {a(min_clv)}",
                 _ada(clv) and clv >= min_clv,
             )
         )
 
-        # BO5 — belum terlalu jauh di atas level tembus (dalam satuan ATR).
-        dasar_bo5 = f"(close {a(close)} − high tertinggi {a(hhv)}) / ATR {a(atr)}"
+        # TB5 — belum terlalu jauh di atas level tembus (dalam satuan ATR).
+        dasar_tb5 = f"(close {a(close)} − high tertinggi {a(hhv)}) / ATR {a(atr)}"
         if not atr_sah(atr):
-            cek.append(CekAturan("BO5", f"{dasar_bo5}: ATR tidak sah (≤ 0 atau tidak tersedia)", False))
+            cek.append(CekAturan("TB5", f"{dasar_tb5}: ATR tidak sah (≤ 0 atau tidak tersedia)", False))
         else:
             lewat = (close - hhv) / atr if _ada(close, hhv) else math.nan
             cek.append(
-                CekAturan("BO5", f"{dasar_bo5} = {a(lewat)} ≤ {a(maks_lewat)}", _ada(lewat) and lewat <= maks_lewat)
+                CekAturan("TB5", f"{dasar_tb5} = {a(lewat)} ≤ {a(maks_lewat)}", _ada(lewat) and lewat <= maks_lewat)
             )
 
         if not all(c.lolos for c in cek):

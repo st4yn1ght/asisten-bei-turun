@@ -64,7 +64,7 @@ log = logging.getLogger("asisten_bei_turun.harian")
 LENGKAP = "LENGKAP"
 TIDAK_LENGKAP = "TIDAK_LENGKAP"
 BELUM_TERSEDIA = "BELUM_TERSEDIA"
-STRATEGI_LIVE: tuple[str, ...] = ("PB", "BO", "MR")
+STRATEGI_LIVE: tuple[str, ...] = ("TP", "TB", "PJ")
 PETUNJUK_LIBUR = "mungkin hari libur yang belum ada di holidays.csv"
 
 

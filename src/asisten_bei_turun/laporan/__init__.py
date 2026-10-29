@@ -125,7 +125,7 @@ def bangun_laporan(
                          _rel(ctx, cfg.akun.file_akun))
     if umur is not None:
         lap.peringatan.append(f"akun basi: {umur.pesan}")
-    for s in ("PB", "BO", "MR"):
+    for s in ("TP", "TB", "PJ"):
         e = gate.get(s) or {}
         if s in aktif and alasan_gerbang.get(s) is None and e.get("subset_terjangkau_lemah"):
             lap.peringatan.append(f"{s}: {TEKS_SUBSET_LEMAH}.")
@@ -137,7 +137,7 @@ def bangun_laporan(
         lap.peringatan.append(f"Jurnal gagal: {jurnal_gagal}. Bagian jurnal diganti peringatan ini (kode keluar 6).")
 
     # Status strategi (§18.1 #4).
-    for s in ("PB", "BO", "MR"):
+    for s in ("TP", "TB", "PJ"):
         e = gate.get(s) or {}
         lap.status_strategi.append(StatusStrategi(
             kode=s, aktif=s in aktif, lolos=s in aktif and alasan_gerbang.get(s) is None,

@@ -41,7 +41,7 @@ WAKTU_BT = "2025-07-01T20:00:00+07:00"
 POLA_FOLDER = re.compile(r"^(\d{8}-\d{6})_([0-9a-f]{8})$")
 
 # Config uji: periode pendek (in-sample 2024-04-01 … 2024-12-31, holdout 2025-01-01 …), indikator pendek, dan
-# ambang gerbang longgar agar PB/BO/MR bisa lolos pada data sintetis kecil.
+# ambang gerbang longgar agar TP/TB/PJ bisa lolos pada data sintetis kecil.
 UBAH_BT: dict = {
     "indikator.atr_periode": 5,
     "likuiditas.periode_hari": 5,
@@ -52,17 +52,17 @@ UBAH_BT: dict = {
     "kondisi_pasar.breadth_sma": 10,
     "kondisi_pasar.min_saham_breadth": 2,
     "skor.rs_lookback": 10,
-    "strategi.pb.sma_cepat": 5,
-    "strategi.pb.sma_tren": 10,
-    "strategi.pb.sma_panjang": 20,
-    "strategi.pb.lookback_slope_sma_tren": 3,
-    "strategi.bo.sma_tren": 10,
-    "strategi.bo.sma_panjang": 20,
-    "strategi.bo.lookback_tertinggi": 10,
-    "strategi.bo.lookback_volume": 10,
-    "strategi.bo.min_rasio_volume": 1.0,
-    "strategi.mr.sma_tren": 20,
-    "strategi.mr.rsi_maks": 30,
+    "strategi.tp.sma_cepat": 5,
+    "strategi.tp.sma_tren": 10,
+    "strategi.tp.sma_panjang": 20,
+    "strategi.tp.lookback_slope_sma_tren": 3,
+    "strategi.tb.sma_tren": 10,
+    "strategi.tb.sma_panjang": 20,
+    "strategi.tb.lookback_tertinggi": 10,
+    "strategi.tb.lookback_volume": 10,
+    "strategi.tb.min_rasio_volume": 1.0,
+    "strategi.pj.sma_tren": 20,
+    "strategi.pj.rsi_maks": 30,
     "strategi.acak.peluang_sinyal_pct": 10.0,
     "backtest.mulai": "2024-04-01",
     "backtest.holdout_mulai": "2025-01-01",
@@ -83,7 +83,7 @@ SAHAM_BT: dict[str, tuple[int, float, float, float]] = {
     "CCCC": (4, 800.0, 0.0008, 0.022),
     "DDDD": (5, 1500.0, 0.0003, 0.02),
 }
-RUN_SEMUA = ("pb", "bo", "mr", "acak", "gabungan_aktif", "gabungan_lolos")
+RUN_SEMUA = ("tp", "tb", "pj", "acak", "gabungan_aktif", "gabungan_lolos")
 MODE_SEMUA = ("edge", "realistis")
 
 
@@ -235,7 +235,7 @@ def run_default(tmp_path_factory) -> tuple[Proyek, HasilCLI]:
 # ---------------------------------------------------------------------------
 
 
-def berkas_diharapkan(runs=RUN_SEMUA, modes=MODE_SEMUA, strategi=("pb", "bo", "mr", "acak")) -> set[str]:
+def berkas_diharapkan(runs=RUN_SEMUA, modes=MODE_SEMUA, strategi=("tp", "tb", "pj", "acak")) -> set[str]:
     nama = {"ringkasan.md", "ringkasan.html", "gerbang_run.json", "config_snapshot.yaml"}
     for r in runs:
         for m in modes:
@@ -293,19 +293,19 @@ def test_default_akhir_data_hari_terakhir_dengan_bar_ihsg(run_default):
     """§16.1: selesai null → hari bursa terakhir ≤ t (2025-07-01) yang punya bar IHSG valid = 2025-06-30."""
     proyek, _ = run_default
     folder = proyek.folder_run()[0]
-    ek = baca_csv(folder / "ekuitas_pb_edge.csv")
+    ek = baca_csv(folder / "ekuitas_tp_edge.csv")
     assert ek["tanggal"].iloc[0] == "2024-03-29"  # titik awal: hari bursa terakhir sebelum backtest.mulai
     assert ek["tanggal"].iloc[-1] == "2025-06-30"
     gate = json.loads((proyek.folder_bt / "gate_status.json").read_text(encoding="utf-8"))
     assert {e["tanggal_data_terakhir"] for e in gate["strategi"].values()} == {"2025-06-30"}
 
 
-def test_default_gerbang_untuk_pb_bo_mr_saja_dan_folder_run_relatif(run_default):
+def test_default_gerbang_untuk_tp_tb_pj_saja_dan_folder_run_relatif(run_default):
     proyek, _ = run_default
     gate = json.loads((proyek.folder_bt / "gate_status.json").read_text(encoding="utf-8"))
     run = json.loads((proyek.folder_run()[0] / "gerbang_run.json").read_text(encoding="utf-8"))
     assert gate["catatan"] == DISCLAIMER and run["catatan"] == DISCLAIMER
-    assert set(gate["strategi"]) == {"PB", "BO", "MR"}  # ACAK tidak pernah dinilai gerbang
+    assert set(gate["strategi"]) == {"TP", "TB", "PJ"}  # ACAK tidak pernah dinilai gerbang
     assert run["strategi"] == gate["strategi"]
     for e in gate["strategi"].values():
         assert e["folder_run"] == "output/backtest/" + proyek.folder_run()[0].name
@@ -334,7 +334,7 @@ def test_default_gabungan_dijalankan_tanpa_opsi_strategi(run_default):
     # gabungan tidak pernah memuat ACAK (§12.4, §16.3)
     for r in ("gabungan_aktif", "gabungan_lolos"):
         tx = baca_csv(proyek.folder_run()[0] / f"transaksi_{r}_edge.csv")
-        assert set(tx["strategi"]) <= {"PB", "BO", "MR"}
+        assert set(tx["strategi"]) <= {"TP", "TB", "PJ"}
 
 
 # ---------------------------------------------------------------------------
@@ -344,18 +344,18 @@ def test_default_gabungan_dijalankan_tanpa_opsi_strategi(run_default):
 
 def test_filter_strategi_dan_mode_tanpa_gabungan_tanpa_gate_status(tmp_path):
     proyek = buat_proyek(tmp_path)
-    h = jalankan(proyek, "--strategi", "acak,PB", "--mode", "realistis")
+    h = jalankan(proyek, "--strategi", "acak,TP", "--mode", "realistis")
     assert h.kode == 0, h.teks
     folder = proyek.folder_run()
     assert len(folder) == 1
     assert {p.name for p in folder[0].iterdir()} == berkas_diharapkan(
-        runs=("pb", "acak"), modes=("realistis",), strategi=("pb", "acak"))
+        runs=("tp", "acak"), modes=("realistis",), strategi=("tp", "acak"))
     # gate_status.json hanya ditulis bila run memuat mode edge (§16.6)
     assert not (proyek.folder_bt / "gate_status.json").exists()
     run = json.loads((folder[0] / "gerbang_run.json").read_text(encoding="utf-8"))
     assert run == {"catatan": DISCLAIMER, "strategi": {}}
     df = baca_csv(proyek.folder_bt / "holdout_log.csv")
-    assert list(zip(df["strategi"], df["mode"])) == [("pb", "realistis"), ("acak", "realistis")]
+    assert list(zip(df["strategi"], df["mode"])) == [("tp", "realistis"), ("acak", "realistis")]
     assert "gabungan" not in " ".join(p.name for p in folder[0].iterdir())
     assert h.baris[-1] == DISCLAIMER
 
@@ -381,27 +381,27 @@ def test_gabungan_lolos_dilewati_bila_tidak_ada_yang_lolos(tmp_path):
     assert not any("gabungan_lolos" in n for n in nama)
     assert "gabungan_lolos dilewati: tidak ada strategi aktif yang lolos gerbang" in h.teks
     gate = json.loads((proyek.folder_bt / "gate_status.json").read_text(encoding="utf-8"))
-    assert {k: v["lolos"] for k, v in gate["strategi"].items()} == {"PB": False, "BO": False, "MR": False}
+    assert {k: v["lolos"] for k, v in gate["strategi"].items()} == {"TP": False, "TB": False, "PJ": False}
     assert all(not v["syarat"]["G1"]["lolos"] for v in gate["strategi"].values())
 
 
 def test_strategi_nonaktif_tetap_dijalankan_per_strategi_tetapi_tidak_di_gabungan(tmp_path):
-    proyek = buat_proyek(tmp_path, {"strategi.bo.aktif": False})
+    proyek = buat_proyek(tmp_path, {"strategi.tb.aktif": False})
     h = jalankan(proyek, "--mode", "edge")
     assert h.kode == 0, h.teks
     folder = proyek.folder_run()[0]
-    assert (folder / "transaksi_bo_edge.csv").is_file()
+    assert (folder / "transaksi_tb_edge.csv").is_file()
     for r in ("gabungan_aktif", "gabungan_lolos"):
         tx = baca_csv(folder / f"transaksi_{r}_edge.csv")
         dl = baca_csv(folder / f"sinyal_dilewati_{r}_edge.csv")
-        assert "BO" not in set(tx["strategi"]) | set(dl["strategi"])
-    assert "strategi lolos tetapi tidak aktif (tidak ikut gabungan_lolos): BO" in h.teks
+        assert "TB" not in set(tx["strategi"]) | set(dl["strategi"])
+    assert "strategi lolos tetapi tidak aktif (tidak ikut gabungan_lolos): TB" in h.teks
 
 
 @pytest.mark.parametrize(
     "opsi",
     [
-        ("--strategi", "pb,xx"),
+        ("--strategi", "tp,xx"),
         ("--strategi", "gabungan_aktif"),
         ("--strategi", "manual"),
         ("--strategi", ""),
@@ -421,10 +421,10 @@ def test_opsi_tidak_valid_kode_3_tanpa_keluaran(tmp_path, opsi):
 
 
 def test_parse_daftar_urutan_kanonik_tanpa_duplikat():
-    assert jl.parse_daftar_strategi("acak, MR,pb,pb") == ("pb", "mr", "acak")
+    assert jl.parse_daftar_strategi("acak, PJ,tp,tp") == ("tp", "pj", "acak")
     assert jl.parse_daftar_mode("realistis,edge") == ("edge", "realistis")
     with pytest.raises(ValueError, match="tidak dikenal: zz"):
-        jl.parse_daftar_strategi("pb,zz")
+        jl.parse_daftar_strategi("tp,zz")
     with pytest.raises(ValueError, match="kosong"):
         jl.parse_daftar_mode(" , ")
 
@@ -465,7 +465,7 @@ def test_identitas_akuntansi_gagal_kode_1_tanpa_ringkasan(tmp_path, monkeypatch)
 
 def test_identitas_gagal_tidak_mengubah_gate_status_lama(tmp_path, monkeypatch, atur_waktu):
     proyek = buat_proyek(tmp_path)
-    assert jalankan(proyek, "--strategi", "mr", "--mode", "edge").kode == 0
+    assert jalankan(proyek, "--strategi", "pj", "--mode", "edge").kode == 0
     lama = (proyek.folder_bt / "gate_status.json").read_bytes()
     log_lama = (proyek.folder_bt / "holdout_log.csv").read_bytes()
 
@@ -474,7 +474,7 @@ def test_identitas_gagal_tidak_mengubah_gate_status_lama(tmp_path, monkeypatch, 
 
     monkeypatch.setattr(mesin, "periksa_identitas", gagal)
     atur_waktu("2025-07-02T20:00:00+07:00")
-    assert jalankan(proyek, "--strategi", "mr", "--mode", "edge").kode == 1
+    assert jalankan(proyek, "--strategi", "pj", "--mode", "edge").kode == 1
     assert (proyek.folder_bt / "gate_status.json").read_bytes() == lama
     assert (proyek.folder_bt / "holdout_log.csv").read_bytes() == log_lama
     assert len(proyek.folder_run()) == 1
@@ -513,48 +513,48 @@ def test_akhir_data_ikut_bar_ihsg_terakhir(tmp_path):
     proyek = buat_proyek(tmp_path)
     seed, awal, drift, vol = SAHAM_BT["IHSG"]
     proyek.tulis_cache("IHSG", bingkai_sintetis(seed, awal, drift, vol, indeks=True, akhir="2025-06-26"))
-    h = jalankan(proyek, "--strategi", "mr", "--mode", "edge")
+    h = jalankan(proyek, "--strategi", "pj", "--mode", "edge")
     assert h.kode == 0, h.teks
-    ek = baca_csv(proyek.folder_run()[0] / "ekuitas_mr_edge.csv")
+    ek = baca_csv(proyek.folder_run()[0] / "ekuitas_pj_edge.csv")
     assert ek["tanggal"].iloc[-1] == "2025-06-26"
 
 
 def test_backtest_selesai_menentukan_akhir_data(tmp_path):
     proyek = buat_proyek(tmp_path, {"backtest.selesai": "2025-03-31"})
-    h = jalankan(proyek, "--strategi", "mr", "--mode", "edge")
+    h = jalankan(proyek, "--strategi", "pj", "--mode", "edge")
     assert h.kode == 0, h.teks
-    ek = baca_csv(proyek.folder_run()[0] / "ekuitas_mr_edge.csv")
+    ek = baca_csv(proyek.folder_run()[0] / "ekuitas_pj_edge.csv")
     assert ek["tanggal"].iloc[-1] == "2025-03-31"
-    tx = baca_csv(proyek.folder_run()[0] / "transaksi_mr_edge.csv")
+    tx = baca_csv(proyek.folder_run()[0] / "transaksi_pj_edge.csv")
     assert (tx["tanggal_exit"] <= "2025-03-31").all()
     gate = json.loads((proyek.folder_bt / "gate_status.json").read_text(encoding="utf-8"))
-    assert gate["strategi"]["MR"]["tanggal_data_terakhir"] == "2025-03-31"
+    assert gate["strategi"]["PJ"]["tanggal_data_terakhir"] == "2025-03-31"
 
 
 def test_backtest_selesai_sesudah_t_dibatasi_dengan_catatan(tmp_path):
     proyek = buat_proyek(tmp_path, {"backtest.selesai": "2025-12-31"})
-    h = jalankan(proyek, "--strategi", "mr", "--mode", "edge")
+    h = jalankan(proyek, "--strategi", "pj", "--mode", "edge")
     assert h.kode == 0, h.teks
-    ek = baca_csv(proyek.folder_run()[0] / "ekuitas_mr_edge.csv")
+    ek = baca_csv(proyek.folder_run()[0] / "ekuitas_pj_edge.csv")
     assert ek["tanggal"].iloc[-1] == "2025-06-30"
     assert "backtest.selesai 2025-12-31 sesudah tanggal data t 2025-07-01" in h.teks
 
 
 def test_holdout_log_bertambah_n_dan_m(tmp_path, atur_waktu):
     proyek = buat_proyek(tmp_path)
-    h1 = jalankan(proyek, "--strategi", "mr", "--mode", "edge")
+    h1 = jalankan(proyek, "--strategi", "pj", "--mode", "edge")
     assert h1.kode == 0, h1.teks
     assert "Holdout telah dilihat 1 kali dengan 1 konfigurasi aturan berbeda." in h1.teks
 
     atur_waktu("2025-07-02T20:00:00+07:00")
-    h2 = jalankan(proyek, "--strategi", "mr", "--mode", "edge")
+    h2 = jalankan(proyek, "--strategi", "pj", "--mode", "edge")
     assert "Holdout telah dilihat 2 kali dengan 1 konfigurasi aturan berbeda." in h2.teks
     assert "PERINGATAN" not in (proyek.folder_run()[-1] / "ringkasan.md").read_text(encoding="utf-8").split(
         "Disiplin holdout")[1].split("###")[0]
 
-    proyek.tulis_config({"strategi.mr.rsi_maks": 25})  # aturan berubah → hash_aturan global berubah
+    proyek.tulis_config({"strategi.pj.rsi_maks": 25})  # aturan berubah → hash_aturan global berubah
     atur_waktu("2025-07-03T20:00:00+07:00")
-    h3 = jalankan(proyek, "--strategi", "mr", "--mode", "edge")
+    h3 = jalankan(proyek, "--strategi", "pj", "--mode", "edge")
     assert h3.kode == 0, h3.teks
     assert "Holdout telah dilihat 3 kali dengan 2 konfigurasi aturan berbeda." in h3.teks
     assert "holdout tidak lagi murni" in h3.teks
@@ -570,11 +570,11 @@ def test_holdout_log_bertambah_n_dan_m(tmp_path, atur_waktu):
 def test_data_berakhir_sebelum_holdout_tanpa_baris_log(tmp_path):
     """Akhir data sebelum holdout_mulai: holdout tidak dihitung → tidak ada baris holdout_log (§16.4)."""
     proyek = buat_proyek(tmp_path, {"backtest.holdout_mulai": "2025-09-01"})
-    h = jalankan(proyek, "--strategi", "mr", "--mode", "edge")
+    h = jalankan(proyek, "--strategi", "pj", "--mode", "edge")
     assert h.kode == 0, h.teks
     assert not (proyek.folder_bt / "holdout_log.csv").exists()
     gate = json.loads((proyek.folder_bt / "gate_status.json").read_text(encoding="utf-8"))
-    assert gate["strategi"]["MR"]["lolos"] is False  # G1: tanpa transaksi holdout
+    assert gate["strategi"]["PJ"]["lolos"] is False  # G1: tanpa transaksi holdout
     md = (proyek.folder_run()[0] / "ringkasan.md").read_text(encoding="utf-8")
     assert "Holdout belum dihitung" in md
     # Tabel tidak menampilkan angka untuk holdout yang belum tercapai, dan jendela terakhir dipotong di akhir data.
