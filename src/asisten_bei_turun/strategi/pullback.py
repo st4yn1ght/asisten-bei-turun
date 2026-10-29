@@ -1,4 +1,4 @@
-"""Strategi TP — pullback dalam tren naik (SPEC §12.1; `K_sinyal` TP §13.1).
+"""Strategi TP — saham tangguh: pullback (SPEC §12.1; `K_sinyal` TP §13.1).
 
 Semua aturan dievaluasi pada close `t` (= `dv.as_of`) dan selalu dicantumkan, juga sesudah satu aturan
 gagal, dengan nilai aktual di uraiannya:
@@ -10,6 +10,7 @@ gagal, dengan nilai aktual di uraiannya:
 | TP3 | ada `k ∈ {0, …, lookback_sentuh_sma_cepat − 1}` dengan `low_{t−k} ≤ SMA(sma_cepat)_{t−k}` |
 | TP4 | `close_t > high_{t−1}` dan `close_t > open_t` |
 | TP5 | `(close_t − SMA(sma_cepat)_t) / ATR_t ≤ maks_jarak_atas_sma_cepat_atr` |
+| TP6 | `Unggul_IHSG(rs_lookback)_t × 100 ≥ min_unggul_ihsg_pct` (§9) |
 
 Stop awal (ruang tersesuaikan) = `LLV(low, lookback_swing_low)_t − penyangga_stop_atr × ATR_t`;
 `harga_maks`, konversi nominal `× F(t)`, pembulatan, dan validasi `STOP_TERLALU_JAUH`
@@ -28,7 +29,7 @@ import math
 from typing import TYPE_CHECKING
 
 from ..indikator import k_llv_low, k_sma
-from .dasar import CekAturan, EvaluasiStrategi, Strategi, a, atr_sah, nilai_baris
+from .dasar import CekAturan, EvaluasiStrategi, Strategi, a, atr_sah, cek_unggul_ihsg, nilai_baris
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..aturan_bei import AturanBEI
@@ -49,7 +50,7 @@ def _bar_ke(k: int) -> str:
 
 
 class Pullback(Strategi):
-    """TP — pullback ke SMA cepat dalam tren naik, dipicu pantulan (SPEC §12.1)."""
+    """TP — saham tangguh (unggul dari IHSG) yang pullback ke SMA cepat, dipicu pantulan (SPEC §12.1)."""
 
     kode = "TP"
 
@@ -134,6 +135,9 @@ class Pullback(Strategi):
                 f"(ATR ≤ 0 atau data kurang); batas {a(batas)}"
             )
         cek.append(CekAturan("TP5", uraian5, tp5))
+
+        # TP6 — saham tangguh: unggul dari IHSG dalam `rs_lookback` bar valid (§9 Unggul_IHSG).
+        cek.append(cek_unggul_ihsg(dv, kode, "TP6", p.rs_lookback, float(p.min_unggul_ihsg_pct)))
 
         if not all(c.lolos for c in cek):
             return self.tanpa_sinyal(kode, cek)

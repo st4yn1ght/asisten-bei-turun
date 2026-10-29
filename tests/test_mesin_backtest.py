@@ -125,8 +125,8 @@ UBAH = {
     "strategi.tb.sma_tren": 10,
     "strategi.tb.sma_panjang": 30,
     "strategi.tb.min_rasio_volume": 1.3,
-    "strategi.pj.sma_tren": 30,
     "strategi.pj.rsi_maks": 20,
+    "strategi.pj.ihsg_rsi_maks": 100,  # IHSG berlawanan arah dengan saham: PJ2 dilonggarkan agar PJ tetap bersinyal
     "strategi.pj.sma_keluar": 3,
     "strategi.acak.peluang_sinyal_pct": 25.0,
     "strategi.acak.stop_waktu_hari": 6,
@@ -188,14 +188,16 @@ def _ohlc(logc: np.ndarray, rng: np.random.Generator, vol_dasar: float, indeks: 
 def _bangkitkan() -> tuple[dict[str, pd.DataFrame], pd.DataFrame]:
     rng = np.random.default_rng(SEED)
     faktor = np.cumsum(rng.normal(0.0006, 0.009, N_BAR))
-    faktor[150:190] -= np.linspace(0, 0.18, 40)  # periode turun → JANGAN BELI / HATI-HATI
+    faktor[150:190] -= np.linspace(0, 0.18, 40)  # saham turun (IHSG naik) → HATI-HATI / JANGAN BELI
     faktor[190:] -= 0.18
     saham = {}
     for kode, (_, awal, drift) in SAHAM.items():
         idio = np.cumsum(rng.normal(drift - 0.0006, 0.015, N_BAR))
         idio = idio + 0.03 * np.sin(np.arange(N_BAR) / 6.0 + rng.uniform(0, 6))
         saham[kode] = _ohlc(math.log(awal) + 1.2 * faktor + idio, rng, 2e6, False)
-    ihsg = _ohlc(math.log(7000) + faktor, rng, 1, True)
+    # IHSG bergerak berlawanan dengan faktor saham: saat saham naik, IHSG tren turun → K1 BOLEH BELI di alat
+    # tren turun (§10), dan saham unggul dari IHSG (TP6/TB6).
+    ihsg = _ohlc(math.log(7000) - faktor, rng, 1, True)
     # Cacat data (§8.5): bar hilang, bar tanpa transaksi, bar rusak.
     saham["FKAB"] = saham["FKAB"].drop(saham["FKAB"].index[[120, 121]])
     saham["FKBB"] = saham["FKBB"].drop(saham["FKBB"].index[[230]])
@@ -1031,7 +1033,7 @@ SETARA_SM = _harga_setara_sm()
 
 
 def _ihsg_sm() -> pd.DataFrame:
-    c = np.round(7000 * 1.002 ** np.arange(N_SM), 2)
+    c = np.round(7000 * 0.998 ** np.arange(N_SM), 2)  # IHSG tren turun → K1 BOLEH BELI di alat ini (§10)
     return pd.DataFrame(
         {"open": c, "high": c * 1.005, "low": c * 0.995, "close": c, "volume": np.nan},
         index=pd.DatetimeIndex(HARI[:N_SM], name="tanggal").as_unit("ns"),

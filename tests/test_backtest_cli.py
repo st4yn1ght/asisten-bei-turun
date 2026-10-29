@@ -61,8 +61,12 @@ UBAH_BT: dict = {
     "strategi.tb.lookback_tertinggi": 10,
     "strategi.tb.lookback_volume": 10,
     "strategi.tb.min_rasio_volume": 1.0,
-    "strategi.pj.sma_tren": 20,
     "strategi.pj.rsi_maks": 30,
+    # Aturan tren turun (TP6/TB6/PJ2) diuji di berkas strateginya; di proyek ini ambangnya selalu lolos agar sinyal
+    # sama seperti versi asisten-bei dan uji harian/jurnal/laporan tetap memakai skenario yang sama.
+    "strategi.tp.min_unggul_ihsg_pct": -100.0,
+    "strategi.tb.min_unggul_ihsg_pct": -100.0,
+    "strategi.pj.ihsg_rsi_maks": 100,
     "strategi.acak.peluang_sinyal_pct": 10.0,
     "backtest.mulai": "2024-04-01",
     "backtest.holdout_mulai": "2025-01-01",
@@ -100,7 +104,9 @@ def bingkai_sintetis(
     idx = pd.DatetimeIndex(pd.bdate_range(mulai, akhir), name="tanggal").as_unit("ns")
     rng = np.random.default_rng(seed)
     n = len(idx)
-    c = awal * np.exp(np.cumsum(rng.normal(drift, vol, n)))
+    langkah = rng.normal(drift, vol, n)
+    # Indeks dicerminkan (turun saat versi asisten-bei naik): alat ini aktif saat IHSG tren turun (K1, §10).
+    c = awal * np.exp(np.cumsum(-langkah if indeks else langkah))
     o = np.r_[awal, c[:-1]] * (1 + rng.normal(0, vol / 3, n))
     h = np.maximum(o, c) * (1 + np.abs(rng.normal(0, vol / 2, n)))
     lo = np.minimum(o, c) * (1 - np.abs(rng.normal(0, vol / 2, n)))

@@ -263,18 +263,18 @@ def test_readme_memuat_glosarium_4_2():
 
 
 def test_readme_tabel_modal_sama_dengan_spec_3():
-    spec = _bagian_spec("## 3. Konsekuensi modal Rp 3 juta")
+    spec = _bagian_spec("## 3. Konsekuensi modal terpisah dan risiko 1%")
     baris_spec = [b for b in spec.splitlines() if re.match(r"\| \d+% \|", b)]
     assert len(baris_spec) == 5
     readme = _readme()
     for b in baris_spec:
         assert b in readme, b
-    assert "Rp 9.985" in readme and "Rp 115 ribu/tahun" in readme
+    assert "≈ Rp 14.980 pada ekuitas Rp 3 juta" in spec and "≈ Rp 14.980 pada ekuitas Rp 3 juta" in readme
 
 
 def test_readme_daftar_cek_24_lengkap():
     nomor_spec = re.findall(r"^\| (\d+) \|", _bagian_spec("## 24. Yang harus Anda cek dan isi sendiri"), re.M)
-    bagian = _readme().split("## 3. Berkas yang Anda isi sendiri")[1].split("\n## ")[0]
+    bagian = re.split(r"^## \d+\. Berkas yang Anda isi sendiri$", _readme(), flags=re.M)[1].split("\n## ")[0]
     assert re.findall(r"^\| (\d+) \|", bagian, re.M) == nomor_spec == [str(i) for i in range(1, 15)]
 
 
@@ -309,3 +309,11 @@ def test_readme_tanpa_kata_trade():
     teks = _readme()
     for m in re.finditer(r"(?i)\btrade\b", teks):
         assert teks[m.end():].startswith(" confirmation"), m.start()  # nama dokumen broker (§19.6)
+
+
+def test_readme_menjelaskan_status_terbalik_dan_strategi_tren_turun():
+    teks = _readme()
+    for wajib in ("| IHSG tren turun: close < SMA200 **dan** SMA50 < SMA200 | JANGAN BELI | **BOLEH BELI** |",
+                  "**TP** — saham tangguh: pullback", "**TB** — saham tangguh: breakout", "**PJ** — pantulan jenuh jual",
+                  "Memindahkan isian dari asisten-bei", "modal terpisah"):
+        assert wajib in teks, wajib

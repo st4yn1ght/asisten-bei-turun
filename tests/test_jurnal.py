@@ -189,7 +189,7 @@ def test_belum_tersedia_tidak_menulis_sinyal(proyek):
 
 
 def test_hitung_ulang_turunan_setelah_revisi_data(proyek):
-    for d in ("2025-04-28", "2025-05-22"):  # run kedua mengejar 2025-04-29 … 2025-05-21 (susulan)
+    for d in ("2025-03-03", "2025-03-31"):  # run kedua mengejar 2025-03-04 … 2025-03-28 (susulan)
         proyek.harian(d)
     tertutup = [r for r in _kertas(proyek) if r["alasan_exit"] != "TERBUKA"]
     assert tertutup, "prasyarat: ada transaksi kertas tertutup"
@@ -199,9 +199,9 @@ def test_hitung_ulang_turunan_setelah_revisi_data(proyek):
     ts = pd.Timestamp(r["tanggal_entry"])
     o = float(df.loc[ts, "open"]) * 1.5
     proyek.ubah_bar(r["kode"], r["tanggal_entry"], open=o, high=max(o, float(df.loc[ts, "high"])))
-    h = proyek.harian("2025-05-23")
+    h = proyek.harian("2025-04-01")
     assert _kunci(r) not in {_kunci(x) for x in _kertas(proyek)}
-    assert "transaksi kertas berubah karena revisi data" in (proyek.folder_laporan / "2025-05-23" / "laporan.md").read_text(
+    assert "transaksi kertas berubah karena revisi data" in (proyek.folder_laporan / "2025-04-01" / "laporan.md").read_text(
         encoding="utf-8")
     assert h.kode in (0, 2)
 

@@ -1,4 +1,4 @@
-"""Uji T-ST strategi TP — pullback dalam tren naik (SPEC §12.1, §13.1 K_sinyal TP, §22.1 T-ST/T-CFG).
+"""Uji T-ST strategi TP — saham tangguh: pullback (SPEC §12.1, §13.1 K_sinyal TP, §22.1 T-ST/T-CFG).
 
 Fixture sintetis kecil dan deterministik dengan periode config yang diperkecil agar setiap nilai bisa
 dihitung tangan. Semua harga fiktif (ruang tersesuaikan); pembulatan harga memakai rupiah bulat karena
@@ -8,7 +8,7 @@ Config uji (semua parameter TP disematkan eksplisit, tidak bergantung pada nilai
   indikator.atr_periode = 3, likuiditas.periode_hari = 3, data.pengali_volume = 1, entry.gap_maks_atr = 0,5
   tp: sma_cepat 3, sma_tren 5, sma_panjang 8, lookback_slope_sma_tren 2, lookback_sentuh_sma_cepat 2,
       maks_jarak_atas_sma_cepat_atr 1,0, lookback_swing_low 3, penyangga_stop_atr 0,2,
-      maks_jarak_stop_atr 3,0, target_r 2,0
+      maks_jarak_stop_atr 3,0, target_r 2,0, rs_lookback 5, min_unggul_ihsg_pct 10
 
 Fixture dasar (12 bar hari bursa HARI[0..11], t = posisi 11 = 2024-01-16, volume 1.000.000):
   bar "standar" posisi 0..10: open = close = c, high = c + 20, low = c − 20
@@ -38,6 +38,10 @@ Hitung tangan:
   jarak stop = (1197 − 1070)/53,333333 = 2,38125… ATR ≤ 3,0 → valid
   K_sinyal   = 0,5 × (1 − 0,7875) + 0,5 × 0,5 = 0,10625 + 0,25 = 0,35625
   RataNilai  = (1100 + 1116 + 1171) × 1.000.000 / 3 = 1.129.000.000
+
+IHSG (indeks, tanpa volume): pos 0..5 = 7.100, lalu 7.000, 6.800, 6.600, 6.400, 6.200, 6.000 (pos 6..11).
+  TP6: d0 = bar valid ke-5 sebelum t = pos 6. Saham 1171/1120 − 1 = 4,55%; IHSG 6000/7000 − 1 = −14,29%;
+       Unggul_IHSG = (1171/1120)/(6000/7000) − 1 = 21,98% ≥ 10% ✓
 """
 
 from __future__ import annotations
@@ -52,11 +56,11 @@ from asisten_bei_turun.aturan_bei import AturanBEI
 from asisten_bei_turun.data.tampilan import DataPasar
 from asisten_bei_turun.strategi.dasar import CekAturan, EvaluasiStrategi, daftar_strategi
 from asisten_bei_turun.strategi.pullback import Pullback
-from bantu_pasar import HARI, KAL, cfg_uji, data_saham, tgl
+from bantu_pasar import HARI, KAL, bar, cfg_uji, data_saham, tgl
 
 KODE = "UJPB"
 POS_T = 11
-ATURAN = ["TP1", "TP2", "TP3", "TP4", "TP5"]
+ATURAN = ["TP1", "TP2", "TP3", "TP4", "TP5", "TP6"]
 
 UBAH_DASAR = {
     "indikator.atr_periode": 3,
@@ -75,10 +79,18 @@ UBAH_DASAR = {
     "strategi.tp.penyangga_stop_atr": 0.2,
     "strategi.tp.maks_jarak_stop_atr": 3.0,
     "strategi.tp.target_r": 2.0,
+    "strategi.tp.rs_lookback": 5,
+    "strategi.tp.min_unggul_ihsg_pct": 10.0,
 }
 
 CLOSE_DASAR = [1000, 1020, 1040, 1060, 1080, 1100, 1120, 1140, 1120, 1100, 1116]
 BAR_T = {"open": 1150.0, "high": 1196.0, "low": 1146.0, "close": 1171.0}
+CLOSE_IHSG = [7100.0] * 6 + [7000.0, 6800.0, 6600.0, 6400.0, 6200.0, 6000.0]
+
+
+def buat_ihsg(close: list[float] | None = None, buang: tuple[int, ...] = ()) -> pd.DataFrame:
+    """IHSG fixture (pos 0..11, tanpa volume); `buang` = posisi tanpa bar."""
+    return bar(CLOSE_IHSG if close is None else close, indeks=True, buang=buang)
 
 
 def cfg_tp(ubah: dict | None = None):
@@ -109,12 +121,16 @@ def evaluasi(
     *,
     pos_t: int = POS_T,
     split: pd.Series | None = None,
+    ihsg: pd.DataFrame | None | bool = True,
 ) -> EvaluasiStrategi:
+    """`ihsg=True` → `buat_ihsg()`; None → tanpa data IHSG."""
     cfg = cfg or cfg_tp()
     df = buat_bar() if df is None else df
     akhir = max(tgl(pos_t), df.index[-1].date())
     ds = data_saham(KODE, df, cfg, akhir, split=split)
-    pasar = DataPasar({KODE: ds}, None, KAL, cfg)
+    ih = buat_ihsg() if ihsg is True else ihsg
+    ds_ihsg = data_saham("IHSG", ih, cfg, akhir, indeks=True) if ih is not None else None
+    pasar = DataPasar({KODE: ds}, ds_ihsg, KAL, cfg)
     dv = pasar.tampilan(tgl(pos_t))
     return Pullback(cfg).evaluasi(dv, KODE, AturanBEI(cfg))
 
@@ -315,10 +331,11 @@ def test_stop_tepat_di_bawah_batas_jarak_valid():
         (5, ["TP1"]),
         # 6 bar (pos 6..11): SMA5_{t−2} butuh c5 → NaN → TP2 juga gagal.
         (6, ["TP1", "TP2"]),
-        # 3 bar (pos 9..11): SMA3_{t−1} NaN dan low_t > SMA3_t → TP3 gagal; ATR_t = (40+40+80)/3 masih ada.
-        (9, ["TP1", "TP2", "TP3"]),
+        # 3 bar (pos 9..11): SMA3_{t−1} NaN dan low_t > SMA3_t → TP3 gagal; ATR_t = (40+40+80)/3 masih ada;
+        # close_{t−5} tidak ada → TP6 gagal.
+        (9, ["TP1", "TP2", "TP3", "TP6"]),
         # 2 bar: ATR (n = 3) NaN → TP5 gagal; high_{t−1} dan open_t masih ada → TP4 lolos.
-        (10, ["TP1", "TP2", "TP3", "TP5"]),
+        (10, ["TP1", "TP2", "TP3", "TP5", "TP6"]),
         # 1 bar: high_{t−1} tidak ada → TP4 juga gagal.
         (11, ATURAN),
     ],
@@ -485,6 +502,10 @@ KASUS_CFG = [
     ("strategi.tp.target_r", 1.5, None, {"target_r": 1.5}),
     # harga_maks = bawah(1171 + 0,25 × 160/3) = bawah(1184,333…) = 1184.
     ("entry.gap_maks_atr", 0.25, None, {"harga_maks": Decimal("1184")}),
+    # d0 = pos 10: (1171/1116)/(6000/6200) − 1 = 8,43% < 10% → TP6 gagal.
+    ("strategi.tp.rs_lookback", 1, None, {"gagal": ["TP6"]}),
+    # 21,98% < 22% → TP6 gagal.
+    ("strategi.tp.min_unggul_ihsg_pct", 22.0, None, {"gagal": ["TP6"]}),
 ]
 
 
@@ -547,12 +568,55 @@ def test_berjalan_dengan_periode_config_rilis():
     df["volume"] = 1_000_000.0
     df["sumber"] = "yfinance"
     ds = data_saham(KODE, df, cfg, tgl(n - 1))
-    dv = DataPasar({KODE: ds}, None, KAL, cfg).tampilan(tgl(n - 1))
+    ihsg = data_saham("IHSG", bar([7000.0] * n, indeks=True), cfg, tgl(n - 1), indeks=True)  # IHSG datar
+    dv = DataPasar({KODE: ds}, ihsg, KAL, cfg).tampilan(tgl(n - 1))
     ev = Pullback(cfg).evaluasi(dv, KODE, AturanBEI(cfg))
     assert [c.kode for c in ev.cek] == ATURAN
+    # IHSG datar → unggul = Ret saham 60 bar = 1,002^60 − 1 = 12,74% ≥ 10%.
+    assert "TP6" not in ev.aturan_gagal and f"unggul IHSG {p.rs_lookback} bar 12,74%" in uraian(ev, "TP6")
     assert f"SMA{p.sma_tren}" in uraian(ev, "TP1") and f"SMA{p.sma_panjang}" in uraian(ev, "TP1")
     assert f"SMA{p.sma_cepat}" in uraian(ev, "TP5")
     assert "—" not in uraian(ev, "TP1")  # riwayat cukup: tidak ada NaN
     # Deret naik geometris: close_t = open_t → TP4 gagal; nilai lain terdefinisi.
     assert "TP4" in ev.aturan_gagal
     assert not math.isnan(dv.sebelum(KODE, "atr", 0))
+
+
+# ---------------------------------------------------------------------------
+# TP6 — unggul dari IHSG (§9 Unggul_IHSG)
+# ---------------------------------------------------------------------------
+
+
+def test_tp6_unggul_ihsg_hitung_tangan():
+    ev = evaluasi()
+    assert uraian(ev, "TP6") == "unggul IHSG 5 bar 21,98% (saham 4,55%, IHSG -14,29%) ≥ 10,00%"
+    assert next(c for c in ev.cek if c.kode == "TP6").lolos
+
+
+def test_tp6_ihsg_datar_saham_kurang_unggul_hanya_tp6_gagal():
+    ev = evaluasi(ihsg=buat_ihsg([7000.0] * 12))  # unggul = Ret saham 4,55% < 10%
+    assert ev.sinyal is None and ev.aturan_gagal == ["TP6"]
+    assert uraian(ev, "TP6") == "unggul IHSG 5 bar 4,55% (saham 4,55%, IHSG 0,00%) ≥ 10,00%"
+
+
+@pytest.mark.parametrize("ihsg", [None, "tanpa_bar_d0", "tanpa_bar_t"])
+def test_tp6_tanpa_data_ihsg_tidak_terpenuhi(ihsg):
+    df_ihsg = {None: None, "tanpa_bar_d0": buat_ihsg(buang=(6,)), "tanpa_bar_t": buat_ihsg(buang=(11,))}[ihsg]
+    ev = evaluasi(ihsg=df_ihsg)
+    assert ev.sinyal is None and ev.aturan_gagal == ["TP6"]
+    assert "tidak dapat dihitung" in uraian(ev, "TP6")
+
+
+def test_tp6_d0_mengikuti_bar_valid_saham():
+    # Bar saham pos 8 hilang → bar valid ke-5 sebelum t = pos 5 (close 1100); IHSG dinilai pada tanggal yang
+    # sama (7.100), bukan 5 bar IHSG ke belakang (7.000): (1171/1100)/(6000/7100) − 1 = 25,97%.
+    ev = evaluasi(buat_bar().drop(HARI[8]))
+    assert uraian(ev, "TP6") == "unggul IHSG 5 bar 25,97% (saham 6,45%, IHSG -15,49%) ≥ 10,00%"
+
+
+def test_tp6_batas_inklusif():
+    # Unggul dasar 21,979166…%: batas di bawahnya lolos (≥), batas di atasnya gagal.
+    ev = evaluasi(cfg=cfg_tp({"strategi.tp.min_unggul_ihsg_pct": 21.97}))
+    assert "TP6" not in ev.aturan_gagal
+    ev = evaluasi(cfg=cfg_tp({"strategi.tp.min_unggul_ihsg_pct": 21.98}))
+    assert "TP6" in ev.aturan_gagal  # 21,979166…% < 21,98%

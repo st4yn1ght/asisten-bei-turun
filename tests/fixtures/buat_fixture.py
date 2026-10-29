@@ -13,8 +13,13 @@ Menulis `tests/fixtures/e2e/`:
 
 Deterministik: seri UJI* dibangun dari tren halus + pola eksplisit (tanpa acak); 40 saham breadth memakai RNG
 berseed tetap. Beberapa seri ditransformasi afin (× k + b) agar angka kunci tepat (mis. UJIMAHAL2 harga_maks
-10.500 dan stop 10.290): transformasi afin mempertahankan SMA, RSI, CLV, dan aturan strategi, sedangkan ATR
-ikut terskala k.
+15.500 dan stop 15.290): transformasi afin mempertahankan SMA, RSI, CLV, dan aturan TP1–TP5, sedangkan ATR
+ikut terskala k dan return (TP6) berubah.
+
+Alur pasar versi tren turun: IHSG naik sampai `PUNCAK`, lalu turun panjang (seluruh periode backtest, `T_TB`,
+dan `T1` berstatus K1 BOLEH BELI); mulai `AWAL_RELI` IHSG reli tajam ke atas SMA200 sementara mayoritas saham
+breadth tetap turun (`T_HATI`: K2 HATI-HATI); sesudah itu saham breadth ikut naik (`T_NAIK`: K3 JANGAN BELI,
+pasar tidak sedang turun). Saham UJI* tetap naik pelan sepanjang periode sehingga unggul dari IHSG (TP6/TB6).
 """
 
 from __future__ import annotations
@@ -38,10 +43,12 @@ FOLDER = Path(__file__).resolve().parent / "e2e"
 LABEL = "FIKTIF – KHUSUS UJI"
 
 MULAI = date(2023, 1, 2)
-T1 = date(2025, 9, 10)  # sinyal TP UJIPB dkk., status BOLEH BELI
+PUNCAK = date(2023, 6, 1)  # IHSG berbalik turun
+T1 = date(2025, 9, 10)  # sinyal TP UJIPB dkk., status BOLEH BELI (K1, IHSG tren turun)
 T_TB = date(2025, 9, 3)  # breakout UJIBO (portfolio_ujibo: beli T_TB+1)
-T_HATI = date(2025, 10, 21)  # status HATI-HATI
-T_TURUN = date(2025, 11, 19)  # status JANGAN BELI; sinyal PJ UJIMR (daftar pantau)
+AWAL_RELI = date(2025, 9, 18)  # = T1+6 hari bursa: IHSG mulai reli, mayoritas saham breadth tetap turun
+T_HATI = date(2025, 10, 21)  # status HATI-HATI (K2: IHSG di atas SMA200, breadth lemah)
+T_NAIK = date(2025, 11, 19)  # status JANGAN BELI (K3: pasar tidak sedang turun); sinyal PJ UJIMR (daftar pantau)
 T_KOSONG = date(2025, 12, 1)  # sebagian besar saham tanpa bar → BELUM_TERSEDIA
 LIBUR = {
     date(2023, 12, 25): f"Libur {LABEL}",
@@ -151,24 +158,42 @@ class Seri:
         return df
 
 
+TANGGAL_PJ = (date(2024, 7, 10), date(2025, 9, 11), T_NAIK)  # sinyal PJ UJIMR (in-sample, T1+1, T_NAIK)
+
+
 def ihsg() -> pd.DataFrame:
-    """Naik (memuat T1), transisi, lalu turun (memuat T_TURUN); tanpa volume."""
-    s = Seri(6000.0, rentang=0.004)
-    s.tren(MULAI, geser(T1, 12), 0.0009)
-    s.tren(geser(T1, 12), T_HATI, -0.0012)
-    s.tren(T_HATI, T_KOSONG, -0.0045)
+    """Naik sampai PUNCAK, turun panjang (memuat T_TB dan T1), reli tajam mulai AWAL_RELI (memuat T_HATI), lalu
+    naik pelan (memuat T_NAIK); tanpa volume. Dua hari turun beruntun pada setiap tanggal sinyal PJ UJIMR membuat
+    RSI(2) IHSG < `ihsg_rsi_maks` (PJ2)."""
+    s = Seri(7000.0, rentang=0.004)
+    s.tren(MULAI, PUNCAK, 0.0010)
+    s.tren(PUNCAK, AWAL_RELI, -0.0012)
+    s.tren(AWAL_RELI, T_HATI, 0.0100)
+    s.tren(T_HATI, T_KOSONG, 0.0020)
     gelombang = 0.0025 * np.sin(np.arange(len(HARI)) / 3.0)
     s.ret = s.ret + gelombang * (np.arange(len(HARI)) > 0)
+    for t in TANGGAL_PJ:
+        s.hari(geser(t, -1), -0.006)
+        s.hari(t, -0.009)
     df = s.bingkai()
     df["volume"] = np.nan
     return df
 
 
+def penggerak_breadth() -> np.ndarray:
+    """Log penggerak bersama saham breadth: ikut return IHSG, kecuali (AWAL_RELI, T_HATI] tetap turun saat IHSG
+    reli (breadth lemah pada T_HATI) dan (T_HATI, T_NAIK] naik lebih cepat dari IHSG (breadth pulih pada T_NAIK)."""
+    c = ihsg()["close"].to_numpy()
+    ret = np.r_[0.0, c[1:] / c[:-1] - 1.0]
+    ret[IDX[AWAL_RELI] + 1: IDX[T_HATI] + 1] = -0.003
+    ret[IDX[T_HATI] + 1: IDX[T_NAIK] + 1] += 0.006
+    return np.log(np.cumprod(1.0 + ret))
+
+
 def breadth() -> dict[str, pd.DataFrame]:
-    """40 saham breadth: tren IHSG + derau berseed; 5 baru melantai pada `MELANTAI`."""
+    """40 saham breadth: penggerak bersama × beta + derau berseed; 5 baru melantai pada `MELANTAI`."""
     rng = np.random.default_rng(SEED_BREADTH)
-    dasar = ihsg()["close"].to_numpy()
-    log_dasar = np.log(dasar / dasar[0])
+    log_dasar = penggerak_breadth()
     hasil = {}
     for i in range(N_BREADTH):
         kode = f"BRD{i + 1:02d}"
@@ -190,11 +215,13 @@ def breadth() -> dict[str, pd.DataFrame]:
 # ---------------------------------------------------------------------------
 
 
-def pola_tp(s: Seri, t: date, turun: float = 0.011, hari_turun: int = 4, pantul: float = 0.024) -> Seri:
-    """Pullback `hari_turun` hari (low menyentuh SMA20), lalu pantulan pada t: close > high kemarin, close > open."""
+def pola_tp(s: Seri, t: date, turun: float = 0.011, hari_turun: int = 4, pantul: float = 0.024,
+            atas: float = 0.002) -> Seri:
+    """Pullback `hari_turun` hari (low menyentuh SMA20), lalu pantulan pada t: close > high kemarin, close > open.
+    `atas` = ekor atas bar pantulan (lebih panjang → CLV dan skor lebih rendah)."""
     for j in range(hari_turun, 0, -1):
         s.hari(geser(t, -j), -turun)
-    s.hari(t, pantul, atas=0.002, bawah=0.002)
+    s.hari(t, pantul, atas=atas, bawah=0.002)
     return s
 
 
@@ -207,7 +234,7 @@ def pola_tb(s: Seri, t: date, datar: int = 25, naik: float = 0.018, rasio_vol: f
 
 
 def pola_pj(s: Seri, t: date, turun1: float = -0.012, turun2: float = -0.03) -> Seri:
-    """Dua hari turun (t−1, t): RSI(2) < 10 pada t, close tetap di atas SMA200."""
+    """Dua hari turun (t−1, t): RSI(2) < 5 pada t; penurunan t < 3 ATR (PJ3)."""
     s.hari(geser(t, -1), turun1)
     s.hari(t, turun2)
     return s
@@ -239,8 +266,10 @@ def saham_uji() -> dict[str, tuple[Seri, float, float]]:
     pola_tp(s, T1, pantul=0.02)
     hasil["UJISEKTOR"] = (s, 1.0, 0.0)
 
-    s = naik(600.0, laju=0.0012, volume=3e7)
-    pola_tp(s, T1)
+    # UJIGAP: skor terendah di antara sinyal T1 (ekor atas panjang, likuiditas lebih tipis) sehingga mengisi slot
+    # kedua sesudah UJIMAHAL, UJIMAHAL2, dan UJISEKTOR dinilai; open T1+1 > harga_maks → BATAL_GAP.
+    s = naik(600.0, laju=0.0012, volume=1e7)
+    pola_tp(s, T1, atas=0.012)
     s.hari(geser(T1, 1), 0.04, gap=0.04)
     hasil["UJIGAP"] = (s, 1.0, 0.0)
 
@@ -248,8 +277,10 @@ def saham_uji() -> dict[str, tuple[Seri, float, float]]:
     pola_tp(s, T1, turun=0.012, pantul=0.035)
     hasil["UJIMAHAL"] = (s, 1.0, 0.0)
 
-    s = naik(1000.0, laju=0.0012, volume=5e6)
+    # UJIMAHAL2: laju mentah lebih cepat karena transformasi afin (b > 0) meredam return; tetap unggul IHSG (TP6).
+    s = naik(1000.0, laju=0.0025, volume=5e6)
     pola_tp(s, T1)
+    s.hari(geser(T1, 1), -0.001)  # tanpa sinyal TP susulan pada T1+1
     hasil["UJIMAHAL2"] = (s, *atur_mahal2(s))
 
     s = naik(900.0, laju=0.0012, volume=1e7)
@@ -261,15 +292,15 @@ def saham_uji() -> dict[str, tuple[Seri, float, float]]:
     hasil["UJIBO"] = (s, 1.0, 0.0)
 
     s = naik(1200.0, laju=0.0015, volume=1e7)
-    pola_pj(s, date(2024, 7, 10))
+    pola_pj(s, TANGGAL_PJ[0])
     s.hari(date(2024, 7, 11), 0.004)
     s.hari(date(2024, 7, 12), 0.003)
     s.hari(date(2024, 7, 15), 0.02)
-    pola_pj(s, geser(T1, 1))
+    pola_pj(s, TANGGAL_PJ[1])
     s.hari(geser(T1, 2), 0.004)
     s.hari(geser(T1, 3), -0.002)
     s.hari(geser(T1, 4), 0.025)
-    pola_pj(s, T_TURUN)
+    pola_pj(s, TANGGAL_PJ[2])
     hasil["UJIMR"] = (s, 1.0, 0.0)
 
     s = naik(700.0, laju=0.0012, volume=2e7)
@@ -292,8 +323,8 @@ def saham_uji() -> dict[str, tuple[Seri, float, float]]:
     return hasil
 
 
-HARGA_MAKS_MAHAL2 = 10500  # SPEC §22.2: harga_maks tepat 10.500, jarak stop 2 % (stop 10.290)
-STOP_MAHAL2 = 10290
+HARGA_MAKS_MAHAL2 = 15500  # SPEC §22.2: harga_maks tepat 15.500, stop 15.290 (risiko 1 lot ≤ 1%, nilai > alokasi)
+STOP_MAHAL2 = 15290
 
 
 def _cfg():
@@ -304,8 +335,8 @@ def _cfg():
 
 
 def atur_mahal2(s: Seri) -> tuple[float, float]:
-    """(k, b) agar sinyal TP UJIMAHAL2 pada T1 tepat: close + 0,5 ATR = 10.500,5 (→ harga_maks 10.500) dan
-    LLV5 − 0,2 ATR = 10.289,5 (→ stop 10.290). Transformasi afin: SMA/LLV → k·x + b, ATR → k·ATR."""
+    """(k, b) agar sinyal TP UJIMAHAL2 pada T1 tepat: close + 0,5 ATR = 15.500,5 (→ harga_maks 15.500) dan
+    LLV5 − 0,2 ATR = 15.289,5 (→ stop 15.290). Transformasi afin: SMA/LLV → k·x + b, ATR → k·ATR."""
     from asisten_bei_turun.indikator import hitung_indikator, k_llv_low
 
     cfg = _cfg()

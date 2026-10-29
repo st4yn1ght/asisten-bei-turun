@@ -1,16 +1,15 @@
-"""Filter kondisi pasar (SPEC §10).
+"""Filter kondisi pasar versi tren turun (SPEC §10).
 
 Dievaluasi pada close `t` lewat `DataView(as_of=t)` saja (P3); hasilnya berlaku untuk entry di `t+1`.
 Logika identik di backtest, jurnal kertas, dan run harian.
 
-Aturan dievaluasi berurutan, aturan pertama yang cocok menentukan status:
+Aturan dievaluasi berurutan, aturan pertama yang cocok menentukan status. Status berarti boleh/tidaknya membeli
+**dengan strategi tren turun**, kebalikan asisten-bei:
 
 - K0 data tidak lengkap → JANGAN BELI
-- K1 IHSG tren turun (close < SMA panjang dan SMA pendek < SMA panjang) → JANGAN BELI
-- K2 breadth < `breadth_jangan_maks_pct` → JANGAN BELI
-- K3 IHSG naik (close > SMA panjang, SMA pendek > SMA panjang, close > SMA pendek) dan
-  breadth ≥ `breadth_boleh_min_pct` → BOLEH BELI
-- K4 selain itu → HATI-HATI
+- K1 IHSG tren turun (close < SMA panjang dan SMA pendek < SMA panjang) → BOLEH BELI
+- K2 breadth < `breadth_jangan_maks_pct` (IHSG belum tren turun) → HATI-HATI
+- K3 selain itu (pasar tidak sedang turun; pakai asisten-bei) → JANGAN BELI
 
 Breadth (§10 "Masukan"):
 
@@ -22,7 +21,7 @@ Breadth (§10 "Masukan"):
 - `Cakupan_t` = terhitung ÷ tercatat.
 
 Perbandingan persen memakai perkalian silang bilangan bulat × Decimal, sehingga tepat di batas
-(mis. breadth tepat 50% lolos K3) tanpa galat pembulatan float.
+(mis. breadth tepat 30% tidak memicu K2) tanpa galat pembulatan float.
 """
 
 from __future__ import annotations
@@ -44,7 +43,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from .data.tampilan import DataView
 
 StatusPasar = Literal["BOLEH_BELI", "HATI_HATI", "JANGAN_BELI"]
-Aturan = Literal["K0", "K1", "K2", "K3", "K4"]
+Aturan = Literal["K0", "K1", "K2", "K3"]
 
 BOLEH_BELI: StatusPasar = "BOLEH_BELI"
 HATI_HATI: StatusPasar = "HATI_HATI"
@@ -261,36 +260,28 @@ def hitung_kondisi_pasar(dv: "DataView", kode_breadth: Iterable[str]) -> HasilKo
         return hasil(JANGAN_BELI, "K0", "Data tidak lengkap: " + "; ".join(kurang))
     assert close is not None and sma_pendek is not None and sma_panjang is not None
 
-    # -- K1: tren IHSG turun ---------------------------------------------------------
-    if close < sma_panjang and sma_pendek < sma_panjang:
-        return hasil(JANGAN_BELI, "K1", "IHSG dalam tren turun")
+    # -- K1: tren IHSG turun → strategi tren turun aktif ----------------------------------------------------------
+    k1_close = close < sma_panjang
+    k1_sma = sma_pendek < sma_panjang
+    if k1_close and k1_sma:
+        return hasil(BOLEH_BELI, "K1", "IHSG dalam tren turun: strategi tren turun aktif")
 
-    # -- K2: breadth lemah -------------------------------------------------------------
+    # -- K2: breadth lemah walau IHSG belum tren turun → risiko dikurangi ----------------------------------------
+    breadth_txt = f"{teks.persen(br.breadth_pct)}"
     if br.breadth_kurang_dari(kp.breadth_jangan_maks_pct):
         return hasil(
-            JANGAN_BELI, "K2",
-            f"Breadth lemah: {teks.persen(br.breadth_pct)} < {teks.persen(kp.breadth_jangan_maks_pct)}",
+            HATI_HATI, "K2",
+            f"Breadth lemah: {breadth_txt} < {teks.persen(kp.breadth_jangan_maks_pct)}, IHSG belum tren turun",
         )
 
-    # -- K3: tren naik dan breadth sehat ---------------------------------------------------
-    gagal_k3: list[str] = []
-    if not close > sma_panjang:
-        gagal_k3.append(f"close IHSG {teks.angka(close)} tidak di atas SMA{n_panjang} {teks.angka(sma_panjang)}")
-    if not sma_pendek > sma_panjang:
-        gagal_k3.append(
-            f"SMA{n_pendek} {teks.angka(sma_pendek)} tidak di atas SMA{n_panjang} {teks.angka(sma_panjang)}"
-        )
-    if not close > sma_pendek:
-        gagal_k3.append(f"close IHSG {teks.angka(close)} tidak di atas SMA{n_pendek} {teks.angka(sma_pendek)}")
-    if br.breadth_kurang_dari(kp.breadth_boleh_min_pct):
-        gagal_k3.append(
-            f"breadth {teks.persen(br.breadth_pct)} < {teks.persen(kp.breadth_boleh_min_pct)}"
-        )
-    if not gagal_k3:
-        return hasil(BOLEH_BELI, "K3", "Tren IHSG naik dan breadth sehat")
-
-    # -- K4 ---------------------------------------------------------------------------------
-    return hasil(HATI_HATI, "K4", "Syarat BOLEH BELI belum terpenuhi: " + "; ".join(gagal_k3))
+    # -- K3: pasar tidak sedang turun ---------------------------------------------------------------------------
+    gagal: list[str] = []
+    if not k1_close:
+        gagal.append(f"close IHSG {teks.angka(close)} tidak di bawah SMA{n_panjang} {teks.angka(sma_panjang)}")
+    if not k1_sma:
+        gagal.append(f"SMA{n_pendek} {teks.angka(sma_pendek)} tidak di bawah SMA{n_panjang} {teks.angka(sma_panjang)}")
+    gagal.append(f"breadth {breadth_txt} ≥ {teks.persen(kp.breadth_jangan_maks_pct)}")
+    return hasil(JANGAN_BELI, "K3", "Pasar tidak sedang turun (" + "; ".join(gagal) + "); gunakan asisten-bei")
 
 
 def _tabel_syarat(
@@ -300,7 +291,8 @@ def _tabel_syarat(
     sma_pendek: float | None,
     sma_panjang: float | None,
 ) -> tuple[Syarat, ...]:
-    """Semua syarat K0–K3 dengan nilai aktual, ambang, dan ✓/✗ (§10: selalu ditampilkan lengkap)."""
+    """Semua syarat K0–K2 dengan nilai aktual, ambang, dan ✓/✗ (§10: selalu ditampilkan lengkap).
+    K3 ("selain itu") tidak punya syarat sendiri."""
     kp = dv.cfg.kondisi_pasar
     v = dv.cfg.data.validasi
     n_pendek, n_panjang = int(kp.sma_pendek), int(kp.sma_panjang)
@@ -347,18 +339,10 @@ def _tabel_syarat(
                None if cakupan is None else not br.cakupan_kurang_dari(kp.min_cakupan_breadth_pct)),
         Syarat("K0", "Saham breadth terhitung", a(br.n_terhitung, 0), f"≥ {kp.min_saham_breadth}",
                br.n_terhitung >= kp.min_saham_breadth),
-        Syarat("K1", f"IHSG close < SMA{n_panjang}", f"{a(close)} vs {a(sma_panjang)}", "tren turun bila ✓",
+        Syarat("K1", f"IHSG close < SMA{n_panjang}", f"{a(close)} vs {a(sma_panjang)}", "keduanya ✓ → BOLEH BELI",
                banding(close, sma_panjang, False)),
-        Syarat("K1", f"SMA{n_pendek} < SMA{n_panjang}", f"{a(sma_pendek)} vs {a(sma_panjang)}", "tren turun bila ✓",
-               banding(sma_pendek, sma_panjang, False)),
+        Syarat("K1", f"SMA{n_pendek} < SMA{n_panjang}", f"{a(sma_pendek)} vs {a(sma_panjang)}",
+               "keduanya ✓ → BOLEH BELI", banding(sma_pendek, sma_panjang, False)),
         Syarat("K2", f"Breadth (close > SMA{kp.breadth_sma})", p(breadth),
-               f"< {p(kp.breadth_jangan_maks_pct)} → JANGAN BELI", breadth_kurang(kp.breadth_jangan_maks_pct)),
-        Syarat("K3", f"IHSG close > SMA{n_panjang}", f"{a(close)} vs {a(sma_panjang)}", "wajib ✓",
-               banding(close, sma_panjang, True)),
-        Syarat("K3", f"SMA{n_pendek} > SMA{n_panjang}", f"{a(sma_pendek)} vs {a(sma_panjang)}", "wajib ✓",
-               banding(sma_pendek, sma_panjang, True)),
-        Syarat("K3", f"IHSG close > SMA{n_pendek}", f"{a(close)} vs {a(sma_pendek)}", "wajib ✓",
-               banding(close, sma_pendek, True)),
-        Syarat("K3", "Breadth", p(breadth), f"≥ {p(kp.breadth_boleh_min_pct)}",
-               None if breadth is None else not br.breadth_kurang_dari(kp.breadth_boleh_min_pct)),
+               f"< {p(kp.breadth_jangan_maks_pct)} → HATI-HATI bila K1 ✗", breadth_kurang(kp.breadth_jangan_maks_pct)),
     )

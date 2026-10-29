@@ -1,7 +1,7 @@
 """Model laporan harian (SPEC §18.1): semua isi laporan dihitung sekali di sini, lalu dirender apa adanya oleh
 `terminal`, `markdown`, `html`, dan `tabel`. Angka untuk dibaca pengguna memakai `teks` (gaya Indonesia).
 
-Bagian berurutan (§18.1): kepala & banner, ringkasan aksi (maks 8 baris), status pasar (tabel K0–K4), status
+Bagian berurutan (§18.1): kepala & banner, ringkasan aksi (maks 8 baris), status pasar (tabel K0–K3), status
 strategi, akun, posisi dipegang (§15.4), rencana beli (§14.3), kandidat lain, daftar pantau, kualitas data,
 item belum diverifikasi, jurnal kertas, penutup (disclaimer §18.4, keterbatasan singkat, glosarium).
 """
@@ -62,6 +62,10 @@ GLOSARIUM: tuple[tuple[str, str], ...] = (
     ("Jurnal kertas", "Simulasi transaksi tanpa uang sungguhan (paper trading), memakai aturan yang sama dengan backtest."),
     ("Stop waktu", "Jual bila posisi belum keluar setelah N hari bursa."),
     ("Trailing stop", "Stop yang naik mengikuti harga dan tidak pernah turun."),
+    ("Unggul IHSG", "Seberapa jauh perubahan harga saham lebih baik daripada IHSG dalam periode yang sama. +10% "
+                    "berarti saham 10% lebih kuat daripada IHSG."),
+    ("Jenuh jual", "Harga turun tajam beberapa hari berturut-turut (RSI(2) sangat rendah). PJ membeli dengan harapan "
+                   "ada pantulan singkat; pantulan itu tidak dijamin."),
 )
 
 

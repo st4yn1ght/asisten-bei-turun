@@ -42,7 +42,7 @@ EKUITAS = D(3_000_000)
 KAS = D(3_000_000)
 ANGGARAN = D(30_000)  # 3.000.000 × 1,0/100 × 1 (BOLEH BELI)
 ANGGARAN_HH = D(15_000)  # 3.000.000 × 1,0/100 × 0,5 (HATI-HATI)
-ALOKASI = D(1_000_000)  # 3.000.000 ÷ 3
+ALOKASI = D(1_500_000)  # 3.000.000 ÷ 2 (maks_posisi rilis 2)
 RATA_NILAI = 20_000_000_000.0  # Rp 20 miliar (float, seperti `Sinyal.rata_nilai`)
 T = date(2026, 10, 15)
 
@@ -93,7 +93,7 @@ def test_asumsi_config_14_2():
     assert CFG.pasar.lot_lembar == L
     assert biaya.fb(CFG) == D("0.0015") and biaya.fj(CFG) == D("0.0025") and biaya.slip(CFG) == D("0.001")
     assert CFG.biaya.fee_minimum_idr == 0 and CFG.biaya.pembulatan_fee is None
-    assert CFG.risiko.risiko_per_transaksi_pct == 1 and CFG.risiko.maks_posisi == 3
+    assert CFG.risiko.risiko_per_transaksi_pct == 1 and CFG.risiko.maks_posisi == 2
     assert CFG.risiko.alokasi_maks_pct == "ikuti_maks_posisi"
     assert CFG.risiko.hati_hati.pengali_risiko == 0.5
     assert CFG.likuiditas.maks_pct_order_dari_nilai_harian == 1
@@ -102,13 +102,13 @@ def test_asumsi_config_14_2():
 
 @pytest.mark.parametrize("status, anggaran", [(BOLEH_BELI, 30_000), (HATI_HATI, 15_000)])
 def test_anggaran_dan_alokasi_maks_14_2(status, anggaran):
-    # anggaran = 3.000.000 × 1/100 × (0,5 bila HATI-HATI); alokasi = 3.000.000 ÷ 3 = 1.000.000 TEPAT
-    # (bukan 3.000.000 × 33,33% = 999.900 atau 999.999,99…, yang membuat lot_alokasi kasus P = 9.950 jadi 0).
+    # anggaran = 3.000.000 × 1/100 × (0,5 bila HATI-HATI); alokasi = 3.000.000 ÷ 2 = 1.500.000 TEPAT
+    # (pembagian langsung; dengan 3 posisi, 3.000.000 × 33,33% = 999.900 akan membuat kasus P = 9.950 jadi 0).
     konteks = resolusi_konteks(CFG, "live")
-    assert konteks.alokasi_maks(EKUITAS) == D(1_000_000)
+    assert konteks.alokasi_maks(EKUITAS) == D(1_500_000)
     h = _seleksi([], status)
     assert h.anggaran_risiko == D(anggaran)
-    assert h.alokasi_maks == D(1_000_000)
+    assert h.alokasi_maks == D(1_500_000)
     assert isinstance(h.anggaran_risiko, Decimal) and isinstance(h.alokasi_maks, Decimal)
 
 
@@ -154,19 +154,19 @@ def test_harga_maks_dan_stop_tabel_14_2(close, atr, stop_dari_cfg, harga_maks, s
 TABEL_14_2 = {
     # A: 2.030 × 1,0015 = 2.033,045; 1.888 × 0,999 × 0,9975 = 1.886,112 − 4,71528 = 1.881,39672
     #    risiko_lembar 151,64828; per lot 15.164,828; 30.000 / 15.164,828 = 1,978 → 1
-    #    biaya_beli(1) = 203.000 + 304,50; alokasi: 4 × 203.304,5 = 813.218 ≤ 1 jt < 5 × = 1.016.522,5
+    #    biaya_beli(1) = 203.000 + 304,50; alokasi: 7 × 203.304,5 = 1.423.131,5 ≤ 1,5 jt < 8 × = 1.626.436
     #    kas: 14 × = 2.846.263 ≤ 3 jt < 15 × = 3.049.567,5; likuid: 1% × 20 M = 200 jt / 203.000 = 985,2 → 985
-    "A": (A[0], A[1], "151.64828", "15164.828", 1, "203304.50", 4, 14, 985, 1),
+    "A": (A[0], A[1], "151.64828", "15164.828", 1, "203304.50", 7, 14, 985, 1),
     # B: 9.125 × 1,0015 = 9.138,6875; 8.500 × 0,999 = 8.491,5; × 0,9975 = 8.491,5 − 21,22875 = 8.470,27125
     #    risiko_lembar 668,41625; per lot 66.841,625 > 30.000 → 0
-    #    biaya_beli(1) = 912.500 + 1.368,75 = 913.868,75 ≤ 1 jt → alokasi 1; kas 3 × = 2.741.606,25 → 3
+    #    biaya_beli(1) = 912.500 + 1.368,75 = 913.868,75 ≤ 1,5 jt < 2 × → alokasi 1; kas 3 × = 2.741.606,25 → 3
     #    likuid 200 jt / 912.500 = 219,2 → 219
     "B": (B[0], B[1], "668.41625", "66841.625", 0, "913868.75", 1, 3, 219, 0),
     # C: 458 × 1,0015 = 458,687; 410 × 0,999 = 409,59; × 0,9975 = 409,59 − 1,023975 = 408,566025
     #    risiko_lembar 50,120975; per lot 5.012,0975; 30.000 / 5.012,0975 = 5,985 → 5
-    #    biaya_beli(1) = 45.800 + 68,70 = 45.868,70; alokasi 21 × = 963.242,7 (22 × = 1.009.111,4) → 21
+    #    biaya_beli(1) = 45.800 + 68,70 = 45.868,70; alokasi 32 × = 1.467.798,4 (33 × = 1.513.667,1) → 32
     #    kas 65 × = 2.981.465,5 (66 × = 3.027.334,2) → 65; likuid 200 jt / 45.800 = 4.366,8 → 4.366
-    "C": (C[0], C[1], "50.120975", "5012.0975", 5, "45868.70", 21, 65, 4366, 5),
+    "C": (C[0], C[1], "50.120975", "5012.0975", 5, "45868.70", 32, 65, 4366, 5),
 }
 
 
@@ -296,7 +296,8 @@ def test_seleksi_contoh_14_2(status_pasar, nama, strategi, harapan_status, harap
 # Fee minimum fiktif (FIKTIF – KHUSUS UJI): m = Rp 5.000
 # ---------------------------------------------------------------------------
 
-CFG_M5000 = cfg_uji({"biaya.fee_minimum_idr": 5000})  # FIKTIF – KHUSUS UJI
+# maks_posisi 3 (alokasi 1.000.000) untuk kasus batas alokasi tepat §22.1 T-SZ.
+CFG_M5000 = cfg_uji({"biaya.fee_minimum_idr": 5000, "risiko.maks_posisi": 3})  # FIKTIF – KHUSUS UJI
 
 
 def test_fee_minimum_a_1_lot():
@@ -310,8 +311,9 @@ def test_fee_minimum_a_1_lot():
     assert h.risiko_idr == D("24388.80")
     assert h.biaya_1_lot == D(208_000)
     assert teks.rupiah(h.risiko_idr) == "Rp 24.388,80"
-    # alokasi: 4 lot = 812.000 + max(1.218; 5.000) = 817.000 ≤ 1 jt; kas: 14 lot = 2.842.000 + 5.000 ≤ 3 jt
-    assert (h.lot_alokasi, h.lot_kas) == (4, 14)
+    # alokasi (ALOKASI 1,5 jt): 7 lot = 1.421.000 + max(2.131,5; 5.000) = 1.426.000 ≤ 1,5 jt < 8 lot = 1.629.000;
+    # kas: 14 lot = 2.842.000 + 5.000 ≤ 3 jt
+    assert (h.lot_alokasi, h.lot_kas) == (7, 14)
     # risiko_lembar (§4.1) tidak memuat fee minimum.
     assert h.risiko_lembar == D("151.64828")
 
@@ -568,10 +570,10 @@ def test_stop_tidak_di_bawah_harga_maks_value_error(cfg, S):
 def test_stop_satu_rupiah_di_bawah_harga_maks_sah():
     # Sisi lain batas: S = P − 1 → risiko_lembar = 2.030 × 1,0015 − 2.029 × 0,999 × 0,9975
     #   = 2.033,045 − 2.026,971 × 0,9975 = 2.033,045 − 2.021,9035725 = 11,1414275 > 0
-    # lot_risiko = floor(30.000 / 1.114,14275) = 26; lot_alokasi: 4 × 203.304,5 ≤ 1 jt → 4 (pembatas).
+    # lot_risiko = floor(30.000 / 1.114,14275) = 26; lot_alokasi: 7 × 203.304,5 ≤ 1,5 jt → 7 (pembatas).
     h = _sz(D(2030), D(2029))
     assert h.risiko_lembar == D("11.1414275")
-    assert h.lot_risiko == 26 and h.lot == 4 and h.pembatas == "alokasi"
+    assert h.lot_risiko == 26 and h.lot == 7 and h.pembatas == "alokasi"
 
 
 # ---------------------------------------------------------------------------

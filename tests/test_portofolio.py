@@ -19,7 +19,13 @@ from asisten_bei_turun.inputs import Akun, BarisPortofolio, Masukan, SahamUniver
 from asisten_bei_turun.kondisi_pasar import BOLEH_BELI
 from asisten_bei_turun.seleksi import BATAS_SEKTOR, DIBLOKIR_PORTOFOLIO, REKOMENDASI, SLOT_PENUH, seleksi
 from asisten_bei_turun.config import resolusi_konteks
-from bantu_pasar import bar, cfg_uji, hari, pasar, tgl
+from bantu_pasar import bar, cfg_uji as _cfg_uji_rilis, hari, pasar, tgl
+
+
+def cfg_uji(ubah: dict | None = None):
+    """Config rilis dengan `maks_posisi: 3` dan `strategi.pj.min_hari_tahan: 2` (skenario slot dan PJ di berkas ini;
+    default alat ini 2 posisi dan PJ keluar mulai hari ke-1, diuji di `test_6_pj_default_keluar_sma_hari_ke_1`)."""
+    return _cfg_uji_rilis({"risiko.maks_posisi": 3, "strategi.pj.min_hari_tahan": 2, **(ubah or {})})
 from test_skor_seleksi import berskor
 
 D = Decimal
@@ -182,6 +188,15 @@ def test_6_pj_hari_ke_1_belum_keluar_sma():
     r = baris("ZPFI", T, "1000", "900", strategi="PJ")
     s = satu(evaluasi({"ZPFI": _pj_naik_pada(N - 1)}, masukan(r)), "ZPFI")
     assert s.saran == pf.TAHAN  # min_hari_tahan 2
+
+
+def test_6_pj_default_keluar_sma_hari_ke_1():
+    # Default SPEC §7 (min_hari_tahan 1): close hari entry > SMA5 → JUAL di pembukaan t+1 (#6).
+    cfg = _cfg_uji_rilis()
+    assert cfg.strategi.pj.min_hari_tahan == 1
+    r = baris("ZPFI", T, "1000", "900", strategi="PJ")
+    s = satu(evaluasi({"ZPFI": _pj_naik_pada(N - 1)}, masukan(r), cfg=cfg), "ZPFI")
+    assert (s.saran, s.nomor, s.jadwal) == (pf.JUAL, 6, "KELUAR_SMA")
 
 
 def test_6_stop_waktu_tp_hari_ke_10():

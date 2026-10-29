@@ -59,8 +59,10 @@ LIBUR_2026_2027 = {**LIBUR_2026, date(2027, 1, 1): FIKTIF}
 
 
 def buat_cfg(jadwal_sesi: dict | None = None, **data_ubah) -> Config:
-    """Config rilis dengan perubahan: `jadwal_sesi` (update dict), `jam_run`, `jeda_data_final_menit`."""
+    """Config rilis dengan perubahan: `jadwal_sesi` (update dict), `jam_run`, `jeda_data_final_menit`.
+    `jam_run` disematkan 19:30 (skenario kalender di berkas ini; default alat ini 20:00 diuji di test_config)."""
     data = copy.deepcopy(_CONFIG_RILIS)
+    data["jadwal"]["jam_run"] = "19:30"
     if jadwal_sesi:
         data["pasar"]["jadwal_sesi"].update(jadwal_sesi)
     if "jam_run" in data_ubah:
@@ -71,7 +73,7 @@ def buat_cfg(jadwal_sesi: dict | None = None, **data_ubah) -> Config:
     return validasi_dict(data)
 
 
-CFG = buat_cfg()  # jadwal_sesi belum terverifikasi (rilis): batas bar final = jam_run 19:30
+CFG = buat_cfg()  # jadwal_sesi belum terverifikasi (rilis): batas bar final = jam_run (disematkan 19:30)
 CFG_V = buat_cfg(JADWAL_FIKTIF)  # terverifikasi fiktif: 16:00 + 60 menit = 17:00
 
 

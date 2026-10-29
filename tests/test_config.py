@@ -124,7 +124,11 @@ def _blok_yaml_spec_7() -> dict:
 
 SEMUA_KUNCI = list(_jalur_kunci(_DASAR))
 SEMUA_SIMPUL = list(_jalur_simpul(_DASAR))
-KUNCI_PERSEN = [j for j in SEMUA_KUNCI if "pct" in j.split(".")[-1]] + ["jurnal.persentil_peringatan"]
+# Persen bertanda (boleh negatif, §7): ambang unggul IHSG TP6/TB6; diuji terpisah.
+KUNCI_PERSEN_BERTANDA = ["strategi.tp.min_unggul_ihsg_pct", "strategi.tb.min_unggul_ihsg_pct"]
+KUNCI_PERSEN = [
+    j for j in SEMUA_KUNCI if "pct" in j.split(".")[-1] and j not in KUNCI_PERSEN_BERTANDA
+] + ["jurnal.persentil_peringatan"]
 
 
 # ---------------------------------------------------------------------------
@@ -137,11 +141,11 @@ def test_config_rilis_lolos_validasi():
     assert isinstance(cfg, Config)
     assert cfg.versi_config == 1
     assert cfg.akun.modal_awal_idr == D("3000000")
-    assert cfg.risiko.maks_posisi == 3
+    assert cfg.risiko.maks_posisi == 2
     assert cfg.risiko.alokasi_maks_pct == "ikuti_maks_posisi"
     assert cfg.backtest.mode.edge.modal_idr == D("1000000000")
     assert cfg.backtest.mode.realistis.modal_idr == "ikuti_akun"
-    assert cfg.jadwal.jam_run == "19:30"
+    assert cfg.jadwal.jam_run == "20:00"
 
 
 def test_config_rilis_identik_dengan_isi_spec_7():
@@ -415,11 +419,14 @@ def test_pengali_risiko_hati_hati_pecahan_0_sampai_1(nilai, sah):
         assert _ada(_galat(ubah), "risiko.hati_hati.pengali_risiko:")
 
 
-def test_breadth_jangan_maks_tidak_boleh_di_atas_boleh_min():
-    # K2 (< jangan_maks → JANGAN BELI) dan K3 (≥ boleh_min → BOLEH BELI) tidak boleh bertabrakan.
-    _cfg({"kondisi_pasar.breadth_jangan_maks_pct": 50, "kondisi_pasar.breadth_boleh_min_pct": 50})
-    pesan = _galat({"kondisi_pasar.breadth_jangan_maks_pct": 50.01, "kondisi_pasar.breadth_boleh_min_pct": 50})
-    assert any("breadth_jangan_maks_pct" in p for p in pesan)
+@pytest.mark.parametrize("jalur", KUNCI_PERSEN_BERTANDA)
+@pytest.mark.parametrize(("nilai", "sah"), [(-100, True), (-5, True), (0, True), (100, True), (-100.01, False),
+                                            (100.01, False), (float("nan"), False), (float("inf"), False)])
+def test_persen_unggul_ihsg_boleh_negatif_dalam_rentang(jalur, nilai, sah):
+    if sah:
+        _cfg({jalur: nilai})
+    else:
+        assert _ada(_galat({jalur: nilai}), f"{jalur}:")
 
 
 def test_jarak_stop_ideal_harus_kurang_dari_buruk():
@@ -619,30 +626,32 @@ def test_ara_arb_terverifikasi_tanpa_berlaku_mulai_atau_harga_acuan_tak_didukung
 
 def test_resolusi_live_default():
     k = resolusi_konteks(_cfg(), "live")
-    assert k == KonteksRisiko(nama="live", modal_idr=D("3000000"), maks_posisi=3, maks_per_sektor=1, alokasi_maks_pct=None)
+    assert k == KonteksRisiko(nama="live", modal_idr=D("3000000"), maks_posisi=2, maks_per_sektor=1, alokasi_maks_pct=None)
     hasil = k.alokasi_maks(D("3000000"))
-    # ikuti_maks_posisi = pembagian langsung: 3.000.000 ÷ 3 = 1.000.000 tepat.
-    assert isinstance(hasil, Decimal) and hasil == D("1000000")
-    # Lewat persen (33,33…%) hasilnya tidak tepat — itu sebabnya SPEC meminta pembagian langsung.
+    # ikuti_maks_posisi = pembagian langsung: 3.000.000 ÷ 2 = 1.500.000 tepat.
+    assert isinstance(hasil, Decimal) and hasil == D("1500000")
+    # Dengan 3 posisi, lewat persen (33,33…%) hasilnya tidak tepat — itu sebabnya SPEC meminta pembagian langsung.
+    k3 = resolusi_konteks(_cfg({"risiko.maks_posisi": 3}), "live")
+    assert k3.alokasi_maks(D("3000000")) == D("1000000")
     assert D("3000000") * (D(100) / D(3)) / D(100) != D("1000000")
 
 
-def test_resolusi_edge_default_alokasi_ekuitas_dibagi_3():
+def test_resolusi_edge_default_alokasi_ekuitas_dibagi_2():
     k = resolusi_konteks(_cfg(), "edge")
     assert k.nama == "edge"
     assert k.modal_idr == D("1000000000")       # angka eksplisit di mode edge
-    assert k.maks_posisi == 3                     # ikuti_risiko
+    assert k.maks_posisi == 2                     # ikuti_risiko
     assert k.maks_per_sektor == 1                 # ikuti_risiko
     assert k.alokasi_maks_pct is None             # ikuti_risiko → risiko: ikuti_maks_posisi
-    assert k.alokasi_maks(D("3000000")) == D("1000000")
-    assert k.alokasi_maks(D("1000000000")) == D("1000000000") / D(3)
+    assert k.alokasi_maks(D("3000000")) == D("1500000")
+    assert k.alokasi_maks(D("1000000000")) == D("500000000")
 
 
 def test_resolusi_realistis_default_ikuti_akun():
     k = resolusi_konteks(_cfg(), "realistis")
     assert k.modal_idr == D("3000000")            # ikuti_akun
-    assert (k.maks_posisi, k.maks_per_sektor, k.alokasi_maks_pct) == (3, 1, None)
-    assert k.alokasi_maks(k.modal_idr) == D("1000000")
+    assert (k.maks_posisi, k.maks_per_sektor, k.alokasi_maks_pct) == (2, 1, None)
+    assert k.alokasi_maks(k.modal_idr) == D("1500000")
 
 
 def test_default_edge_dan_realistis_hanya_berbeda_pada_modal():
@@ -669,14 +678,14 @@ def test_ikuti_risiko_mengikuti_nilai_risiko():
 
 def test_ikuti_risiko_berantai_ke_ikuti_maks_posisi_diresolusi_dalam_konteks_mode():
     # edge.maks_posisi = 5 (eksplisit), edge.alokasi = ikuti_risiko → risiko.alokasi = ikuti_maks_posisi
-    # → diresolusi dengan maks_posisi milik mode edge (5), bukan milik risiko (3).
+    # → diresolusi dengan maks_posisi milik mode edge (5), bukan milik risiko (2).
     cfg = _cfg({"backtest.mode.edge.maks_posisi": 5})
     edge = resolusi_konteks(cfg, "edge")
     assert edge.maks_posisi == 5 and edge.alokasi_maks_pct is None
     assert edge.alokasi_maks(D("3000000")) == D("600000")      # 3.000.000 ÷ 5
     # Konteks lain tidak tercemar.
-    assert resolusi_konteks(cfg, "live").alokasi_maks(D("3000000")) == D("1000000")
-    assert resolusi_konteks(cfg, "realistis").alokasi_maks(D("3000000")) == D("1000000")
+    assert resolusi_konteks(cfg, "live").alokasi_maks(D("3000000")) == D("1500000")
+    assert resolusi_konteks(cfg, "realistis").alokasi_maks(D("3000000")) == D("1500000")
 
 
 def test_ikuti_risiko_ke_persen_angka():
@@ -711,7 +720,7 @@ def test_angka_eksplisit_di_mode_mengalahkan_risiko_dan_akun():
     assert edge == KonteksRisiko(nama="edge", modal_idr=D("2000000"), maks_posisi=5, maks_per_sektor=2, alokasi_maks_pct=D(25))
     assert edge.alokasi_maks(D("2000000")) == D("500000")      # 2.000.000 × 25 / 100
     live = resolusi_konteks(cfg, "live")
-    assert (live.modal_idr, live.maks_posisi, live.maks_per_sektor, live.alokasi_maks_pct) == (D("3000000"), 3, 1, None)
+    assert (live.modal_idr, live.maks_posisi, live.maks_per_sektor, live.alokasi_maks_pct) == (D("3000000"), 2, 1, None)
 
 
 def test_mode_maks_per_sektor_null_eksplisit_tanpa_batas():
@@ -742,7 +751,7 @@ def test_rujukan_tidak_sah_error(jalur, nilai):
 def test_uraian_konteks_untuk_cek():
     teks = resolusi_konteks(_cfg(), "edge").uraian()
     assert teks.startswith("edge:")
-    assert "Rp 1.000.000.000" in teks and "maks_posisi 3" in teks and "ekuitas ÷ maks_posisi" in teks
+    assert "Rp 1.000.000.000" in teks and "maks_posisi 2" in teks and "ekuitas ÷ maks_posisi" in teks
     cfg = _cfg({"backtest.mode.edge.maks_per_sektor": None, "backtest.mode.edge.alokasi_maks_pct": 25})
     teks = resolusi_konteks(cfg, "edge").uraian()
     assert "tanpa batas" in teks and "25% ekuitas" in teks
@@ -822,11 +831,11 @@ def _sesi_fiktif(**ubah) -> dict:
 
 
 def test_batas_bar_final_belum_terverifikasi_memakai_jam_run():
-    assert batas_bar_final_offset(_cfg()) == timedelta(hours=19, minutes=30)
+    assert batas_bar_final_offset(_cfg()) == timedelta(hours=20, minutes=0)
     assert batas_bar_final_offset(_cfg({"jadwal.jam_run": "07:05"})) == timedelta(hours=7, minutes=5)
     # jam_penutupan terisi tetapi terverifikasi false → tetap jam_run.
     cfg = _cfg({"pasar.jadwal_sesi": _sesi_fiktif(terverifikasi=False)})
-    assert batas_bar_final_offset(cfg) == timedelta(hours=19, minutes=30)
+    assert batas_bar_final_offset(cfg) == timedelta(hours=20, minutes=0)
 
 
 def test_batas_bar_final_terverifikasi_tanpa_jam_penutupan_memakai_jam_run():

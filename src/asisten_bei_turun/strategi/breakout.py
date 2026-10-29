@@ -1,4 +1,4 @@
-"""TB — Breakout dengan lonjakan volume (SPEC §12.2, §13.1 K_sinyal TB).
+"""TB — saham tangguh: breakout dengan lonjakan volume (SPEC §12.2, §13.1 K_sinyal TB).
 
 Syarat sinyal pada close `t` (semua harus benar; angka default ada di `strategi.tb`, P4):
 
@@ -7,6 +7,7 @@ Syarat sinyal pada close `t` (semua harus benar; angka default ada di `strategi.
 - TB3 `close_t > SMA(sma_tren)_t` dan `SMA(sma_tren)_t > SMA(sma_panjang)_t`
 - TB4 `CLV_t ≥ min_posisi_close`
 - TB5 `(close_t − HHV(high, lookback_tertinggi)_{t−1}) / ATR_t ≤ maks_lewat_level_atr`
+- TB6 `Unggul_IHSG(rs_lookback)_t × 100 ≥ min_unggul_ihsg_pct` (§9)
 
 Stop awal (ruang tersesuaikan) = `close_t − stop_atr × ATR_t`; konversi ke nominal dengan F(t) dan
 pembulatan ke atas dilakukan `Strategi._bangun_sinyal`. Tidak ada target tetap (`target_r = None`);
@@ -24,7 +25,7 @@ import math
 from typing import TYPE_CHECKING
 
 from ..indikator import k_hhv_high, k_rasio_vol, k_sma
-from .dasar import CekAturan, EvaluasiStrategi, Strategi, a, atr_sah, nilai_baris
+from .dasar import CekAturan, EvaluasiStrategi, Strategi, a, atr_sah, cek_unggul_ihsg, nilai_baris
 
 if TYPE_CHECKING:  # pragma: no cover
     from ..aturan_bei import AturanBEI
@@ -111,6 +112,9 @@ class Breakout(Strategi):
             cek.append(
                 CekAturan("TB5", f"{dasar_tb5} = {a(lewat)} ≤ {a(maks_lewat)}", _ada(lewat) and lewat <= maks_lewat)
             )
+
+        # TB6 — saham tangguh: unggul dari IHSG dalam `rs_lookback` bar valid (§9 Unggul_IHSG).
+        cek.append(cek_unggul_ihsg(dv, kode, "TB6", p.rs_lookback, float(p.min_unggul_ihsg_pct)))
 
         if not all(c.lolos for c in cek):
             return self.tanpa_sinyal(kode, cek)

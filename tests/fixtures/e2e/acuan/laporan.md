@@ -6,7 +6,7 @@ BUKAN SARAN INVESTASI
 
 Tanggal data t: 2025-09-10 — untuk hari bursa t+1: 2025-09-11
 
-Dibuat: 2025-09-10 20:00:00 WIB — hash8 2d1ece58 — versi 0.1.0 — REPLAY (--tanggal)
+Dibuat: 2025-09-10 20:00:00 WIB — hash8 ccc84033 — versi 0.1.0 — REPLAY (--tanggal)
 
 Status data run: LENGKAP
 
@@ -15,11 +15,11 @@ Status data run: LENGKAP
 ## Ringkasan aksi
 
 - BELI UJIPB 3 lot, limit 1.724 — tarik jika tidak terisi saat pembukaan
-- BELI UJIGAP 4 lot, limit 1.363 — tarik jika tidak terisi saat pembukaan
+- BELI UJIGAP 4 lot, limit 1.364 — tarik jika tidak terisi saat pembukaan
 
 ## Status pasar
 
-**BOLEH BELI (K3): Tren IHSG naik dan breadth sehat**
+**BOLEH BELI (K1): IHSG dalam tren turun: strategi tren turun aktif**
 
 | Syarat | Kondisi | Nilai | Ambang | ✓/✗ |
 |---|---|---|---|---|
@@ -27,19 +27,15 @@ Status data run: LENGKAP
 | K0 | Bar IHSG 2025-09-10 tersedia | ada | ada | ✓ |
 | K0 | Bar IHSG hilang dalam 60 hari bursa terakhir | 0 | ≤ 2 | ✓ |
 | K0 | Tanpa anomali data IHSG | tidak ada | tidak ada | ✓ |
-| K0 | SMA200 IHSG terdefinisi | 10.377,56 | terdefinisi | ✓ |
-| K0 | SMA50 IHSG terdefinisi | 11.082,53 | terdefinisi | ✓ |
+| K0 | SMA200 IHSG terdefinisi | 4.302,20 | terdefinisi | ✓ |
+| K0 | SMA50 IHSG terdefinisi | 3.920,57 | terdefinisi | ✓ |
 | K0 | Cakupan breadth (40/40 saham) | 100% | ≥ 80% | ✓ |
 | K0 | Saham breadth terhitung | 40 | ≥ 30 | ✓ |
-| K1 | IHSG close < SMA200 | 11.289,61 vs 10.377,56 | tren turun bila ✓ | ✗ |
-| K1 | SMA50 < SMA200 | 11.082,53 vs 10.377,56 | tren turun bila ✓ | ✗ |
-| K2 | Breadth (close > SMA50) | 65% | < 30% → JANGAN BELI | ✗ |
-| K3 | IHSG close > SMA200 | 11.289,61 vs 10.377,56 | wajib ✓ | ✓ |
-| K3 | SMA50 > SMA200 | 11.082,53 vs 10.377,56 | wajib ✓ | ✓ |
-| K3 | IHSG close > SMA50 | 11.289,61 vs 11.082,53 | wajib ✓ | ✓ |
-| K3 | Breadth | 65% | ≥ 50% | ✓ |
+| K1 | IHSG close < SMA200 | 3.768,29 vs 4.302,20 | keduanya ✓ → BOLEH BELI | ✓ |
+| K1 | SMA50 < SMA200 | 3.920,57 vs 4.302,20 | keduanya ✓ → BOLEH BELI | ✓ |
+| K2 | Breadth (close > SMA50) | 2,5% | < 30% → HATI-HATI bila K1 ✗ | ✓ |
 
-_Breadth: 26/40 di atas SMA50 (65%); cakupan 40/40 (100%)._
+_Breadth: 1/40 di atas SMA50 (2,5%); cakupan 40/40 (100%)._
 
 _(Grafik IHSG dengan SMA pendek/panjang: lihat laporan.html)_
 
@@ -51,7 +47,7 @@ _(Grafik Breadth 120 hari bursa: lihat laporan.html)_
 |---|---|---|---|---|---|
 | TP | LOLOS | 2025-11-28 | n/a (tanpa kerugian) | tidak | — |
 | TB | LOLOS | 2025-11-28 | 0,00 | tidak | — |
-| PJ | LOLOS | 2025-11-28 | 0,70 | tidak | — |
+| PJ | LOLOS | 2025-11-28 | 4,32 | tidak | — |
 
 ## Akun
 
@@ -61,8 +57,8 @@ _(Grafik Breadth 120 hari bursa: lihat laporan.html)_
 | Nilai posisi | Rp 0 |
 | Ekuitas | Rp 3.000.000 |
 | Anggaran risiko per transaksi | Rp 30.000 (1% ekuitas, status BOLEH BELI) |
-| Alokasi maks per posisi | Rp 1.000.000 |
-| Slot kosong | 3 |
+| Alokasi maks per posisi | Rp 1.500.000 |
+| Slot kosong | 2 |
 | akun.yaml diperbarui | 2025-09-10 |
 
 ## Posisi dipegang
@@ -75,7 +71,7 @@ Tidak ada posisi di portfolio.csv.
 
 | Item | Isi |
 |---|---|
-| Alasan sinyal | TP1: close 1.710,49 > SMA50 1.700,73 dan SMA50 1.700,73 > SMA200 1.573,79 ✓; TP2: SMA50 1.700,73 > SMA50 10 bar lalu 1.685,53 ✓; TP3: low ≤ SMA20 dalam 4 bar terakhir: hari ini low 1.667,06 ≤ SMA20 1.723,77; 1 bar lalu low 1.660,38 ≤ SMA20 1.723,98; 2 bar lalu low 1.678,85 ≤ SMA20 1.726,10; 3 bar lalu low 1.697,52 ≤ SMA20 1.727,19 ✓; TP4: close 1.710,49 > high kemarin 1.699,12 dan close 1.710,49 > open 1.670,40 ✓; TP5: (close 1.710,49 − SMA20 1.723,77) / ATR 28,38 = -0,47 ≤ 1,00 ✓ |
+| Alasan sinyal | TP1: close 1.710,49 > SMA50 1.700,73 dan SMA50 1.700,73 > SMA200 1.573,79 ✓; TP2: SMA50 1.700,73 > SMA50 10 bar lalu 1.685,53 ✓; TP3: low ≤ SMA20 dalam 4 bar terakhir: hari ini low 1.667,06 ≤ SMA20 1.723,77; 1 bar lalu low 1.660,38 ≤ SMA20 1.723,98; 2 bar lalu low 1.678,85 ≤ SMA20 1.726,10; 3 bar lalu low 1.697,52 ≤ SMA20 1.727,19 ✓; TP4: close 1.710,49 > high kemarin 1.699,12 dan close 1.710,49 > open 1.670,40 ✓; TP5: (close 1.710,49 − SMA20 1.723,77) / ATR 28,38 = -0,47 ≤ 1,00 ✓; TP6: unggul IHSG 60 bar 12,83% (saham 4,65%, IHSG -7,25%) ≥ 10,00% ✓ |
 | Harga referensi (close t) | 1.710,49 |
 | Instruksi masuk | Pasang order BELI limit di 1.724, 3 lot, sebelum pra-pembukaan t+1. Segera setelah harga pembukaan terbentuk, cek order Anda. Jika belum terisi (open > harga_maks), tarik (withdraw) order; jangan biarkan antre sepanjang hari, karena bisa terisi belakangan di harga yang tidak diuji backtest. Jika hanya terisi sebagian, tarik sisanya dan catat lot yang terisi saja. |
 | Stop loss | 1.655 (LLV5 − 0,2 × ATR14); jarak 4,00% |
@@ -88,19 +84,19 @@ Tidak ada posisi di portfolio.csv.
 
 _(Grafik UJIPB (TP, rencana): lihat laporan.html)_
 
-**UJIGAP — Ujigap Tbk (FIKTIF – KHUSUS UJI) (Sektor Fiktif F), TP, skor 68,2**
+**UJIGAP — Ujigap Tbk (FIKTIF – KHUSUS UJI) (Sektor Fiktif F), TP, skor 55,9**
 
 | Item | Isi |
 |---|---|
-| Alasan sinyal | TP1: close 1.352,76 > SMA50 1.345,04 dan SMA50 1.345,04 > SMA200 1.234,81 ✓; TP2: SMA50 1.345,04 > SMA50 10 bar lalu 1.333,02 ✓; TP3: low ≤ SMA20 dalam 4 bar terakhir: hari ini low 1.318,41 ≤ SMA20 1.363,26; 1 bar lalu low 1.313,13 ≤ SMA20 1.363,43; 2 bar lalu low 1.327,73 ≤ SMA20 1.365,11; 3 bar lalu low 1.342,50 ≤ SMA20 1.365,97 ✓; TP4: close 1.352,76 > high kemarin 1.343,76 dan close 1.352,76 > open 1.321,05 ✓; TP5: (close 1.352,76 − SMA20 1.363,26) / ATR 22,44 = -0,47 ≤ 1,00 ✓ |
+| Alasan sinyal | TP1: close 1.352,76 > SMA50 1.345,04 dan SMA50 1.345,04 > SMA200 1.234,81 ✓; TP2: SMA50 1.345,04 > SMA50 10 bar lalu 1.333,02 ✓; TP3: low ≤ SMA20 dalam 4 bar terakhir: hari ini low 1.318,41 ≤ SMA20 1.363,26; 1 bar lalu low 1.313,13 ≤ SMA20 1.363,43; 2 bar lalu low 1.327,73 ≤ SMA20 1.365,11; 3 bar lalu low 1.342,50 ≤ SMA20 1.365,97 ✓; TP4: close 1.352,76 > high kemarin 1.343,76 dan close 1.352,76 > open 1.321,05 ✓; TP5: (close 1.352,76 − SMA20 1.363,26) / ATR 23,41 = -0,45 ≤ 1,00 ✓; TP6: unggul IHSG 60 bar 12,83% (saham 4,65%, IHSG -7,25%) ≥ 10,00% ✓ |
 | Harga referensi (close t) | 1.352,76 |
-| Instruksi masuk | Pasang order BELI limit di 1.363, 4 lot, sebelum pra-pembukaan t+1. Segera setelah harga pembukaan terbentuk, cek order Anda. Jika belum terisi (open > harga_maks), tarik (withdraw) order; jangan biarkan antre sepanjang hari, karena bisa terisi belakangan di harga yang tidak diuji backtest. Jika hanya terisi sebagian, tarik sisanya dan catat lot yang terisi saja. |
-| Stop loss | 1.309 (LLV5 − 0,2 × ATR14); jarak 3,96% |
-| Target | target = harga isi + 2 × (harga isi − stop), dibulatkan ke bawah; isi 1.352,76 → target 1.440; isi 1.357 → target 1.453; isi 1.363 → target 1.471 |
-| Lot / nilai / fee beli | 4 lot (400 lembar) / Rp 545.200 / Rp 817,80 |
-| Risiko | Rp 24.249,09 (0,81% ekuitas); sisa anggaran per lembar Rp 14,38 |
+| Instruksi masuk | Pasang order BELI limit di 1.364, 4 lot, sebelum pra-pembukaan t+1. Segera setelah harga pembukaan terbentuk, cek order Anda. Jika belum terisi (open > harga_maks), tarik (withdraw) order; jangan biarkan antre sepanjang hari, karena bisa terisi belakangan di harga yang tidak diuji backtest. Jika hanya terisi sebagian, tarik sisanya dan catat lot yang terisi saja. |
+| Stop loss | 1.309 (LLV5 − 0,2 × ATR14); jarak 4,03% |
+| Target | target = harga isi + 2 × (harga isi − stop), dibulatkan ke bawah; isi 1.352,76 → target 1.440; isi 1.358 → target 1.456; isi 1.364 → target 1.474 |
+| Lot / nilai / fee beli | 4 lot (400 lembar) / Rp 545.600 / Rp 818,40 |
+| Risiko | Rp 24.649,69 (0,82% ekuitas); sisa anggaran per lembar Rp 13,38 |
 | R:R bersih (isi di harga_maks) | 1,69 |
-| Langkah setelah terisi | Pasang order otomatis stop di 1.309 (dan target di 1.471) hari itu juga. Jika harga isi sudah ≤ stop, stop telah terlewati: jual segera. Perbarui portfolio.csv dan akun.yaml (§19.6). |
+| Langkah setelah terisi | Pasang order otomatis stop di 1.309 (dan target di 1.474) hari itu juga. Jika harga isi sudah ≤ stop, stop telah terlewati: jual segera. Perbarui portfolio.csv dan akun.yaml (§19.6). |
 | Peringatan | Harga belum dibulatkan ke fraksi: bulatkan limit beli dan target ke BAWAH, stop ke ATAS ke fraksi harga valid. |
 
 _(Grafik UJIGAP (TP, rencana): lihat laporan.html)_
@@ -112,7 +108,7 @@ _Skor adalah heuristik pemeringkat, bukan peluang keberhasilan._
 | Kode | Strategi | Skor | Status | Alasan |
 |---|---|---|---|---|
 | UJIMAHAL | TP | 74,5 | TIDAK_TERJANGKAU | risiko 1 lot = Rp 63.694,30 (2,12% ekuitas) > anggaran Rp 30.000 (1%, status BOLEH BELI) |
-| UJIMAHAL2 | TP | 64,3 | TIDAK_TERJANGKAU | nilai 1 lot Rp 1.051.575 > alokasi maks Rp 1.000.000 |
+| UJIMAHAL2 | TP | 66,9 | TIDAK_TERJANGKAU | nilai 1 lot Rp 1.552.325 > alokasi maks Rp 1.500.000 |
 | UJISEKTOR | TP | 60,3 | BATAS_SEKTOR | sektor Sektor Fiktif A sudah mencapai 1 posisi |
 
 ## Daftar pantau
@@ -129,7 +125,7 @@ Seri: OK 51, SEBAGIAN 0, GAGAL 0; data basi 0; anomali 0; sumber CSV manual 0. R
 
 ## Item yang belum diverifikasi
 
-- pasar.jadwal_sesi — batas bar final = jadwal.jam_run 19:30 WIB; setiap run pada tanggal t+1 diberi banner. Cek jadwal perdagangan di idx.co.id.
+- pasar.jadwal_sesi — batas bar final = jadwal.jam_run 20:00 WIB; setiap run pada tanggal t+1 diberi banner. Cek jadwal perdagangan di idx.co.id.
 - pasar.fraksi_harga — harga hanya dibulatkan ke rupiah bulat (harga limit & target ke BAWAH, stop ke ATAS). Cek peraturan fraksi harga di idx.co.id.
 - pasar.auto_reject — batas ARA/ARB tidak dimodelkan di backtest/jurnal. Cek peraturan auto rejection di idx.co.id.
 - biaya — fee beli 0,15%, jual 0,25%, minimum Rp 0, pembulatan tidak ada: cocokkan dengan trade confirmation broker.
@@ -145,9 +141,9 @@ Order kertas MENUNGGU (bar t+1 belum ada): UJIGAP TP, UJIPB TP
 
 | Strategi | n jurnal | Rata-rata R | PF_R | n holdout | Rata-rata R holdout | PF_R holdout |
 |---|---|---|---|---|---|---|
-| TP | 0 | — | n/a (tanpa transaksi) | 6 | 0,31 | 657,68 |
+| TP | 0 | — | n/a (tanpa transaksi) | 6 | 0,32 | n/a (tanpa kerugian) |
 | TB | 0 | — | n/a (tanpa transaksi) | 1 | -0,31 | 0,00 |
-| PJ | 0 | — | n/a (tanpa transaksi) | 25 | 0,01 | 1,04 |
+| PJ | 0 | — | n/a (tanpa transaksi) | 17 | 0,24 | 8,70 |
 
 _Penyimpangan TP: sampel jurnal 0 < 20: belum diuji_
 
@@ -193,5 +189,7 @@ Keterbatasan singkat:
 | Jurnal kertas | Simulasi transaksi tanpa uang sungguhan (paper trading), memakai aturan yang sama dengan backtest. |
 | Stop waktu | Jual bila posisi belum keluar setelah N hari bursa. |
 | Trailing stop | Stop yang naik mengikuti harga dan tidak pernah turun. |
+| Unggul IHSG | Seberapa jauh perubahan harga saham lebih baik daripada IHSG dalam periode yang sama. +10% berarti saham 10% lebih kuat daripada IHSG. |
+| Jenuh jual | Harga turun tajam beberapa hari berturut-turut (RSI(2) sangat rendah). PJ membeli dengan harapan ada pantulan singkat; pantulan itu tidak dijamin. |
 
 BUKAN SARAN INVESTASI. Laporan ini dibuat otomatis oleh program pribadi berdasarkan aturan mekanis dan data publik yang bisa salah, terlambat, atau tidak lengkap. Hasil backtest dan paper trading tidak menjamin hasil di masa depan. Seluruh keputusan dan risiko transaksi menjadi tanggung jawab pengguna.

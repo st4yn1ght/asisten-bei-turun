@@ -1,4 +1,5 @@
-"""T-KP: filter kondisi pasar (SPEC §10) — setiap cabang K0–K4, batas tepat, cakupan, dan akibat status."""
+"""T-KP: filter kondisi pasar versi tren turun (SPEC §10) — setiap cabang K0–K3 (K1 → BOLEH BELI, K2 → HATI-HATI,
+K3 → JANGAN BELI), batas tepat, cakupan, dan akibat status."""
 
 from __future__ import annotations
 
@@ -42,74 +43,68 @@ def _hitung(saham: dict, ihsg=None, cfg=CFG, pos: int = T, kode_breadth=None, an
 
 
 # ---------------------------------------------------------------------------
-# K3 / K4 / K2 / K1
+# K1 / K2 / K3
 # ---------------------------------------------------------------------------
 
 
-def test_k3_boleh_beli_dengan_ihsg_tanpa_volume():
+def test_k3_jangan_beli_pasar_naik_dengan_ihsg_tanpa_volume():
     h = _hitung(_breadth(3, 2))
-    assert (h.status, h.aturan, h.tampilan) == (BOLEH_BELI, "K3", "BOLEH BELI")
-    assert h.alasan == "Tren IHSG naik dan breadth sehat"
+    assert (h.status, h.aturan, h.tampilan) == (JANGAN_BELI, "K3", "JANGAN BELI")
+    assert h.alasan.startswith("Pasar tidak sedang turun (close IHSG ")
+    assert "tidak di bawah SMA20" in h.alasan and "breadth 60% ≥ 30%" in h.alasan
+    assert h.alasan.endswith("; gunakan asisten-bei")
     assert (h.breadth.n_tercatat, h.breadth.n_terhitung, h.breadth.n_di_atas_sma) == (5, 5, 3)
     assert h.breadth.breadth_pct == Decimal(60)
     assert h.data_lengkap and h.kekurangan_data == ()
-    # Tabel syarat selalu lengkap; semua syarat K3 ✓.
-    assert len(h.syarat) == 15
+    # Tabel syarat selalu lengkap: 8 baris K0, 2 baris K1, 1 baris K2.
+    assert [s.aturan for s in h.syarat] == ["K0"] * 8 + ["K1", "K1", "K2"]
     assert all(s.terpenuhi for s in h.syarat if s.aturan == "K0")
-    assert all(s.terpenuhi for s in h.syarat if s.aturan == "K3")
     assert all(s.terpenuhi is False for s in h.syarat if s.aturan in ("K1", "K2"))
 
 
-def test_k4_hati_hati_breadth_di_bawah_ambang_boleh():
-    h = _hitung(_breadth(2, 3))
-    assert (h.status, h.aturan) == (HATI_HATI, "K4")
-    assert "breadth 40% < 50%" in h.alasan
-
-
-def test_k4_hati_hati_close_di_bawah_sma_pendek():
-    # Naik 1%/hari lalu turun 1%/hari selama 3 hari: close < SMA5 tetapi masih > SMA20, SMA5 > SMA20.
-    c = naik(T - 2, 7000, 0.01) + [7000 * 1.01 ** (T - 3) * 0.99 ** k for k in (1, 2, 3)]
-    h = _hitung(_breadth(3, 2), ihsg=bar(c, indeks=True))
-    assert h.status == HATI_HATI
-    assert "tidak di atas SMA5" in h.alasan
-    k3 = {s.uraian: s.terpenuhi for s in h.syarat if s.aturan == "K3"}
-    assert k3["IHSG close > SMA5"] is False and k3["IHSG close > SMA20"] is True
-
-
-def test_k2_breadth_lemah():
-    h = _hitung(_breadth(1, 4))
-    assert (h.status, h.aturan) == (JANGAN_BELI, "K2")
-    assert h.alasan == "Breadth lemah: 20% < 30%"
-
-
-def test_k1_ihsg_tren_turun():
+def test_k1_ihsg_tren_turun_boleh_beli():
     h = _hitung(_breadth(5, 0), ihsg=bar(turun(T + 1, 7000), indeks=True))
-    assert (h.status, h.aturan, h.alasan) == (JANGAN_BELI, "K1", "IHSG dalam tren turun")
-
-
-def test_k1_butuh_kedua_syarat_koreksi_awal_hati_hati():
-    """close < SMA20 tetapi SMA5 masih > SMA20 → bukan K1 (DAN, bukan ATAU) → K4."""
-    c = naik(T, 7000, 0.01)
-    c = c + [c[-1] * 0.88]  # koreksi tajam pada t
-    h = _hitung(_breadth(3, 2), ihsg=bar(c, indeks=True))
-    assert h.ihsg_close < h.ihsg_sma_panjang and h.ihsg_sma_pendek > h.ihsg_sma_panjang  # prasyarat
-    assert (h.status, h.aturan) == (HATI_HATI, "K4")
-
-
-def test_k3_butuh_sma_pendek_di_atas_sma_panjang_pemulihan_v():
-    """Pemulihan tajam: close > SMA5 dan close > SMA20, tetapi SMA5 < SMA20 → K4, bukan K3."""
-    c = turun(T - 1, 7000, 0.01)
-    c = c + [c[-1] * 1.06, c[-1] * 1.06 * 1.06]
-    h = _hitung(_breadth(3, 2), ihsg=bar(c, indeks=True))
-    assert h.ihsg_close > h.ihsg_sma_panjang and h.ihsg_close > h.ihsg_sma_pendek  # prasyarat
-    assert h.ihsg_sma_pendek < h.ihsg_sma_panjang
-    assert (h.status, h.aturan) == (HATI_HATI, "K4")
-    assert "SMA5" in h.alasan and "tidak di atas SMA20" in h.alasan
+    assert (h.status, h.aturan, h.alasan) == (BOLEH_BELI, "K1", "IHSG dalam tren turun: strategi tren turun aktif")
+    assert all(s.terpenuhi for s in h.syarat if s.aturan == "K1")
 
 
 def test_k1_mendahului_k2():
     h = _hitung(_breadth(0, 5), ihsg=bar(turun(T + 1, 7000), indeks=True))
-    assert h.aturan == "K1"
+    assert (h.status, h.aturan) == (BOLEH_BELI, "K1")
+
+
+def test_k2_breadth_lemah_tanpa_tren_turun_hati_hati():
+    h = _hitung(_breadth(1, 4))
+    assert (h.status, h.aturan) == (HATI_HATI, "K2")
+    assert h.alasan == "Breadth lemah: 20% < 30%, IHSG belum tren turun"
+
+
+def test_breadth_40_persen_tanpa_tren_turun_jangan_beli():
+    h = _hitung(_breadth(2, 3))
+    assert (h.status, h.aturan) == (JANGAN_BELI, "K3")
+    assert "breadth 40% ≥ 30%" in h.alasan
+
+
+def test_k1_butuh_kedua_syarat_koreksi_awal_bukan_tren_turun():
+    """close < SMA20 tetapi SMA5 masih > SMA20 → bukan K1 (DAN, bukan ATAU) → K3."""
+    c = naik(T, 7000, 0.01)
+    c = c + [c[-1] * 0.88]  # koreksi tajam pada t
+    h = _hitung(_breadth(3, 2), ihsg=bar(c, indeks=True))
+    assert h.ihsg_close < h.ihsg_sma_panjang and h.ihsg_sma_pendek > h.ihsg_sma_panjang  # prasyarat
+    assert (h.status, h.aturan) == (JANGAN_BELI, "K3")
+    assert "SMA5" in h.alasan and "tidak di bawah SMA20" in h.alasan
+    k1 = [s.terpenuhi for s in h.syarat if s.aturan == "K1"]
+    assert k1 == [True, False]
+
+
+def test_pemulihan_v_close_di_atas_sma_panjang_bukan_tren_turun():
+    """Pemulihan tajam: close > SMA20 walau SMA5 < SMA20 → bukan K1 → K3."""
+    c = turun(T - 1, 7000, 0.01)
+    c = c + [c[-1] * 1.06, c[-1] * 1.06 * 1.06]
+    h = _hitung(_breadth(3, 2), ihsg=bar(c, indeks=True))
+    assert h.ihsg_close > h.ihsg_sma_panjang and h.ihsg_sma_pendek < h.ihsg_sma_panjang  # prasyarat
+    assert (h.status, h.aturan) == (JANGAN_BELI, "K3")
+    assert [s.terpenuhi for s in h.syarat if s.aturan == "K1"] == [False, True]
 
 
 # ---------------------------------------------------------------------------
@@ -117,16 +112,10 @@ def test_k1_mendahului_k2():
 # ---------------------------------------------------------------------------
 
 
-def test_breadth_tepat_50_persen_lolos_k3():
-    h = _hitung(_breadth(2, 2))
-    assert h.breadth.breadth_pct == Decimal(50)
-    assert h.status == BOLEH_BELI
-
-
 def test_breadth_tepat_30_persen_bukan_k2():
     h = _hitung(_breadth(3, 7))
     assert h.breadth.breadth_pct == Decimal(30)
-    assert (h.status, h.aturan) == (HATI_HATI, "K4")
+    assert (h.status, h.aturan) == (JANGAN_BELI, "K3")
 
 
 def test_ambang_sedikit_di_atas_breadth_k2():
@@ -137,12 +126,12 @@ def test_ambang_sedikit_di_atas_breadth_k2():
 
 
 def test_batas_tepat_yang_meleset_bila_memakai_float():
-    """57/100 × 100 = 56,99999999999999 dalam float; perbandingan tepat harus tetap lolos 57%."""
+    """57/100 × 100 = 56,99999999999999 dalam float; breadth tepat 57% tidak boleh dianggap < 57% (K2)."""
     assert 57 / 100 * 100 < 57  # prasyarat: float memang meleset di sini
-    cfg = cfg_uji({**_UBAH, "kondisi_pasar.breadth_boleh_min_pct": 57})
+    cfg = cfg_uji({**_UBAH, "kondisi_pasar.breadth_jangan_maks_pct": 57})
     h = _hitung(_breadth(57, 43), cfg=cfg)
     assert h.breadth.breadth_pct == Decimal(57)
-    assert h.status == BOLEH_BELI
+    assert (h.status, h.aturan) == (JANGAN_BELI, "K3")
 
 
 def test_cakupan_tepat_yang_meleset_bila_memakai_float():
@@ -194,7 +183,7 @@ def test_k0_anomali_ihsg_dan_anomali_ok():
     h = _hitung(_breadth(4, 1), ihsg=ihsg)
     assert h.aturan == "K0" and "anomali data IHSG" in h.alasan
     h_ok = _hitung(_breadth(4, 1), ihsg=ihsg, anomali_ok={("IHSG", tgl(30))})
-    assert h_ok.status == BOLEH_BELI
+    assert (h_ok.status, h_ok.aturan) == (JANGAN_BELI, "K3")  # data sah lagi; IHSG naik → pasar tidak turun
 
 
 def test_k0_anomali_ihsg_di_luar_jendela_sma_panjang_tidak_k0():

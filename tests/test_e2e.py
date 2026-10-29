@@ -114,8 +114,8 @@ def sk(tmp_path_factory) -> Skenario:
         s.simpan_dump("5")
         s.harian("6", T1_5, "--tanggal", str(T1_5), config="config_uji_ujibo.yaml", jam="21:00:00")
         s.simpan_dump("6")
-        s.harian("7", bf.T_TURUN, "--catat", "--tanggal", str(bf.T_TURUN))
-        s.kandidat["7"] = s.baca_kandidat(bf.T_TURUN)
+        s.harian("7", bf.T_NAIK, "--catat", "--tanggal", str(bf.T_NAIK))
+        s.kandidat["7"] = s.baca_kandidat(bf.T_NAIK)
         s.simpan_dump("7")
         (akar / "output" / "backtest" / "gate_status.json").unlink()
         s.harian("8", T1, "--catat", "--tanggal", str(T1), jam="21:00:00")
@@ -148,9 +148,11 @@ def test_fixture_deterministik_sama_dengan_pembangkit():
 
 
 def test_fixture_tanggal_kunci_hari_bursa_dan_berurutan():
-    assert bf.T_TB < T1 < T1_5 < bf.T_HATI < bf.T_TURUN < bf.T_KOSONG
-    for d in (bf.T_TB, T1, bf.T_HATI, bf.T_TURUN, bf.T_KOSONG):
+    assert bf.PUNCAK < bf.T_TB < T1 < T1_5 < bf.AWAL_RELI < bf.T_HATI < bf.T_NAIK < bf.T_KOSONG
+    for d in (bf.PUNCAK, bf.T_TB, T1, bf.AWAL_RELI, bf.T_HATI, bf.T_NAIK, bf.T_KOSONG, *bf.TANGGAL_PJ):
         assert d in bf.IDX
+    assert bf.AWAL_RELI == bf.geser(T1, 6)
+    assert bf.TANGGAL_PJ[1:] == (T1_1, bf.T_NAIK)
 
 
 # ---------------------------------------------------------------------------
@@ -196,7 +198,7 @@ def test_langkah1_ujisplit_sizing_nominal_di_backtest(sk):
 def test_langkah2_status_dan_seleksi_t1(sk):
     h = sk.langkah["2"]
     assert h.kode == 0, h.teks
-    assert "Status pasar: BOLEH BELI (K3): Tren IHSG naik dan breadth sehat" in h.teks
+    assert "Status pasar: BOLEH BELI (K1): IHSG dalam tren turun: strategi tren turun aktif" in h.teks
     k = sk.kandidat["2"]
     tp = baris(k, "UJIPB", "TP")
     assert (tp["status_sinyal"], tp["lot"], tp["harga_maks"], tp["stop_awal"], tp["target_harga"]) == (
@@ -204,9 +206,9 @@ def test_langkah2_status_dan_seleksi_t1(sk):
     mahal = baris(k, "UJIMAHAL", "TP")
     assert mahal["status_sinyal"] == "TIDAK_TERJANGKAU" and "risiko 1 lot" in mahal["alasan"]
     mahal2 = baris(k, "UJIMAHAL2", "TP")
-    assert (mahal2["harga_maks"], mahal2["stop_awal"]) == ("10500", "10290")
+    assert (mahal2["harga_maks"], mahal2["stop_awal"]) == ("15500", "15290")
     assert mahal2["status_sinyal"] == "TIDAK_TERJANGKAU"
-    assert mahal2["alasan"] == "nilai 1 lot Rp 1.051.575 > alokasi maks Rp 1.000.000"
+    assert mahal2["alasan"] == "nilai 1 lot Rp 1.552.325 > alokasi maks Rp 1.500.000"
     assert baris(k, "UJISEKTOR", "TP")["status_sinyal"] == "BATAS_SEKTOR"
     assert baris(k, "UJIGAP", "TP")["status_sinyal"] == "REKOMENDASI"
     assert "UJIBOLONG" not in set(k["kode"])
@@ -215,10 +217,11 @@ def test_langkah2_status_dan_seleksi_t1(sk):
 
 
 def test_langkah2_risiko_ujimahal2_hitung_tangan():
-    # 1 lot: 100 × (10.500 × 1,0015 − 10.290 × 0,999 × 0,9975) = 26.173,9275 ≤ 30.000; biaya 1.051.575.
-    risiko = 100 * (Decimal(10500) * Decimal("1.0015") - Decimal(10290) * Decimal("0.999") * Decimal("0.9975"))
-    assert risiko.quantize(Decimal("0.01")) == Decimal("26173.93")
-    assert 100 * Decimal(10500) * Decimal("1.0015") == Decimal("1051575")
+    # 1 lot: 100 × (15.500 × 1,0015 − 15.290 × 0,999 × 0,9975) = 28.672,6775 ≤ 30.000 (1% × 3 juta);
+    # biaya 1.552.325 > alokasi 3 juta ÷ 2 posisi = 1.500.000.
+    risiko = 100 * (Decimal(15500) * Decimal("1.0015") - Decimal(15290) * Decimal("0.999") * Decimal("0.9975"))
+    assert risiko == Decimal("28672.6775")
+    assert 100 * Decimal(15500) * Decimal("1.0015") == Decimal("1552325")
 
 
 def _normal(teks: str) -> str:
@@ -361,10 +364,10 @@ def test_langkah7_jangan_beli_daftar_pantau(sk):
     k = sk.kandidat["7"]
     assert "REKOMENDASI" not in set(k["status_sinyal"])
     assert baris(k, "UJIMR", "PJ")["status_sinyal"] == "BAYANGAN_PASAR"
-    md = (sk.laporan(bf.T_TURUN) / "laporan.md").read_text(encoding="utf-8")
+    md = (sk.laporan(bf.T_NAIK) / "laporan.md").read_text(encoding="utf-8")
     pantau = md.split("## Daftar pantau")[1].split("## ")[0]
     assert "UJIMR PJ" in pantau
-    tercatat = [x for x in sk.dump["7"]["sinyal"] if x["tanggal_sinyal"] == str(bf.T_TURUN)]
+    tercatat = [x for x in sk.dump["7"]["sinyal"] if x["tanggal_sinyal"] == str(bf.T_NAIK)]
     assert tercatat and all(x["status_live"] == "BAYANGAN_PASAR" for x in tercatat)
 
 
@@ -421,7 +424,7 @@ def pasar_fixture(tmp_path_factory):
     return muat_pasar(ctx, m, kode, akhir=t, t=t).pasar, m
 
 
-@pytest.mark.parametrize("tanggal, status", [(T1, "BOLEH_BELI"), (bf.T_HATI, "HATI_HATI"), (bf.T_TURUN, "JANGAN_BELI")])
+@pytest.mark.parametrize("tanggal, status", [(T1, "BOLEH_BELI"), (bf.T_HATI, "HATI_HATI"), (bf.T_NAIK, "JANGAN_BELI")])
 def test_ihsg_tiga_status_pasar_pada_tanggal_kunci(pasar_fixture, tanggal, status):
     from asisten_bei_turun.kondisi_pasar import hitung_kondisi_pasar
 

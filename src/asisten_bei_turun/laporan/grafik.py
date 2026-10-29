@@ -145,10 +145,10 @@ def grafik_breadth(pasar: "DataPasar", t: date, kode_breadth: list[str]) -> byte
     _sumbu(ax, f"Breadth: % saham terhitung di atas SMA{cfg.breadth_sma} ({len(hari)} hari bursa)")
     x = list(range(len(hari)))
     ax.plot(x, nilai, color=SERI[0], linewidth=1.6)
-    for ambang, label in ((cfg.breadth_boleh_min_pct, "BOLEH BELI ≥"), (cfg.breadth_jangan_maks_pct, "JANGAN BELI <")):
-        ax.axhline(float(ambang), color=LIMIT, linewidth=0.9, linestyle="--")
-        ax.annotate(f"{label} {teks.angka(float(ambang), 0)}%", xy=(0, float(ambang)), xycoords=("axes fraction", "data"),
-                    xytext=(4, 3), textcoords="offset points", fontsize=8, color="#0b0b0b")
+    ambang = float(cfg.breadth_jangan_maks_pct)  # K2 (§10): di bawahnya HATI-HATI bila IHSG belum tren turun
+    ax.axhline(ambang, color=LIMIT, linewidth=0.9, linestyle="--")
+    ax.annotate(f"breadth lemah < {teks.angka(ambang, 0)}%", xy=(0, ambang), xycoords=("axes fraction", "data"),
+                xytext=(4, 3), textcoords="offset points", fontsize=8, color="#0b0b0b")
     ax.set_ylim(0, 100)
     _sumbu_tanggal(ax, hari)
     fig.tight_layout()

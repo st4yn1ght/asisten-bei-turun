@@ -44,7 +44,13 @@ from asisten_bei_turun.seleksi import REKOMENDASI
 from asisten_bei_turun.skor import KomponenSkor, SinyalBerskor
 from asisten_bei_turun.strategi.dasar import Sinyal
 from asisten_bei_turun.universe import HasilEligibilitas
-from bantu_pasar import HARI, cfg_uji, hari, pasar, tgl
+from bantu_pasar import HARI, cfg_uji as _cfg_uji_rilis, hari, pasar, tgl
+
+
+def cfg_uji(ubah: dict | None = None):
+    """Config rilis dengan `strategi.pj.min_hari_tahan: 2`: skenario PJ di berkas ini disusun untuk keluar SMA mulai
+    hari ke-2 (default alat ini 1, SPEC §12.3; diuji di `test_pj_keluar_sma_default_mulai_hari_entry`)."""
+    return _cfg_uji_rilis({"strategi.pj.min_hari_tahan": 2, **(ubah or {})})
 
 D = Decimal
 LABEL_FIKTIF = "FIKTIF – KHUSUS UJI"
@@ -846,6 +852,19 @@ def test_pj_keluar_sma_hanya_mulai_hari_ke_2():
     biaya = biaya_beli(100, "965.965")
     assert k.pnl_idr == hasil_jual(100, "1010.988") - biaya
     assert k.r == k.pnl_idr / risiko_rencana(100, 970, 900)
+
+
+def test_pj_keluar_sma_default_mulai_hari_entry():
+    # Default SPEC §7 (min_hari_tahan 1): hari ke-1 (E) close 1.000 > SMA5 980 → KELUAR_SMA dijadwalkan pada E,
+    # jual di open E+1 = 1.000 × 0,999 = 999.
+    bar = PJ_AWAL + [(965, 1005, 960, 1000), (1000, 1015, 995, 1010), (1012, 1020, 1005, 1015)]
+    cfg = _cfg_uji_rilis()
+    assert cfg.strategi.pj.min_hari_tahan == 1
+    pp = buat_pasar({KODE: bar}, cfg=cfg)
+    j = jalankan(pp, _order_pj(), PJ_E, PJ_E + 2)
+    assert j.jadwal[tgl(PJ_E)] == ex.KELUAR_SMA
+    k = j.keluar
+    assert k.tanggal == tgl(PJ_E + 1) and k.alasan == ex.KELUAR_SMA and k.harga == D("999.000")
 
 
 def test_pj_min_hari_tahan_dari_config():

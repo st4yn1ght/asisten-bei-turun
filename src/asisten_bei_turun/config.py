@@ -335,7 +335,6 @@ class KondisiPasar(_M):
     sma_pendek: IntPos
     sma_panjang: IntPos
     breadth_sma: IntPos
-    breadth_boleh_min_pct: Pct
     breadth_jangan_maks_pct: Pct
     min_cakupan_breadth_pct: Pct
     min_saham_breadth: IntPos
@@ -343,7 +342,7 @@ class KondisiPasar(_M):
     jangan_beli_paksa_jual: StrictBool
 
 
-class StrategiPB(_M):
+class StrategiTP(_M):
     aktif: StrictBool
     sma_cepat: IntPos
     sma_tren: IntPos
@@ -356,9 +355,11 @@ class StrategiPB(_M):
     maks_jarak_stop_atr: FloatPos
     target_r: FloatPos
     stop_waktu_hari: IntPos
+    rs_lookback: IntPos
+    min_unggul_ihsg_pct: Annotated[float, Field(ge=-100, le=100)]
 
 
-class StrategiBO(_M):
+class StrategiTB(_M):
     aktif: StrictBool
     lookback_tertinggi: IntPos
     lookback_volume: IntPos
@@ -370,13 +371,15 @@ class StrategiBO(_M):
     stop_atr: FloatPos
     trailing_atr: FloatPos
     stop_waktu_hari: IntPos | None
+    rs_lookback: IntPos
+    min_unggul_ihsg_pct: Annotated[float, Field(ge=-100, le=100)]
 
 
-class StrategiMR(_M):
+class StrategiPJ(_M):
     aktif: StrictBool
     rsi_periode: IntPos
     rsi_maks: Annotated[float, Field(gt=0, le=100)]
-    sma_tren: IntPos
+    ihsg_rsi_maks: Annotated[float, Field(gt=0, le=100)]
     maks_turun_harian_atr: FloatNonNeg
     stop_atr: FloatPos
     sma_keluar: IntPos
@@ -393,9 +396,9 @@ class StrategiAcak(_M):
 
 
 class Strategi(_M):
-    tp: StrategiPB
-    tb: StrategiBO
-    pj: StrategiMR
+    tp: StrategiTP
+    tb: StrategiTB
+    pj: StrategiPJ
     acak: StrategiAcak
 
 
@@ -535,15 +538,6 @@ class Config(_M):
         if v != 1:
             raise ValueError("config dari versi program lain (versi_config harus 1)")
         return v
-
-    @model_validator(mode="after")
-    def _silang(self):
-        kp = self.kondisi_pasar
-        if not kp.breadth_jangan_maks_pct <= kp.breadth_boleh_min_pct:
-            raise ValueError(
-                "kondisi_pasar.breadth_jangan_maks_pct harus <= breadth_boleh_min_pct"
-            )
-        return self
 
 
 # ---------------------------------------------------------------------------

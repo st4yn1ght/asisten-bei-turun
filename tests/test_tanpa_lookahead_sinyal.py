@@ -107,11 +107,17 @@ from test_tanpa_lookahead import (
 # Ambang kecil agar saham sintetis (RataNilai ±1–2 miliar, ±5% bar hilang/volume 0) cukup sering eligible
 # — K_rs lalu diperingkat atas 3–4 saham — sementara setiap alasan data (BAR_HILANG, ANOMALI, DATA_BASI,
 # RIWAYAT_PENDEK, SPLIT_BELUM_DISESUAIKAN, KEMUNGKINAN_SUSPENSI) tetap muncul di rentang uji.
+# Ambang tren turun dilonggarkan agar sinyal TP/TB/PJ sesering versi asisten-bei: Unggul_IHSG dan RSI IHSG tetap
+# dihitung (nilainya ada di uraian cek yang dibandingkan potong vs penuh), hanya ambangnya yang selalu lolos.
 UBAH_LA = {
     "kondisi_pasar.min_saham_breadth": 2,
     "likuiditas.nilai_transaksi_min_idr": 500_000_000,
     "likuiditas.maks_hari_volume_nol": 2,
     "data.validasi.maks_bar_hilang": 5,
+    "strategi.tp.min_unggul_ihsg_pct": -100.0,
+    "strategi.tb.min_unggul_ihsg_pct": -100.0,
+    "strategi.pj.rsi_maks": 10,
+    "strategi.pj.ihsg_rsi_maks": 100,
 }
 CFG_LA = _cfg(UBAH_LA)
 CFG_ACAK_PENUH = _cfg({**UBAH_LA, "strategi.acak.peluang_sinyal_pct": 100.0})

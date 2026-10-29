@@ -25,6 +25,9 @@ Fixture dasar (260 bar valid, posisi 0..259, t = posisi 259 = HARI[259] = 2024-1
   stop       = 1285 − 2,0 × 21,25 = 1.242,5   → bulat ke ATAS 1.243 (bukan 1.242)
 - K_sinyal = 0,5 × clip((2,0 − 1,5)/1,5, 0, 1) + 0,5 × 0,8 = 1/6 + 0,4 = 17/30.
 - RataNilai_t = (Σ_{i=240}^{258}(1000 + i) × 10⁶ + 1285 × 2 × 10⁶)/20 = (23.731 + 2.570) × 10⁶/20 = 1.315.050.000.
+- IHSG (indeks, tanpa volume): 7.000 untuk posisi ≤ 199, lalu turun lurus ke 6.300 pada t.
+  TB6 (rs_lookback 60): d0 = posisi 199. Saham 1285/1199 − 1 = 7,17%; IHSG 6300/7000 − 1 = −10%;
+  Unggul_IHSG = (1285/1199)/0,9 − 1 = 19,08% ≥ 10% ✓.
 """
 
 from __future__ import annotations
@@ -42,13 +45,20 @@ from asisten_bei_turun.config import Config
 from asisten_bei_turun.data.tampilan import DataPasar
 from asisten_bei_turun.strategi.breakout import Breakout
 from asisten_bei_turun.strategi.dasar import CekAturan, EvaluasiStrategi, daftar_strategi, hitung_sinyal
-from bantu_pasar import HARI, KAL, cfg_uji, data_saham, tgl
+from bantu_pasar import HARI, KAL, bar, cfg_uji, data_saham, tgl
 
 KODE = "ABCD"  # saham fiktif
 N = 260
 T = N - 1  # posisi t di HARI
 TGL_T = tgl(T)  # 2024-12-27
-KODE_ATURAN = ["TB1", "TB2", "TB3", "TB4", "TB5"]
+KODE_ATURAN = ["TB1", "TB2", "TB3", "TB4", "TB5", "TB6"]
+
+
+def ihsg_df(close: Sequence[float] | None = None) -> pd.DataFrame:
+    """IHSG fixture posisi 0..T: 7.000 sampai posisi 199, lalu turun lurus ke 6.300 pada t."""
+    if close is None:
+        close = [7000.0 if i <= 199 else 7000.0 - (i - 199) * 700.0 / 60.0 for i in range(N)]
+    return bar(close, indeks=True)
 
 
 # ---------------------------------------------------------------------------
@@ -101,10 +111,14 @@ def evaluasi(
     *,
     split: pd.Series | None = None,
     as_of: date = TGL_T,
+    ihsg: pd.DataFrame | None | bool = True,
 ) -> EvaluasiStrategi:
+    """`ihsg=True` → `ihsg_df()`; None → tanpa data IHSG."""
     cfg = cfg or cfg_uji()
     akhir = max(as_of, df.index[-1].date())
-    dp = DataPasar({KODE: data_saham(KODE, df, cfg, akhir, split=split)}, None, KAL, cfg)
+    ih = ihsg_df() if ihsg is True else ihsg
+    ds_ihsg = data_saham("IHSG", ih, cfg, akhir, indeks=True) if ih is not None else None
+    dp = DataPasar({KODE: data_saham(KODE, df, cfg, akhir, split=split)}, ds_ihsg, KAL, cfg)
     return Breakout(cfg).evaluasi(dp.tampilan(as_of), KODE, AturanBEI(cfg))
 
 
@@ -180,6 +194,7 @@ def test_uraian_memuat_nilai_aktual():
         "TB3: close 1.285,00 > SMA50 1.235,02 dan SMA50 1.235,02 > SMA200 1.159,63 ✓",
         "TB4: posisi close dalam rentang hari ini (CLV) 0,80 ≥ 0,60 ✓",
         "TB5: (close 1.285,00 − high tertinggi 1.268,00) / ATR 21,25 = 0,80 ≤ 1,00 ✓",
+        "TB6: unggul IHSG 60 bar 19,08% (saham 7,17%, IHSG -10,00%) ≥ 10,00% ✓",
     ]
 
 
@@ -304,7 +319,7 @@ def test_riwayat_100_bar_sma_panjang_nan_tb3_gagal():
 def test_riwayat_15_bar_hhv_rasio_sma_nan():
     # 14 bar sebelum t: HHV20, RasioVol20, SMA50/200 NaN; ATR_t ada (21,25); CLV ada (0,8).
     hasil = evaluasi(buat_df(close_dasar()[-14:]))
-    assert_hanya_gagal(hasil, ["TB1", "TB2", "TB3", "TB5"])
+    assert_hanya_gagal(hasil, ["TB1", "TB2", "TB3", "TB5", "TB6"])
     assert hasil.cek[0].uraian == "close 1.285,00 > high tertinggi 20 bar sebelumnya —"
     assert hasil.cek[1].uraian == "rasio volume (20 bar sebelumnya) — ≥ 1,50"
     assert hasil.cek[3].lolos  # CLV tidak butuh riwayat
@@ -313,7 +328,7 @@ def test_riwayat_15_bar_hhv_rasio_sma_nan():
 
 def test_riwayat_10_bar_atr_nan_tb5_tidak_terpenuhi():
     hasil = evaluasi(buat_df(close_dasar()[-9:]))
-    assert_hanya_gagal(hasil, ["TB1", "TB2", "TB3", "TB5"])
+    assert_hanya_gagal(hasil, ["TB1", "TB2", "TB3", "TB5", "TB6"])
     assert hasil.cek[4].uraian == "(close 1.285,00 − high tertinggi —) / ATR —: ATR tidak sah (≤ 0 atau tidak tersedia)"
 
 
@@ -392,7 +407,8 @@ def test_bar_sesudah_t_tidak_mengubah_evaluasi():
 def test_hitung_sinyal_memakai_breakout():
     cfg = cfg_uji()
     df = buat_df()
-    dp = DataPasar({KODE: data_saham(KODE, df, cfg, TGL_T)}, None, KAL, cfg)
+    ihsg = data_saham("IHSG", ihsg_df(), cfg, TGL_T, indeks=True)
+    dp = DataPasar({KODE: data_saham(KODE, df, cfg, TGL_T)}, ihsg, KAL, cfg)
     sinyal = hitung_sinyal(dp.tampilan(TGL_T), [KODE], [Breakout(cfg)])
     assert len(sinyal) == 1 and sinyal[0].strategi == "TB" and sinyal[0].stop == Decimal("1243")
 
@@ -428,6 +444,9 @@ FIXTURE_CFG = {
         ("strategi.tb.min_rasio_volume", 1.0, "dasar", {"k_sinyal": 0.9}),
         # harga_maks = 1285 + 0 × ATR = 1.285.
         ("entry.gap_maks_atr", 0.0, "dasar", {"harga_maks": Decimal("1285")}),
+        # d0 = posisi 258: saham 1285/1258 − 1 = 2,15%, IHSG −0,18% → unggul 2,33% < 10% → TB6 gagal.
+        ("strategi.tb.rs_lookback", 1, "dasar", {"gagal": ["TB6"]}),
+        ("strategi.tb.min_unggul_ihsg_pct", 19.09, "dasar", {"gagal": ["TB6"]}),  # 19,08…% < 19,09%
     ],
 )
 def test_kunci_config_mengubah_hasil(kunci, nilai, fixture, harapan):
@@ -512,7 +531,8 @@ def _evaluasi_tb3(close_seb: list[float], *, close_t, open_t, high_t, low_t):
     )
     df["sumber"] = "yfinance"
     cfg = cfg_uji()
-    dv = DataPasar({"BOBO": data_saham("BOBO", df, cfg, tgl(_T_TB3))}, None, KAL, cfg).tampilan(tgl(_T_TB3))
+    ihsg = data_saham("IHSG", ihsg_df().iloc[: len(c)], cfg, tgl(_T_TB3), indeks=True)  # IHSG turun → TB6 lolos
+    dv = DataPasar({"BOBO": data_saham("BOBO", df, cfg, tgl(_T_TB3))}, ihsg, KAL, cfg).tampilan(tgl(_T_TB3))
     p = cfg.strategi.tb
     baris = dv.baris("BOBO")
     return Breakout(cfg).evaluasi(dv, "BOBO", AturanBEI(cfg)), baris[k_sma(p.sma_tren)], baris[k_sma(p.sma_panjang)]
@@ -534,3 +554,25 @@ def test_tb3_close_sama_dengan_sma_tren_tidak_lolos():
     ev, sma_tren, sma_panjang = _evaluasi_tb3(seb, close_t=1000.0, open_t=985.0, high_t=1005.0, low_t=985.0)
     assert sma_tren == 1000.0 and sma_panjang == 925.0  # prasyarat
     assert ev.aturan_gagal == ["TB3"] and ev.sinyal is None
+
+
+# ---------------------------------------------------------------------------
+# TB6 — unggul dari IHSG (§9 Unggul_IHSG)
+# ---------------------------------------------------------------------------
+
+
+def test_tb6_unggul_ihsg_hitung_tangan():
+    hasil = evaluasi(buat_df())
+    tb6 = next(c for c in hasil.cek if c.kode == "TB6")
+    assert tb6.lolos and tb6.uraian == "unggul IHSG 60 bar 19,08% (saham 7,17%, IHSG -10,00%) ≥ 10,00%"
+
+
+def test_tb6_ihsg_datar_hanya_tb6_gagal():
+    hasil = evaluasi(buat_df(), ihsg=ihsg_df([7000.0] * N))
+    assert_hanya_gagal(hasil, ["TB6"])
+
+
+def test_tb6_tanpa_ihsg_tidak_terpenuhi():
+    hasil = evaluasi(buat_df(), ihsg=None)
+    assert_hanya_gagal(hasil, ["TB6"])
+    assert "tidak dapat dihitung" in hasil.cek[5].uraian

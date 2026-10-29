@@ -115,6 +115,40 @@ def a(x: float, desimal: int = 2) -> str:
     return teks.angka(x, desimal)
 
 
+def _close_ihsg(dv: "DataView", d: date | None) -> float:
+    if d is None:
+        return math.nan
+    return nilai_baris(dv.ihsg_baris(d), "close") if dv.ihsg() is not None else math.nan
+
+
+def unggul_ihsg(dv: "DataView", kode: str, n: int) -> tuple[float, float, float]:
+    """`Unggul_IHSG(n)_t` (§9) sebagai pecahan, beserta Ret saham dan Ret IHSG pada periode yang sama.
+
+    Periode = dari `d0` (tanggal bar valid ke-n sebelum t milik saham) sampai t. IHSG dinilai pada tanggal yang
+    sama, sehingga bar saham yang hilang tidak membuat periodenya berbeda. NaN bila saham belum punya n + 1 bar
+    valid atau IHSG tidak punya bar pada t atau d0 (aturan yang memakainya tidak terpenuhi)."""
+    close_t = dv.sebelum(kode, "close", 0)
+    close_0 = dv.sebelum(kode, "close", n)
+    d0 = dv.tanggal_sebelum(kode, n)
+    ihsg_t = _close_ihsg(dv, dv.as_of)
+    ihsg_0 = _close_ihsg(dv, d0)
+    if any(math.isnan(x) or x <= 0 for x in (close_t, close_0, ihsg_t, ihsg_0)):
+        return math.nan, math.nan, math.nan
+    ret_saham = close_t / close_0 - 1.0
+    ret_ihsg = ihsg_t / ihsg_0 - 1.0
+    return (1.0 + ret_saham) / (1.0 + ret_ihsg) - 1.0, ret_saham, ret_ihsg
+
+
+def cek_unggul_ihsg(dv: "DataView", kode: str, aturan: str, n: int, min_pct: float) -> CekAturan:
+    """Cek TP6/TB6: `Unggul_IHSG(n)_t × 100 ≥ min_pct`."""
+    unggul, ret_saham, ret_ihsg = unggul_ihsg(dv, kode, n)
+    uraian = (f"unggul IHSG {n} bar {a(unggul * 100)}% (saham {a(ret_saham * 100)}%, IHSG {a(ret_ihsg * 100)}%) "
+              f"≥ {a(min_pct)}%")
+    if math.isnan(unggul):
+        uraian += " — tidak dapat dihitung (riwayat saham kurang atau IHSG tanpa bar)"
+    return CekAturan(aturan, uraian, not math.isnan(unggul) and unggul * 100.0 >= min_pct)
+
+
 def hitung_target(harga_isi: Decimal, stop: Decimal, target_r: float, bei: AturanBEI, tanggal: date) -> Decimal:
     """Target = harga isi + target_r × (harga isi − stop), dibulatkan ke bawah (§12.1, §4.1).
     Harga nominal. Lempar ValueError bila harga isi ≤ stop (tidak ada target)."""

@@ -226,7 +226,7 @@ def periode_sma(cfg: Config) -> list[int]:
         {
             s.tp.sma_cepat, s.tp.sma_tren, s.tp.sma_panjang,
             s.tb.sma_tren, s.tb.sma_panjang,
-            s.pj.sma_tren, s.pj.sma_keluar,
+            s.pj.sma_keluar,
             kp.sma_pendek, kp.sma_panjang, kp.breadth_sma,
         }
     )
@@ -292,14 +292,15 @@ def hitung_indikator(valid: pd.DataFrame, cfg: Config) -> pd.DataFrame:
 
 
 def hitung_indikator_indeks(valid: pd.DataFrame, cfg: Config) -> pd.DataFrame:
-    """Indikator IHSG untuk kondisi pasar (§10): close, sma_{kondisi_pasar.sma_pendek},
-    sma_{kondisi_pasar.sma_panjang}. Volume indeks opsional dan tidak dipakai."""
+    """Indikator IHSG: close, sma_{kondisi_pasar.sma_pendek}, sma_{kondisi_pasar.sma_panjang} (kondisi pasar §10),
+    dan rsi_{strategi.pj.rsi_periode} (PJ2, §9 "RSI(n) IHSG"). Volume indeks opsional dan tidak dipakai."""
     _cek_bar_valid(valid, ("open", "high", "low", "close"), periksa_volume=False)
     kp = cfg.kondisi_pasar
     c = _float(valid["close"])
     kolom = {"close": c}
     for n in sorted({kp.sma_pendek, kp.sma_panjang}):
         kolom[k_sma(n)] = sma(c, n)
+    kolom[k_rsi(cfg.strategi.pj.rsi_periode)] = rsi_wilder(c, cfg.strategi.pj.rsi_periode)
     hasil = pd.DataFrame({k: x.to_numpy(dtype="float64") for k, x in kolom.items()}, index=valid.index)
     hasil.index.name = NAMA_INDEX
     return hasil

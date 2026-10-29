@@ -658,19 +658,21 @@ def _pos_subset(p: str, s: str, status: str, r: float = 1.0) -> ex.Posisi:
 
 
 def test_terjangkau_menurut_aturan_realistis_contoh_14_2():
-    """Modal realistis Rp 3.000.000 (ikuti_akun) → anggaran Rp 30.000 (HATI-HATI 15.000), alokasi 1.000.000.
+    """Modal realistis Rp 3.000.000 (ikuti_akun) → anggaran Rp 30.000 (HATI-HATI 15.000), alokasi 1.500.000 (÷ 2).
     A (2.030/1.888): risiko 1 lot 15.164,83 → terjangkau saat BOLEH BELI, tidak saat HATI-HATI.
     B (9.125/8.500): 66.841,63 > 30.000 → tidak. C (458/410) saat HATI-HATI: 5.012,10 ≤ 15.000 → terjangkau.
-    10.500/10.290: risiko 26.173,93 ≤ 30.000 tetapi 1 lot = 1.051.575 > alokasi 1.000.000 → tidak.
+    15.500/15.290: risiko 28.672,68 ≤ 30.000 tetapi 1 lot = 1.552.325 > alokasi 1.500.000 → tidak
+    (10.500/10.290, 1 lot = 1.051.575, kini terjangkau).
     JANGAN BELI → tidak pernah terjangkau. Ekuitas mode edge (meta ekuitas_sinyal) tidak dipakai."""
     cfg = cfg_uji()
     assert gb.terjangkau_realistis(_pos_subset("2030", "1888", "BOLEH_BELI"), cfg)
     assert not gb.terjangkau_realistis(_pos_subset("2030", "1888", "HATI_HATI"), cfg)
     assert not gb.terjangkau_realistis(_pos_subset("9125", "8500", "BOLEH_BELI"), cfg)
     assert gb.terjangkau_realistis(_pos_subset("458", "410", "HATI_HATI"), cfg)
-    assert not gb.terjangkau_realistis(_pos_subset("10500", "10290", "BOLEH_BELI"), cfg)
+    assert not gb.terjangkau_realistis(_pos_subset("15500", "15290", "BOLEH_BELI"), cfg)
+    assert gb.terjangkau_realistis(_pos_subset("10500", "10290", "BOLEH_BELI"), cfg)
     assert not gb.terjangkau_realistis(_pos_subset("458", "410", "JANGAN_BELI"), cfg)
-    besar = cfg_uji({"backtest.mode.realistis.modal_idr": 10_000_000})  # anggaran 100.000, alokasi 3.333.333,33
+    besar = cfg_uji({"backtest.mode.realistis.modal_idr": 10_000_000})  # anggaran 100.000, alokasi 5.000.000
     assert gb.terjangkau_realistis(_pos_subset("9125", "8500", "BOLEH_BELI"), besar)
     with pytest.raises(ValueError, match="meta rencana"):
         gb.terjangkau_realistis(buat_posisi("X", tgl(0), tgl(1), 1), cfg)
@@ -703,7 +705,7 @@ def test_subset_terjangkau_n_pf_ekspektansi_dan_lemah():
 
 LONGGAR = {
     "gerbang.min_transaksi_holdout": 1, "gerbang.min_pf_r_holdout": 0.5, "gerbang.min_ekspektansi_r_holdout": -1.0,
-    "gerbang.min_pf_r_insample": 0.5, "gerbang.min_pct_jendela_pf_di_atas_1": 0.0,
+    "gerbang.min_pf_r_insample": 0.1, "gerbang.min_pct_jendela_pf_di_atas_1": 0.0, "gerbang.maks_drawdown_r": 50,
 }
 
 

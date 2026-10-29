@@ -2,6 +2,12 @@
 
 Alat bantu keputusan saham BEI untuk pemakaian pribadi. **SPEC.md adalah sumber kebenaran** dan mengikat (nama berkas, kolom, kunci config, enum). Setiap perubahan perilaku dimulai dengan memperbarui SPEC.md.
 
+Ini versi **tren turun** dari asisten-bei (repo, paket `asisten_bei_turun`, dan modal terpisah; SPEC §24 = cara menyalin isian):
+
+- Filter pasar terbalik (§10, `kondisi_pasar.py`): K0 data kurang → JANGAN BELI; K1 IHSG `close < SMA200` dan `SMA50 < SMA200` → BOLEH BELI; K2 breadth < `breadth_jangan_maks_pct` → HATI-HATI; K3 selain itu → JANGAN BELI ("gunakan asisten-bei").
+- Strategi (§12): TP/TB = aturan pullback/breakout asisten-bei + TP6/TB6 `Unggul_IHSG(rs_lookback) ≥ min_unggul_ihsg_pct` (§9, `strategi/dasar.unggul_ihsg`); PJ = RSI(2) saham < `rsi_maks` dan RSI(2) IHSG < `ihsg_rsi_maks` (kolom RSI ikut dihitung untuk indeks). ACAK tidak berubah.
+- Default rilis: risiko 1%, `maks_posisi: 2`, PJ `min_hari_tahan: 1`, `jam_run` 20:00 (sesudah asisten-bei 19:30). Gerbang backtest tidak dilonggarkan.
+
 ## Perintah
 
 ```bash
@@ -35,6 +41,8 @@ ASISTEN_BEI_PERBARUI_ACUAN=1 .venv/bin/python -m pytest tests/test_e2e.py -q
 - **Path** di config relatif terhadap `--akar` (`KonteksApp.path()`), bukan direktori kerja.
 - **Uji** offline & deterministik: tanpa jaringan (yfinance di-mock), tidak menyentuh atau membaca berkas pengguna (`config.yaml`, `input/`, `.env`; salin fixture ke `tmp_path`, dasar config = `tests/fixtures/config_rilis.yaml`), selalu set `ASISTEN_BEI_WAKTU_SEKARANG`.
   Pembantu bersama: `tests/bantu_pasar.py` (`cfg_uji` dengan kunci bertitik, `bar`/`naik`/`turun`, `pasar(...)` → `DataPasar` sintetis). Tanda kualitas data semua simbol satu run wajib dihitung sampai `akhir` run yang sama (`bangun_data_saham`; ditegakkan `DataPasar`).
+  Uji warisan asisten-bei yang bergantung pada 3 slot, `min_hari_tahan: 2`, `jam_run` 19:30, atau IHSG naik mematok nilai itu lewat pembungkus `cfg_uji` tingkat modul atau IHSG sintetis yang dicerminkan; config rilis tetap nilai §7.
+  Fixture E2E (`buat_fixture.py`): IHSG turun panjang (`T1` = K1), reli sementara breadth tetap turun (`T_HATI` = K2), lalu pasar naik (`T_NAIK` = K3); saham `UJI*` naik pelan sehingga unggul IHSG.
 - Enum hanya nilai §4.3. Teks untuk pengguna berbahasa Indonesia; kata "trade" tidak dipakai di laporan.
 - Kode keluar §20.1, prioritas 3 > 1 > 5 > 2 > 6 > 4 > 0 (`operasional.gabung_kode_keluar`).
 - **Telegram:** semua HTTP lewat `notifikasi.telegram.HTTP` (diganti server palsu di uji, `tests/test_telegram.py`); token tidak pernah dicetak (`operasional.PENYARING`). Uji `harian` lewat `tests/bantu_harian.py` memakai `--tanpa-notifikasi` kecuali `notifikasi=True`.

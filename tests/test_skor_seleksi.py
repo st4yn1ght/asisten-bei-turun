@@ -3,7 +3,7 @@
 Bagian yang hanya ada di portofolio live (CEK ORDER §15.4, pembacaan portfolio.csv) diuji di tahap
 berikutnya; di sini posisi terbuka cukup berupa `PosisiTerbuka` (MANUAL dan di luar universe juga).
 
-Config rilis (§7): fee 0,15%/0,25%, slippage 0,10%, fee minimum 0, maks_posisi 3, maks_per_sektor 1,
+Config rilis (§7): fee 0,15%/0,25%, slippage 0,10%, fee minimum 0, maks_posisi 3 (disematkan; rilis 2), maks_per_sektor 1,
 alokasi = ekuitas ÷ 3. Ekuitas Rp 3.000.000 → anggaran Rp 30.000 (BOLEH BELI) / Rp 15.000 (HATI-HATI),
 alokasi maks Rp 1.000.000.
 """
@@ -38,7 +38,13 @@ from asisten_bei_turun.seleksi import (
 )
 from asisten_bei_turun.skor import CATATAN_SKOR, KomponenSkor, SinyalBerskor, beri_skor, hitung_k_rs, hitung_skor
 from asisten_bei_turun.strategi.dasar import Sinyal
-from bantu_pasar import bar, cfg_uji, pasar, tgl
+from bantu_pasar import bar, cfg_uji as _cfg_uji_rilis, pasar, tgl
+
+
+def cfg_uji(ubah: dict | None = None):
+    """Config rilis dengan `maks_posisi: 3`: skenario seleksi di berkas ini disusun untuk 3 slot (default alat
+    ini 2, SPEC §7); perubahan pemanggil tetap menang."""
+    return _cfg_uji_rilis({"risiko.maks_posisi": 3, **(ubah or {})})
 
 CFG = cfg_uji()
 T_SINYAL = date(2026, 10, 15)

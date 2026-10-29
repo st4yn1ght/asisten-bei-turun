@@ -11,7 +11,7 @@ lain di model config punya kasus, sehingga kunci baru tidak lolos tanpa uji.
 Keluaran yang dibandingkan TIDAK memuat teks uraian cek (yang ikut menyebut angka config, mis. "SMA150"),
 melainkan "aspek" keputusan:
 
-- `cek:<KODE>`  — status lolos aturan (TP1..TP5, TB1..TB5, PJ1..PJ3, ACAK, STOP, DATA);
+- `cek:<KODE>`  — status lolos aturan (TP1..TP6, TB1..TB6, PJ1..PJ3, ACAK, STOP, DATA);
 - `sinyal`      — ada/tidaknya sinyal;
 - `sinyal.<f>`  — field Sinyal bila sinyal ada di kedua sisi (harga_maks, stop, valid, target_r, …);
 - `skor.<k>`    — komponen skor (k_sinyal, k_rs, k_likuid, k_stop, skor) untuk sinyal saham eligible;
@@ -21,7 +21,8 @@ Dengan begitu kunci yang hanya muncul di label tetapi tidak dipakai dalam perhit
 
 Fixture: 8 saham sintetis berseed (random walk dengan rezim tren naik/turun bergantian, lonjakan volume
 acak), 460 hari bursa (kalender Senin–Jumat `bantu_pasar.KAL`), dievaluasi pada setiap hari bursa kedua
-HARI[256..458] (102 tanggal × 8 saham per strategi). Semua kunci yang dinilai disematkan eksplisit ke nilai default SPEC §7 di config dasar,
+HARI[256..458] (102 tanggal × 8 saham per strategi), ditambah IHSG sintetis (rata-rata return 8 saham dengan
+drift turun) untuk TP6/TB6/PJ2. Semua kunci yang dinilai disematkan eksplisit ke nilai default SPEC §7 di config dasar,
 sehingga uji tidak bergantung pada isi config rilis. Harga dibulatkan ke rupiah bulat
 (`pasar.fraksi_harga.terverifikasi: false`; tidak ada tabel fraksi BEI di uji ini).
 """
@@ -41,11 +42,11 @@ import pytest
 
 from asisten_bei_turun import skor as modul_skor
 from asisten_bei_turun.aturan_bei import AturanBEI
-from asisten_bei_turun.config import BobotSkor, Config, Skor, StrategiAcak, StrategiBO, StrategiMR, StrategiPB
+from asisten_bei_turun.config import BobotSkor, Config, Skor, StrategiAcak, StrategiTB, StrategiPJ, StrategiTP
 from asisten_bei_turun.data.tampilan import DataPasar
 from asisten_bei_turun.strategi.dasar import daftar_strategi, hitung_sinyal
 from asisten_bei_turun.universe import AturanUniverse, kode_eligible, nilai_eligibilitas
-from bantu_pasar import HARI, KAL, cfg_uji, data_saham
+from bantu_pasar import HARI, KAL, bar, cfg_uji, data_saham
 
 SEED = 20261017
 N_BAR = 460
@@ -66,6 +67,8 @@ DASAR_STRATEGI = {
     "strategi.tp.penyangga_stop_atr": 0.2,
     "strategi.tp.maks_jarak_stop_atr": 3.0,
     "strategi.tp.target_r": 2.0,
+    "strategi.tp.rs_lookback": 60,
+    "strategi.tp.min_unggul_ihsg_pct": 10.0,
     "strategi.tb.aktif": True,
     "strategi.tb.lookback_tertinggi": 20,
     "strategi.tb.lookback_volume": 20,
@@ -75,10 +78,12 @@ DASAR_STRATEGI = {
     "strategi.tb.sma_tren": 50,
     "strategi.tb.sma_panjang": 200,
     "strategi.tb.stop_atr": 2.0,
+    "strategi.tb.rs_lookback": 60,
+    "strategi.tb.min_unggul_ihsg_pct": 10.0,
     "strategi.pj.aktif": True,
     "strategi.pj.rsi_periode": 2,
-    "strategi.pj.rsi_maks": 10,
-    "strategi.pj.sma_tren": 200,
+    "strategi.pj.rsi_maks": 5,
+    "strategi.pj.ihsg_rsi_maks": 20,
     "strategi.pj.maks_turun_harian_atr": 3.0,
     "strategi.pj.stop_atr": 2.5,
     "strategi.pj.sma_keluar": 5,
@@ -138,6 +143,17 @@ def _buat_saham(i: int) -> pd.DataFrame:
 
 
 MENTAH = {k: _buat_saham(i) for i, k in enumerate(KODE)}
+
+
+def _buat_ihsg() -> pd.DataFrame:
+    """IHSG sintetis: rata-rata return log 8 saham dengan drift turun 0,1%/hari, sehingga saham yang kuat bisa unggul
+    ≥ 10% (TP6/TB6) dan RSI(2) IHSG kerap rendah bersamaan dengan saham yang jatuh (PJ2)."""
+    log_c = np.log(np.array([MENTAH[k]["close"].to_numpy() for k in KODE]))
+    log_r = np.mean(np.diff(log_c, axis=1, prepend=log_c[:, :1]), axis=0)
+    return bar(list(7000.0 * np.exp(np.cumsum(log_r - 0.001))), indeks=True)
+
+
+IHSG_MENTAH = _buat_ihsg()
 ATURAN = AturanUniverse(
     konteks="backtest", kandidat=tuple(KODE), anggota_pada=lambda k, d: True,
     exclude_pada=lambda k, d: None, sektor=lambda k: "S" + k,
@@ -145,7 +161,8 @@ ATURAN = AturanUniverse(
 
 
 def bangun_pasar(cfg: Config) -> DataPasar:
-    return DataPasar({k: data_saham(k, df, cfg, AKHIR) for k, df in MENTAH.items()}, None, KAL, cfg)
+    ihsg = data_saham("IHSG", IHSG_MENTAH, cfg, AKHIR, indeks=True)
+    return DataPasar({k: data_saham(k, df, cfg, AKHIR) for k, df in MENTAH.items()}, ihsg, KAL, cfg)
 
 
 # ---------------------------------------------------------------------------
@@ -281,6 +298,8 @@ KASUS_STRATEGI = [
     K("strategi.tp.maks_jarak_stop_atr", 2.0, "TP", {"sinyal.valid"}, set(),
       {"sinyal.valid", "sinyal.alasan_tidak_valid"}),
     K("strategi.tp.target_r", 3.0, "TP", {"sinyal.target_r"}, set(), {"sinyal.target_r"}),
+    K("strategi.tp.rs_lookback", 20, "TP", {"cek:TP6"}, {"TP6"}),
+    K("strategi.tp.min_unggul_ihsg_pct", 25.0, "TP", {"cek:TP6"}, {"TP6"}),
     # TB (§12.2)
     K("strategi.tb.lookback_tertinggi", 10, "TB", {"cek:TB1"}, {"TB1", "TB5"}),
     K("strategi.tb.lookback_volume", 5, "TB", {"cek:TB2", "sinyal.k_sinyal"}, {"TB2"}),
@@ -290,10 +309,12 @@ KASUS_STRATEGI = [
     K("strategi.tb.sma_tren", 30, "TB", {"cek:TB3"}, {"TB3"}),
     K("strategi.tb.sma_panjang", 100, "TB", {"cek:TB3"}, {"TB3"}),
     K("strategi.tb.stop_atr", 1.0, "TB", {"sinyal.stop"}, set(), _STOP),
+    K("strategi.tb.rs_lookback", 20, "TB", {"cek:TB6"}, {"TB6"}),
+    K("strategi.tb.min_unggul_ihsg_pct", 25.0, "TB", {"cek:TB6"}, {"TB6"}),
     # PJ (§12.3)
-    K("strategi.pj.rsi_periode", 3, "PJ", {"cek:PJ2", "sinyal.k_sinyal"}, {"PJ2"}),
-    K("strategi.pj.rsi_maks", 25, "PJ", {"cek:PJ2", "sinyal.k_sinyal"}, {"PJ2"}),
-    K("strategi.pj.sma_tren", 100, "PJ", {"cek:PJ1"}, {"PJ1"}),
+    K("strategi.pj.rsi_periode", 3, "PJ", {"cek:PJ1", "cek:PJ2"}, {"PJ1", "PJ2"}),  # juga RSI IHSG
+    K("strategi.pj.rsi_maks", 25, "PJ", {"cek:PJ1", "sinyal.k_sinyal"}, {"PJ1"}),
+    K("strategi.pj.ihsg_rsi_maks", 40, "PJ", {"cek:PJ2"}, {"PJ2"}),
     K("strategi.pj.maks_turun_harian_atr", 0.5, "PJ", {"cek:PJ3"}, {"PJ3"}),
     K("strategi.pj.stop_atr", 1.5, "PJ", {"sinyal.stop"}, set(), _STOP),
     # ACAK (§12.4)
@@ -457,8 +478,8 @@ def test_rs_lookback_mengubah_k_rs_sesuai_hitung_tangan():
 @pytest.mark.parametrize("kunci, nilai", [("skor.jarak_stop_ideal_pct", 5.0), ("skor.jarak_stop_buruk_pct", 6.0)])
 def test_jarak_stop_ideal_dan_buruk_mengubah_k_stop_sesuai_rumus(kunci, nilai):
     """K_stop = clip((buruk − jarak%)/(buruk − ideal), 0, 1), jarak% = (harga_maks − stop)/harga_maks × 100.
-    Jarak stop sinyal fixture ±3,2–9,7%: semuanya di antara ideal 3 dan buruk 10 (tanpa clip) pada dasar.
-    ideal 5 → sinyal berjarak ≤ 5% terpotong ke 1; buruk 6 → sinyal berjarak ≥ 6% terpotong ke 0, sehingga
+    Jarak stop sinyal fixture sebagian besar di antara ideal 3 dan buruk 10; yang di luarnya terpotong (clip) pada
+    dasar. ideal 5 → sinyal berjarak ≤ 5% terpotong ke 1; buruk 6 → sinyal berjarak ≥ 6% terpotong ke 0, sehingga
     kedua sisi clip ikut teruji, bersama nilai di tengah rentang."""
     dasar = keluaran_dasar()
     ubah = jalankan(cfg_dasar({kunci: nilai}), sinyal_dari=dasar)
@@ -470,10 +491,10 @@ def test_jarak_stop_ideal_dan_buruk_mengubah_k_stop_sesuai_rumus(kunci, nilai):
     k_stop = []
     for kunci_s, komp in ubah.skor.items():
         jarak = sinyal[kunci_s].jarak_stop_pct
-        assert 3.0 < jarak < 10.0  # dasar tanpa clip
         harapan = min(max((buruk - jarak) / (buruk - ideal), 0.0), 1.0)
         assert komp.k_stop == pytest.approx(harapan, abs=1e-12), (kunci_s, jarak)
-        assert dasar.skor[kunci_s].k_stop == pytest.approx((10.0 - jarak) / 7.0, abs=1e-12)
+        dasar_harapan = min(max((10.0 - jarak) / 7.0, 0.0), 1.0)
+        assert dasar.skor[kunci_s].k_stop == pytest.approx(dasar_harapan, abs=1e-12)
         k_stop.append(komp.k_stop)
     terpotong = 1.0 if kunci.endswith("ideal_pct") else 0.0
     assert k_stop.count(terpotong) >= 3, sorted(k_stop)
@@ -497,7 +518,7 @@ KHUSUS_EXIT = {
 
 def _kunci_model() -> set[str]:
     kunci = set()
-    for nama, model in (("tp", StrategiPB), ("tb", StrategiBO), ("pj", StrategiMR), ("acak", StrategiAcak)):
+    for nama, model in (("tp", StrategiTP), ("tb", StrategiTB), ("pj", StrategiPJ), ("acak", StrategiAcak)):
         kunci |= {f"strategi.{nama}.{f}" for f in model.model_fields}
     kunci |= {f"skor.bobot.{f}" for f in BobotSkor.model_fields}
     kunci |= {f"skor.{f}" for f in Skor.model_fields if f != "bobot"}

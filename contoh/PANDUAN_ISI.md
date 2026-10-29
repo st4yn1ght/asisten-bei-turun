@@ -260,7 +260,7 @@ diperbarui: 2026-10-15
 | Kolom | Wajib | Isi |
 |---|---|---|
 | `kode` | ya | Kode saham. Boleh di luar `universe.csv`. Satu kode = satu baris. |
-| `tanggal_beli` | ya | Tanggal beli (hari bursa). Tidak boleh sesudah tanggal data `t` yang dicetak `cek`: pembelian hari ini baru sah setelah `jadwal.jam_run` (19:30). Bila Anda mengisinya pagi/siang, `cek` memberi ERROR "setelah tanggal data t" — **jangan** mengubah tanggalnya; jalankan `cek` lagi setelah 19:30. |
+| `tanggal_beli` | ya | Tanggal beli (hari bursa). Tidak boleh sesudah tanggal data `t` yang dicetak `cek`: pembelian hari ini baru sah setelah `jadwal.jam_run` (20:00). Bila Anda mengisinya pagi/siang, `cek` memberi ERROR "setelah tanggal data t" — **jangan** mengubah tanggalnya; jalankan `cek` lagi setelah 20:00. |
 | `harga_beli` | ya | Harga rata-rata per lembar sesuai trade confirmation, tanpa fee, tanpa titik ribuan. |
 | `lot` | ya | Jumlah lot (1 lot = 100 lembar), bilangan bulat ≥ 1. Bila kolom `lembar` diisi, yang dipakai `lembar`, tetapi `lot` tetap wajib ≥ 1 (isi mis. `1`). |
 | `strategi` | ya | `TP`, `TB`, `PJ`, atau `MANUAL` (posisi yang bukan dari rekomendasi program). |

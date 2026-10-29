@@ -449,8 +449,8 @@ def test_split_tanpa_bar_pada_tanggalnya_dicatat_pada_bar_berikutnya(pasar, cach
     "saat, tersimpan",
     [
         ("2026-10-15 15:00:00", False),
-        ("2026-10-15 19:29:59", False),
-        ("2026-10-15 19:30:00", True),  # batas = jadwal.jam_run (jadwal sesi belum terverifikasi)
+        ("2026-10-15 19:59:59", False),
+        ("2026-10-15 20:00:00", True),  # batas = jadwal.jam_run (jadwal sesi belum terverifikasi)
         ("2026-10-15 22:00:00", True),
     ],
 )

@@ -1,18 +1,19 @@
-"""PJ — Oversold dalam tren naik (SPEC §12.3; `K_sinyal` PJ §13.1).
+"""PJ — Pantulan jenuh jual (SPEC §12.3; `K_sinyal` PJ §13.1).
 
 Syarat sinyal pada close `t` (= `dv.as_of`); semua aturan selalu dievaluasi dan dicantumkan, juga
 sesudah satu aturan gagal, dengan nilai aktual di uraiannya. Angka default ada di `strategi.pj` (P4):
 
 | # | Aturan (kunci `strategi.pj.*`) |
 |---|---|
-| PJ1 | `close_t > SMA(sma_tren)_t` |
-| PJ2 | `RSI(rsi_periode)_t < rsi_maks` |
+| PJ1 | `RSI(rsi_periode)_t < rsi_maks` (saham jenuh jual) |
+| PJ2 | `RSI(rsi_periode)` IHSG pada `t` `< ihsg_rsi_maks` (penurunan terjadi di seluruh pasar) |
 | PJ3 | `close_{t−1} − close_t ≤ maks_turun_harian_atr × ATR_t` (bukan jatuh ekstrem dalam sehari) |
 
 `close_{t−1}` = close bar valid sebelumnya (`dv.sebelum(kode, "close", 1)`, §4.1), bukan hari kalender
 sebelumnya. PJ3 adalah batas penurunan dalam satuan ATR (setara `(close_{t−1} − close_t)/ATR_t ≤ batas`),
-sehingga ATR ≤ 0 atau NaN membuatnya tidak terpenuhi (§9). Nilai NaN (riwayat kurang) membuat aturan
-yang memakainya tidak terpenuhi.
+sehingga ATR ≤ 0 atau NaN membuatnya tidak terpenuhi (§9). IHSG tanpa bar pada `t` membuat PJ2 tidak
+terpenuhi. Nilai NaN (riwayat kurang) membuat aturan yang memakainya tidak terpenuhi. PJ tidak mensyaratkan
+tren naik saham.
 
 Stop awal (ruang tersesuaikan) = `close_t − stop_atr × ATR_t`; `harga_maks`, konversi nominal `× F(t)`,
 dan pembulatan (harga_maks ke bawah, stop ke atas) dikerjakan `Strategi._bangun_sinyal`. Stop ≤ 0
@@ -29,7 +30,7 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING
 
-from ..indikator import k_rsi, k_sma
+from ..indikator import k_rsi
 from .dasar import CekAturan, EvaluasiStrategi, Strategi, a, atr_sah, nilai_baris
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -47,7 +48,7 @@ def _clip01(x: float) -> float:
 
 
 class Oversold(Strategi):
-    """PJ — jenuh jual jangka pendek dalam tren naik (SPEC §12.3)."""
+    """PJ — pantulan jenuh jual saat IHSG juga jenuh jual (SPEC §12.3)."""
 
     kode = "PJ"
 
@@ -59,32 +60,33 @@ class Oversold(Strategi):
                 kode, [CekAturan("DATA", f"tidak ada bar valid pada {dv.as_of.isoformat()}", False)]
             )
 
-        n_tren, n_rsi = p.sma_tren, p.rsi_periode
+        n_rsi = p.rsi_periode
         rsi_maks = float(p.rsi_maks)
+        ihsg_rsi_maks = float(p.ihsg_rsi_maks)
         maks_turun = float(p.maks_turun_harian_atr)
         close = nilai_baris(baris, "close")
         atr = nilai_baris(baris, "atr")
-        sma_tren = nilai_baris(baris, k_sma(n_tren))
         rsi = nilai_baris(baris, k_rsi(n_rsi))
+        rsi_ihsg = nilai_baris(dv.ihsg_baris(), k_rsi(n_rsi)) if dv.ihsg() is not None else math.nan
         close_kemarin = dv.sebelum(kode, "close", 1)
 
         cek: list[CekAturan] = []
 
-        # PJ1 — tren naik jangka panjang: close di atas SMA tren.
+        # PJ1 — saham jenuh jual: RSI di bawah batas.
         cek.append(
             CekAturan(
                 "PJ1",
-                f"close {a(close)} > SMA{n_tren} {a(sma_tren)}",
-                _ada(close, sma_tren) and close > sma_tren,
+                f"RSI({n_rsi}) {a(rsi)} < {a(rsi_maks)}",
+                _ada(rsi) and rsi < rsi_maks,
             )
         )
 
-        # PJ2 — jenuh jual: RSI di bawah batas.
+        # PJ2 — IHSG juga jenuh jual (penurunan di seluruh pasar).
         cek.append(
             CekAturan(
                 "PJ2",
-                f"RSI({n_rsi}) {a(rsi)} < {a(rsi_maks)}",
-                _ada(rsi) and rsi < rsi_maks,
+                f"RSI({n_rsi}) IHSG {a(rsi_ihsg)} < {a(ihsg_rsi_maks)}",
+                _ada(rsi_ihsg) and rsi_ihsg < ihsg_rsi_maks,
             )
         )
 

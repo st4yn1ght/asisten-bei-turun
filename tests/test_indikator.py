@@ -39,7 +39,6 @@ _TETAP = {
     "strategi.tb.sma_tren": 50,
     "strategi.tb.sma_panjang": 200,
     "strategi.pj.rsi_periode": 2,
-    "strategi.pj.sma_tren": 200,
     "strategi.pj.sma_keluar": 5,
     "kondisi_pasar.sma_pendek": 50,
     "kondisi_pasar.sma_panjang": 200,
@@ -492,15 +491,16 @@ class TestIndikatorIndeks:
         df = _acak(260, 8).assign(volume=np.nan)
         cfg = _cfg()
         h = ind.hitung_indikator_indeks(df, cfg)
-        assert list(h.columns) == ["close", "sma_50", "sma_200"]
+        assert list(h.columns) == ["close", "sma_50", "sma_200", "rsi_2"]  # rsi: strategi.pj.rsi_periode (PJ2)
         c = df["close"].tolist()
         _sama(h["sma_50"], ref_sma(c, 50))
         _sama(h["sma_200"], ref_sma(c, 200))
+        _sama(h["rsi_2"], ref_rsi(c, 2))
 
     def test_periode_dari_config(self):
-        cfg = _cfg({"kondisi_pasar.sma_pendek": 10, "kondisi_pasar.sma_panjang": 40})
+        cfg = _cfg({"kondisi_pasar.sma_pendek": 10, "kondisi_pasar.sma_panjang": 40, "strategi.pj.rsi_periode": 3})
         h = ind.hitung_indikator_indeks(_acak(50, 8), cfg)
-        assert list(h.columns) == ["close", "sma_10", "sma_40"]
+        assert list(h.columns) == ["close", "sma_10", "sma_40", "rsi_3"]
 
 
 def test_nama_kolom_standar():

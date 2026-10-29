@@ -331,6 +331,21 @@ class TampilanSeri:
             return math.nan
         return float(nilai[pos])
 
+    def tanggal_sebelum(self, k: int) -> date | None:
+        """Tanggal bar valid ke-k sebelum as_of (pasangan tanggal `sebelum`): k = 0 → as_of bila ada bar valid
+        pada as_of. None bila bar valid kurang. k < 0 meminta masa depan → LookAheadError."""
+        if isinstance(k, bool) or not isinstance(k, (int, np.integer)):
+            raise TypeError(f"k harus bilangan bulat (nilai: {k!r})")
+        if k < 0:
+            raise LookAheadError(f"akses look-ahead ditolak: {self.kode} tanggal bar ke-{k} (k < 0)")
+        kunci = self._kunci.indikator
+        n_le = self._jumlah("indikator")
+        n_lt = int(np.searchsorted(kunci[:n_le], self._as_of_ns, side="left"))
+        pos = n_lt if k == 0 else n_lt - k
+        if pos < 0 or pos >= n_le:
+            return None
+        return pd.Timestamp(int(kunci[pos])).date()
+
     def jumlah_bar_valid(self, termasuk_as_of: bool = True) -> int:
         """Banyak bar valid ≤ as_of (atau < as_of bila `termasuk_as_of=False`)."""
         n_le = self._jumlah("valid")
@@ -452,6 +467,9 @@ class DataView:
 
     def sebelum(self, kode: str, kolom: str, k: int) -> float:
         return self.seri(kode).sebelum(kolom, k)
+
+    def tanggal_sebelum(self, kode: str, k: int) -> date | None:
+        return self.seri(kode).tanggal_sebelum(k)
 
     def hhv_sejak(self, kode: str, mulai: date, sampai: date | None = None) -> float:
         return self.seri(kode).hhv_sejak(mulai, sampai)

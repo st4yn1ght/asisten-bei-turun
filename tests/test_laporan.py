@@ -18,7 +18,7 @@ from asisten_bei_turun.laporan.tabel import SHEET
 
 SEMUA_FORMAT = {"laporan.format": ["terminal", "markdown", "html", "csv", "xlsx"]}
 DISCLAIMER = "BUKAN SARAN INVESTASI"
-T = "2025-06-30"  # ada REKOMENDASI (AAAA TB) pada data sintetis
+T = "2025-06-30"  # BOLEH BELI (K1); REKOMENDASI AAAA (TB) dan CCCC (PJ) pada data sintetis
 
 
 @pytest.fixture
@@ -61,7 +61,7 @@ def test_html_mandiri(lengkap):
     assert not re.search(r"(src|href)\s*=\s*[\"'](?!data:)", html)
     assert "http://" not in html and "https://" not in html
     gambar = re.findall(r'<img [^>]*src="data:image/png;base64,', html)
-    assert len(gambar) == 3  # IHSG, breadth, AAAA (rencana)
+    assert len(gambar) == 4  # IHSG, breadth, AAAA dan CCCC (rencana)
     assert html.count(DISCLAIMER) >= 2 and "Glosarium" in html
 
 
@@ -116,7 +116,7 @@ def test_posisi_dipegang_tampil_dengan_level_order(proyek):
     bagian = md.split("## Posisi dipegang")[1].split("## ")[0]
     assert "| BBBB | TB |" in bagian and "Stop t+1 (order otomatis)" in bagian
     html = (proyek.folder_laporan / T / "laporan.html").read_text(encoding="utf-8")
-    assert len(re.findall(r'<img [^>]*src="data:image/png;base64,', html)) == 4
+    assert len(re.findall(r'<img [^>]*src="data:image/png;base64,', html)) == 5
     wb = load_workbook(proyek.folder_laporan / T / "rencana.xlsx")
     posisi = [r for r in wb["Posisi"].iter_rows(values_only=True)]
     assert posisi[2][0] == "BBBB"

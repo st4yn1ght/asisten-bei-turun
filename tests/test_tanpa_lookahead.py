@@ -58,7 +58,6 @@ _UBAH = {
     "strategi.tb.sma_tren": 50,
     "strategi.tb.sma_panjang": 200,
     "strategi.pj.rsi_periode": 2,
-    "strategi.pj.sma_tren": 200,
     "strategi.pj.sma_keluar": 5,
     "kondisi_pasar.sma_pendek": 50,
     "kondisi_pasar.sma_panjang": 200,

@@ -8,7 +8,7 @@ akun:
 
 risiko:
   risiko_per_transaksi_pct: 1.0        # % ekuitas; sudah termasuk fee & slippage sisi stop
-  maks_posisi: 3
+  maks_posisi: 2
   alokasi_maks_pct: ikuti_maks_posisi  # = ekuitas ÷ maks_posisi milik konteks yang berjalan; atau angka persen
   maks_per_sektor: 1                   # null = tanpa batas
   maks_entry_baru_per_hari: null       # null = hanya dibatasi slot
@@ -32,7 +32,7 @@ entry:
   stop_aktif_hari_entry: true          # false jika Anda tidak bisa memasang stop di hari pembelian
 
 jadwal:
-  jam_run: "19:30"                     # keputusan Anda; dipakai Task Scheduler & sebagai batas bar final (§8.6)
+  jam_run: "20:00"                     # setelah asisten-bei (19:30); Task Scheduler & batas bar final (§8.6)
   kirim_pesan_saat_libur: false
 
 pasar:
@@ -123,7 +123,6 @@ kondisi_pasar:
   sma_pendek: 50
   sma_panjang: 200
   breadth_sma: 50
-  breadth_boleh_min_pct: 50
   breadth_jangan_maks_pct: 30
   min_cakupan_breadth_pct: 80
   min_saham_breadth: 30                # jumlah absolut minimum saham yang dihitung
@@ -144,6 +143,8 @@ strategi:
     maks_jarak_stop_atr: 3.0
     target_r: 2.0
     stop_waktu_hari: 10
+    rs_lookback: 60                    # bar valid untuk Unggul_IHSG (§9)
+    min_unggul_ihsg_pct: 10.0          # TP6: unggul dari IHSG minimal 10% dalam rs_lookback bar
   tb:
     aktif: true
     lookback_tertinggi: 20
@@ -156,15 +157,17 @@ strategi:
     stop_atr: 2.0
     trailing_atr: 3.0
     stop_waktu_hari: null              # null = tanpa stop waktu
+    rs_lookback: 60
+    min_unggul_ihsg_pct: 10.0          # TB6
   pj:
     aktif: true
     rsi_periode: 2
-    rsi_maks: 10
-    sma_tren: 200
+    rsi_maks: 5
+    ihsg_rsi_maks: 20                  # PJ2: IHSG juga jenuh jual
     maks_turun_harian_atr: 3.0
     stop_atr: 2.5
     sma_keluar: 5
-    min_hari_tahan: 2
+    min_hari_tahan: 1
     stop_waktu_hari: 5
   acak:                                # pembanding acak; tidak pernah di laporan harian atau run gabungan
     peluang_sinyal_pct: 2.0
